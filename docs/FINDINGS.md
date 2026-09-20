@@ -116,3 +116,53 @@ gap on the engine side.
 
 **Boundary.** `../PS5_Vulkan` as it stands on this date, and vkQuake 1.36.0
 (`1b948e29`). Both will move.
+
+## The stencil buffer is load-bearing, so the depth gap has no engine-side fix
+
+**Measured.** vkQuake requires one of the two spec-mandated combined depth-stencil
+formats and `../PS5_Vulkan` reports neither, which stops the port inside device
+initialisation (`docs/PHASE_LOG.md`, the depth-stencil entry). The open question
+that entry left was whether the port could route around it by accepting the
+depth-only `VK_FORMAT_D32_SFLOAT` the driver does report. It cannot.
+
+vkQuake uses the stencil functionally, for the sky occlusion trick, in
+`QUAKE/gl_rmisc.c`. One pipeline rasterises sky geometry with
+`colorWriteMask = 0`, `stencilTestEnable = VK_TRUE`, `compareOp = ALWAYS`,
+`passOp = REPLACE` and `reference = 0x1` — it writes stencil and no colour
+(`:3384-3395`). A second draws the skybox with `depthTestEnable = VK_FALSE`,
+`depthWriteEnable = VK_FALSE`, `stencilTestEnable = VK_TRUE`,
+`compareOp = EQUAL`, `writeMask = 0x0` and `reference = 0x1`, so the skybox
+survives only where sky was actually rasterised (`:3424-3436`).
+
+It is not one pipeline's local trick. The engine builds a parallel render-pass
+set indexed by `MAIN_RENDER_PASS_STENCIL_CLEAR`, whose variants differ only in
+stencil load and clear semantics, and pipeline creation for the sky, the world,
+the OIT and the MBOIT passes loops over all of them.
+
+What the engine does *not* do is use a separate `pStencilAttachment`: every
+subpass names only `pDepthStencilAttachment` (`gl_vidsdl.c:1706-1749`), so the
+driver's refusal of separate stencil attachments is not the code path that fails.
+The format table is.
+
+**Consequence.** Two things follow, and both change the plan.
+
+First, there is no engine-side workaround worth having. A local patch letting the
+engine accept depth-only `D32_SFLOAT` would leave the sky pass writing and testing
+a stencil aspect that does not exist — either invalid at render-pass creation or
+silently wrong on screen. Editing the renderer to emulate the trick some other way
+would break the port's central invariant, that upstream sources stay unmodified
+and the port describes the console to the renderer rather than rewriting the
+renderer. So this is a genuine stop for M2's render-pass step, and its fix belongs
+in `../PS5_Vulkan` or nowhere.
+
+Second, the fix is larger than the format table. The driver has no stencil path at
+all: `DB_STENCIL_INFO` is the constant "stencil disabled" word, the stencil read
+and write bases and `DB_STENCIL_CLEAR` are written zero, `stencilTestEnable` is
+refused at pipeline creation, and a stencil clear is refused by name. An earlier
+entry in `docs/PHASE_LOG.md` estimated this at roughly twenty lines and suggested
+ignoring the stencil aspect; that estimate was wrong and that entry is superseded.
+
+**Boundary.** `../PS5_Vulkan` at `23bcea1`, vkQuake 1.36.0 (`1b948e29`).
+
+**Requested.** `docs/PS5_VULKAN_REQUESTS.md`, R1, with the code paths, the
+specification requirement and the acceptance test.

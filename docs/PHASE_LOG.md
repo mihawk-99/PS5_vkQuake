@@ -1050,3 +1050,48 @@ It is also small: an entry mapping the combined format onto the same `32_FLOAT`
 hardware word the depth-only one already uses, with the stencil aspect ignored, plus
 the draw path's two-format check widened to three. Quake uses no stencil, so ignoring
 it costs nothing that has been measured.
+
+### Correction: Quake does use stencil, and the driver has no stencil path
+
+The entry above ends by calling the fix small and by saying "Quake uses no
+stencil, so ignoring it costs nothing that has been measured". **That is wrong,
+and this entry supersedes it.** It was written from the format table and the
+draw path without reading what the engine does with a stencil attachment. It
+does a great deal:
+
+```
+gl_rmisc.c:3384-3395   sky stencil write: colorWriteMask = 0, compareOp = ALWAYS,
+                       passOp = REPLACE, reference = 0x1 -- stencil only, no colour
+gl_rmisc.c:3424-3436   skybox consume: depthTestEnable = VK_FALSE,
+                       compareOp = EQUAL, writeMask = 0x0, reference = 0x1
+```
+
+That pair is the sky occlusion trick, and the engine additionally builds a
+parallel render-pass set keyed on `MAIN_RENDER_PASS_STENCIL_CLEAR` whose variants
+differ only in stencil semantics. The stencil aspect is load-bearing across the
+whole pass set.
+
+The earlier entry was also wrong about the size. `../PS5_Vulkan` has no stencil
+path at all, not merely no combined format: `DB_STENCIL_INFO` is the constant
+"stencil disabled" word `0x20000180`, the stencil read and write bases and
+`DB_STENCIL_CLEAR` are written zero, `stencilTestEnable` is refused at pipeline
+creation, and a stencil clear is refused by name. The format entry is the visible
+end of it, not the work.
+
+**Consequence for the port.** There is no engine-side fix worth having. Accepting
+depth-only `D32_SFLOAT` would leave the sky pass writing and testing a stencil
+aspect that does not exist, and emulating the trick by editing the renderer would
+break the invariant that upstream stays unmodified. M2's render-pass step is
+genuinely stopped, and the fix belongs in `../PS5_Vulkan`.
+
+**Also recorded.** `../PS5_Vulkan` is maintained separately and is read-only from
+this repository. The gap is therefore reported rather than patched:
+`docs/PS5_VULKAN_REQUESTS.md` R1 carries the failure, the specification
+requirement, the engine code paths that reach it, the two places the driver's own
+roadmap already tracks it (`unknowns-depth-words`, and `vk_b3_image_test.c`'s
+assertion that the format reports no features), and the acceptance test.
+
+What this does **not** stop is the rest of M2. The driver's swapchain and present
+path is implemented and console-proven independently of depth, so the surface,
+swapchain and presented-frame half of M2 can still be settled here without the
+engine — which is the next step.
