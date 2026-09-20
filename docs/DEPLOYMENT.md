@@ -150,15 +150,33 @@ ordinary launches; the runner clears any stale audio control file in either case
 ## Where to put configurations, cores and content
 
 `/app0` is the running title's mount path, not an FTP directory. For this title,
-FTP uses `/data/homebrew/PPSA99169/` as the corresponding base directory:
+FTP uses `/data/homebrew/PPSA99010/` as the corresponding base directory:
 
 | Use | FTP path | In RetroArch |
 | --- | --- | --- |
-| Cores | `/data/homebrew/PPSA99169/cores/` | `/app0/cores/` |
-| ROMs/content | `/data/homebrew/PPSA99169/content/` | `/app0/content/` |
-| BIOS/system files | `/data/homebrew/PPSA99169/system/` | `/app0/system/` |
-| Live settings | `/data/homebrew/PPSA99169/config/retroarch.cfg` | `/app0/config/retroarch.cfg` |
+| Cores | `/data/homebrew/PPSA99010/cores/` | `/app0/cores/` |
+| ROMs/content | `/data/homebrew/PPSA99010/content/` | `/app0/content/` |
+| BIOS/system files | `/data/homebrew/PPSA99010/system/` | `/app0/system/` |
+| Live settings | `/data/homebrew/PPSA99010/config/retroarch.cfg` | `/app0/config/retroarch.cfg` |
 | Save files/states | `savefiles/`, `savestates/` under the FTP base | `/app0/savefiles/`, `/app0/savestates/` |
+
+The rows above are the RetroArch title's layout, carried over with the document
+because the console-side half of them is still true: the base directory is the
+title ID's, `/app0` is the mount path, and a title reads and writes its own folder
+this way. What vkQuake needs instead is smaller and is settled:
+
+| Use | Where it goes | Why |
+| --- | --- | --- |
+| Game data | `/app0/id1/pak0.pak` | `COM_AddGameDirectory(GAMENAME)` looks for `id1` under the base directory, and `GAMENAME` is `"id1"` |
+| Config | `/app0/vkQuake.cfg` | `COM_FOpenConfigFile` writes to `COM_GetWriteRoot()` |
+| Savegames | under `com_gamedir`, so `/app0/id1/` | `host_cmd.c` and `menu.c` write saves beside the game data |
+
+Both halves follow from the base directory, which on this port is `/app0`: the
+engine takes it from `-basedir` or from the working directory, and the port passes
+the former rather than relying on the latter. The development copy of the game
+data lives at `id1/pak0.pak` in this repository — the same relative path the
+engine will use — and is gitignored, because it is retail content that this
+repository never ships. `tests/test_game_data_ignored.py` holds that rule in place.
 
 The native frontend creates these directories. It installs the packaged
 `retroarch.cfg` seed only when the live config does not exist. Ordinary updates
