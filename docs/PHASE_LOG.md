@@ -1095,3 +1095,54 @@ What this does **not** stop is the rest of M2. The driver's swapchain and presen
 path is implemented and console-proven independently of depth, so the surface,
 swapchain and presented-frame half of M2 can still be settled here without the
 engine — which is the next step.
+
+### Reading the driver before asking it: the gap is real, and the audit hides it
+
+The step before this one wrote a request to `../PS5_Vulkan` asking it to support
+a combined depth-stencil format. Before sending it, this step read that repository
+— its git state, its progress documents and its own tooling — to check the request
+was right. It was right about the gap and wrong about how to present it, and the
+reading changed the request's whole framing.
+
+**Its state.** Local `main` is one commit ahead of the published `PS5Vulkan/main`
+— `23bcea1` ("round 7: the storage image, 16 rows closed") is not pushed, so the
+request's original citation named a commit the maintainer cannot see. Round 8's
+work is uncommitted in the tree. Two remotes share one URL, one of them 244
+commits stale, and a `master` branch sits 308 behind. The rung is closed: 179
+required formats, 54 reported, "0 compiler-blocked and 0 probe-reachable", with
+four blockers named — the descriptor type, the hardware's sRGB fetch order, ACO
+stability, and nothing else.
+
+**What the reading found.** The two depth-stencil formats are not among the four
+the audit reports as missing. They are among the 55 it reports as *conditional*,
+because the specification marks them `{sym2}` — and `tools/format_audit.py` files
+every `{sym2}` cell without ever checking whether the requirement is met, with
+`--check` failing only on `{sym1}`. This footnote is the case that breaks the
+abstraction: it carries **two `must` clauses under one marker**, one for the
+depth-only pair and one for the combined pair. The driver satisfies the first and
+violates the second.
+
+The proof it is the classification rather than the driver's table is in the tool's
+own output, which lists `VK_FORMAT_D32_SFLOAT` as conditional for
+`DEPTH_STENCIL_ATTACHMENT` while the driver carries that bit. The bucket holds a
+met row and a violated row and cannot tell them apart.
+
+**So the request was rewritten** to lead with the tooling finding rather than the
+driver gap. That is not a softer ask — it is a more accurate one, and it is
+verifiable by the maintainer in one command. The row is documented and deliberate:
+`docs/V0_FORMATS_AUDIT.md:238` gives its reason and closing path, and `:24` says
+conditional rows are listed that way "so a conditional row is never mistaken for a
+closed one". The classification is working as designed; it simply cannot
+distinguish a caveat from a disjunction.
+
+**Also corrected.** The first draft offered register addresses as if they were the
+work. They are not: the driver writes AGC register packets in ps5-opengl's
+compacted numbering, where `DB_Z_INFO` is offset `0x010` against Mesa's absolute
+`0x028040`, so Mesa's `amdgfxregs.h` gives field positions and op enumerations but
+neither the offset mapping nor the measured enable word. The request now says that
+plainly rather than implying the encoding is already in hand. ps5-opengl, checked
+for the same reason, has no stencil path either — its `src/` is only `platform/` —
+so the audit's "nothing has recorded" stands.
+
+No code changed in this step and nothing was pushed. `../PS5_Vulkan` was read
+only, as it must be: it is maintained separately.
