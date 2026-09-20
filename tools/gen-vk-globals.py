@@ -115,6 +115,12 @@ def split_declaration(parameter: str) -> tuple[str, str]:
     return parameter[:match.start()].strip(), name
 
 
+# The commands whose success is worth a line as much as their failure: they are the
+# spine of M2, and "reached it, and it worked" is the answer a console run exists to
+# give. Everything else reports only when it is refused.
+ALWAYS = {'vkCreateInstance', 'vkCreateDevice', 'vkEnumeratePhysicalDevices'}
+
+
 def wanted_commands() -> list[str]:
     """The globals the engine archive needs, or the fallback list."""
     import subprocess
@@ -175,12 +181,34 @@ def main() -> int:
         f' * {len(commands)} commands, read out of the header the engine was compiled against.',
         ' */',
         '',
+        '#include <stdio.h>',
         '#include <vulkan/vulkan_core.h>',
         '',
         '/* The driver\'s own exported entry point. ../PS5_Vulkan defines this one symbol at global',
         ' * scope, and everything below is resolved through it. */',
         'extern VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance,',
         '                                                                     const char *name);',
+        '',
+        '/* The trace door, so a console run says what the driver answered instead of only',
+        ' * how far it got. src/trace.cpp owns it, and it appends to the same file the',
+        ' * title writes its build identity to. */',
+        'extern void ps5_trace(const char *line);',
+        '',
+        '/* Which calls report. Every command that returns VkResult logs a failure, because',
+        ' * a refused call is what a run needs explained and a success is not - except the',
+        ' * three that build the graphics stack, which log both ways, because for those the',
+        ' * interesting question is whether they were reached at all. Those three are the',
+        ' * spine of M2 and "reached it, and it worked" is the answer a run exists to give. */',
+        'static VkResult traced_result(const char *name, VkResult result, int always)',
+        '{',
+        '    if (always || result != VK_SUCCESS)',
+        '    {',
+        '        char line[128];',
+        '        snprintf(line, sizeof line, "%s -> %d", name, (int)result);',
+        '        ps5_trace(line);',
+        '    }',
+        '    return result;',
+        '}',
         '',
     ]
 
@@ -194,7 +222,11 @@ def main() -> int:
         body.append('{')
         body.append(f'    if (!ps5_pfn_{command})')
         body.append(f'        ps5_pfn_{command} = (PFN_{command})vkGetInstanceProcAddr(NULL, "{command}");')
-        body.append(f'    return ps5_pfn_{command}({arguments});')
+        if ret == 'VkResult':
+            always = '1' if command in ALWAYS else '0'
+            body.append(f'    return traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
+        else:
+            body.append(f'    ps5_pfn_{command}({arguments});')
         body.append('}')
         body.append('')
 

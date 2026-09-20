@@ -14,6 +14,7 @@
  * 79 commands, read out of the header the engine was compiled against.
  */
 
+#include <stdio.h>
 #include <vulkan/vulkan_core.h>
 
 /* The driver's own exported entry point. ../PS5_Vulkan defines this one symbol at global
@@ -21,12 +22,33 @@
 extern VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance,
                                                                      const char *name);
 
+/* The trace door, so a console run says what the driver answered instead of only
+ * how far it got. src/trace.cpp owns it, and it appends to the same file the
+ * title writes its build identity to. */
+extern void ps5_trace(const char *line);
+
+/* Which calls report. Every command that returns VkResult logs a failure, because
+ * a refused call is what a run needs explained and a success is not - except the
+ * three that build the graphics stack, which log both ways, because for those the
+ * interesting question is whether they were reached at all. Those three are the
+ * spine of M2 and "reached it, and it worked" is the answer a run exists to give. */
+static VkResult traced_result(const char *name, VkResult result, int always)
+{
+    if (always || result != VK_SUCCESS)
+    {
+        char line[128];
+        snprintf(line, sizeof line, "%s -> %d", name, (int)result);
+        ps5_trace(line);
+    }
+    return result;
+}
+
 static PFN_vkAllocateCommandBuffers ps5_pfn_vkAllocateCommandBuffers;
 VKAPI_ATTR VkResult VKAPI_CALL vkAllocateCommandBuffers(VkDevice device, const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
 {
     if (!ps5_pfn_vkAllocateCommandBuffers)
         ps5_pfn_vkAllocateCommandBuffers = (PFN_vkAllocateCommandBuffers)vkGetInstanceProcAddr(NULL, "vkAllocateCommandBuffers");
-    return ps5_pfn_vkAllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers);
+    return traced_result("vkAllocateCommandBuffers", ps5_pfn_vkAllocateCommandBuffers(device, pAllocateInfo, pCommandBuffers), 0);
 }
 
 static PFN_vkAllocateDescriptorSets ps5_pfn_vkAllocateDescriptorSets;
@@ -34,7 +56,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkAllocateDescriptorSets(VkDevice device, const V
 {
     if (!ps5_pfn_vkAllocateDescriptorSets)
         ps5_pfn_vkAllocateDescriptorSets = (PFN_vkAllocateDescriptorSets)vkGetInstanceProcAddr(NULL, "vkAllocateDescriptorSets");
-    return ps5_pfn_vkAllocateDescriptorSets(device, pAllocateInfo, pDescriptorSets);
+    return traced_result("vkAllocateDescriptorSets", ps5_pfn_vkAllocateDescriptorSets(device, pAllocateInfo, pDescriptorSets), 0);
 }
 
 static PFN_vkAllocateMemory ps5_pfn_vkAllocateMemory;
@@ -42,7 +64,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkAllocateMemory(VkDevice device, const VkMemoryA
 {
     if (!ps5_pfn_vkAllocateMemory)
         ps5_pfn_vkAllocateMemory = (PFN_vkAllocateMemory)vkGetInstanceProcAddr(NULL, "vkAllocateMemory");
-    return ps5_pfn_vkAllocateMemory(device, pAllocateInfo, pAllocator, pMemory);
+    return traced_result("vkAllocateMemory", ps5_pfn_vkAllocateMemory(device, pAllocateInfo, pAllocator, pMemory), 0);
 }
 
 static PFN_vkBeginCommandBuffer ps5_pfn_vkBeginCommandBuffer;
@@ -50,7 +72,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkBeginCommandBuffer(VkCommandBuffer commandBuffe
 {
     if (!ps5_pfn_vkBeginCommandBuffer)
         ps5_pfn_vkBeginCommandBuffer = (PFN_vkBeginCommandBuffer)vkGetInstanceProcAddr(NULL, "vkBeginCommandBuffer");
-    return ps5_pfn_vkBeginCommandBuffer(commandBuffer, pBeginInfo);
+    return traced_result("vkBeginCommandBuffer", ps5_pfn_vkBeginCommandBuffer(commandBuffer, pBeginInfo), 0);
 }
 
 static PFN_vkBindBufferMemory ps5_pfn_vkBindBufferMemory;
@@ -58,7 +80,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkBindBufferMemory(VkDevice device, VkBuffer buff
 {
     if (!ps5_pfn_vkBindBufferMemory)
         ps5_pfn_vkBindBufferMemory = (PFN_vkBindBufferMemory)vkGetInstanceProcAddr(NULL, "vkBindBufferMemory");
-    return ps5_pfn_vkBindBufferMemory(device, buffer, memory, memoryOffset);
+    return traced_result("vkBindBufferMemory", ps5_pfn_vkBindBufferMemory(device, buffer, memory, memoryOffset), 0);
 }
 
 static PFN_vkBindImageMemory ps5_pfn_vkBindImageMemory;
@@ -66,7 +88,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkBindImageMemory(VkDevice device, VkImage image,
 {
     if (!ps5_pfn_vkBindImageMemory)
         ps5_pfn_vkBindImageMemory = (PFN_vkBindImageMemory)vkGetInstanceProcAddr(NULL, "vkBindImageMemory");
-    return ps5_pfn_vkBindImageMemory(device, image, memory, memoryOffset);
+    return traced_result("vkBindImageMemory", ps5_pfn_vkBindImageMemory(device, image, memory, memoryOffset), 0);
 }
 
 static PFN_vkCmdBeginRenderPass ps5_pfn_vkCmdBeginRenderPass;
@@ -74,7 +96,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBeginRenderPass(VkCommandBuffer commandBuffer, c
 {
     if (!ps5_pfn_vkCmdBeginRenderPass)
         ps5_pfn_vkCmdBeginRenderPass = (PFN_vkCmdBeginRenderPass)vkGetInstanceProcAddr(NULL, "vkCmdBeginRenderPass");
-    return ps5_pfn_vkCmdBeginRenderPass(commandBuffer, pRenderPassBegin, contents);
+    ps5_pfn_vkCmdBeginRenderPass(commandBuffer, pRenderPassBegin, contents);
 }
 
 static PFN_vkCmdBindDescriptorSets ps5_pfn_vkCmdBindDescriptorSets;
@@ -82,7 +104,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBindDescriptorSets(VkCommandBuffer commandBuffer
 {
     if (!ps5_pfn_vkCmdBindDescriptorSets)
         ps5_pfn_vkCmdBindDescriptorSets = (PFN_vkCmdBindDescriptorSets)vkGetInstanceProcAddr(NULL, "vkCmdBindDescriptorSets");
-    return ps5_pfn_vkCmdBindDescriptorSets(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
+    ps5_pfn_vkCmdBindDescriptorSets(commandBuffer, pipelineBindPoint, layout, firstSet, descriptorSetCount, pDescriptorSets, dynamicOffsetCount, pDynamicOffsets);
 }
 
 static PFN_vkCmdBindIndexBuffer ps5_pfn_vkCmdBindIndexBuffer;
@@ -90,7 +112,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBindIndexBuffer(VkCommandBuffer commandBuffer, V
 {
     if (!ps5_pfn_vkCmdBindIndexBuffer)
         ps5_pfn_vkCmdBindIndexBuffer = (PFN_vkCmdBindIndexBuffer)vkGetInstanceProcAddr(NULL, "vkCmdBindIndexBuffer");
-    return ps5_pfn_vkCmdBindIndexBuffer(commandBuffer, buffer, offset, indexType);
+    ps5_pfn_vkCmdBindIndexBuffer(commandBuffer, buffer, offset, indexType);
 }
 
 static PFN_vkCmdBindVertexBuffers ps5_pfn_vkCmdBindVertexBuffers;
@@ -98,7 +120,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBindVertexBuffers(VkCommandBuffer commandBuffer,
 {
     if (!ps5_pfn_vkCmdBindVertexBuffers)
         ps5_pfn_vkCmdBindVertexBuffers = (PFN_vkCmdBindVertexBuffers)vkGetInstanceProcAddr(NULL, "vkCmdBindVertexBuffers");
-    return ps5_pfn_vkCmdBindVertexBuffers(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
+    ps5_pfn_vkCmdBindVertexBuffers(commandBuffer, firstBinding, bindingCount, pBuffers, pOffsets);
 }
 
 static PFN_vkCmdBlitImage ps5_pfn_vkCmdBlitImage;
@@ -106,7 +128,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdBlitImage(VkCommandBuffer commandBuffer, VkImage
 {
     if (!ps5_pfn_vkCmdBlitImage)
         ps5_pfn_vkCmdBlitImage = (PFN_vkCmdBlitImage)vkGetInstanceProcAddr(NULL, "vkCmdBlitImage");
-    return ps5_pfn_vkCmdBlitImage(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
+    ps5_pfn_vkCmdBlitImage(commandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
 }
 
 static PFN_vkCmdCopyBuffer ps5_pfn_vkCmdCopyBuffer;
@@ -114,7 +136,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdCopyBuffer(VkCommandBuffer commandBuffer, VkBuff
 {
     if (!ps5_pfn_vkCmdCopyBuffer)
         ps5_pfn_vkCmdCopyBuffer = (PFN_vkCmdCopyBuffer)vkGetInstanceProcAddr(NULL, "vkCmdCopyBuffer");
-    return ps5_pfn_vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, regionCount, pRegions);
+    ps5_pfn_vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, regionCount, pRegions);
 }
 
 static PFN_vkCmdCopyBufferToImage ps5_pfn_vkCmdCopyBufferToImage;
@@ -122,7 +144,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdCopyBufferToImage(VkCommandBuffer commandBuffer,
 {
     if (!ps5_pfn_vkCmdCopyBufferToImage)
         ps5_pfn_vkCmdCopyBufferToImage = (PFN_vkCmdCopyBufferToImage)vkGetInstanceProcAddr(NULL, "vkCmdCopyBufferToImage");
-    return ps5_pfn_vkCmdCopyBufferToImage(commandBuffer, srcBuffer, dstImage, dstImageLayout, regionCount, pRegions);
+    ps5_pfn_vkCmdCopyBufferToImage(commandBuffer, srcBuffer, dstImage, dstImageLayout, regionCount, pRegions);
 }
 
 static PFN_vkCmdCopyImageToBuffer ps5_pfn_vkCmdCopyImageToBuffer;
@@ -130,7 +152,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdCopyImageToBuffer(VkCommandBuffer commandBuffer,
 {
     if (!ps5_pfn_vkCmdCopyImageToBuffer)
         ps5_pfn_vkCmdCopyImageToBuffer = (PFN_vkCmdCopyImageToBuffer)vkGetInstanceProcAddr(NULL, "vkCmdCopyImageToBuffer");
-    return ps5_pfn_vkCmdCopyImageToBuffer(commandBuffer, srcImage, srcImageLayout, dstBuffer, regionCount, pRegions);
+    ps5_pfn_vkCmdCopyImageToBuffer(commandBuffer, srcImage, srcImageLayout, dstBuffer, regionCount, pRegions);
 }
 
 static PFN_vkCmdDispatch ps5_pfn_vkCmdDispatch;
@@ -138,7 +160,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDispatch(VkCommandBuffer commandBuffer, uint32_t
 {
     if (!ps5_pfn_vkCmdDispatch)
         ps5_pfn_vkCmdDispatch = (PFN_vkCmdDispatch)vkGetInstanceProcAddr(NULL, "vkCmdDispatch");
-    return ps5_pfn_vkCmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
+    ps5_pfn_vkCmdDispatch(commandBuffer, groupCountX, groupCountY, groupCountZ);
 }
 
 static PFN_vkCmdDraw ps5_pfn_vkCmdDraw;
@@ -146,7 +168,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDraw(VkCommandBuffer commandBuffer, uint32_t ver
 {
     if (!ps5_pfn_vkCmdDraw)
         ps5_pfn_vkCmdDraw = (PFN_vkCmdDraw)vkGetInstanceProcAddr(NULL, "vkCmdDraw");
-    return ps5_pfn_vkCmdDraw(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+    ps5_pfn_vkCmdDraw(commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 }
 
 static PFN_vkCmdDrawIndexed ps5_pfn_vkCmdDrawIndexed;
@@ -154,7 +176,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndexed(VkCommandBuffer commandBuffer, uint3
 {
     if (!ps5_pfn_vkCmdDrawIndexed)
         ps5_pfn_vkCmdDrawIndexed = (PFN_vkCmdDrawIndexed)vkGetInstanceProcAddr(NULL, "vkCmdDrawIndexed");
-    return ps5_pfn_vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    ps5_pfn_vkCmdDrawIndexed(commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 }
 
 static PFN_vkCmdEndRenderPass ps5_pfn_vkCmdEndRenderPass;
@@ -162,7 +184,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdEndRenderPass(VkCommandBuffer commandBuffer)
 {
     if (!ps5_pfn_vkCmdEndRenderPass)
         ps5_pfn_vkCmdEndRenderPass = (PFN_vkCmdEndRenderPass)vkGetInstanceProcAddr(NULL, "vkCmdEndRenderPass");
-    return ps5_pfn_vkCmdEndRenderPass(commandBuffer);
+    ps5_pfn_vkCmdEndRenderPass(commandBuffer);
 }
 
 static PFN_vkCmdExecuteCommands ps5_pfn_vkCmdExecuteCommands;
@@ -170,7 +192,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdExecuteCommands(VkCommandBuffer commandBuffer, u
 {
     if (!ps5_pfn_vkCmdExecuteCommands)
         ps5_pfn_vkCmdExecuteCommands = (PFN_vkCmdExecuteCommands)vkGetInstanceProcAddr(NULL, "vkCmdExecuteCommands");
-    return ps5_pfn_vkCmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers);
+    ps5_pfn_vkCmdExecuteCommands(commandBuffer, commandBufferCount, pCommandBuffers);
 }
 
 static PFN_vkCmdNextSubpass ps5_pfn_vkCmdNextSubpass;
@@ -178,7 +200,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdNextSubpass(VkCommandBuffer commandBuffer, VkSub
 {
     if (!ps5_pfn_vkCmdNextSubpass)
         ps5_pfn_vkCmdNextSubpass = (PFN_vkCmdNextSubpass)vkGetInstanceProcAddr(NULL, "vkCmdNextSubpass");
-    return ps5_pfn_vkCmdNextSubpass(commandBuffer, contents);
+    ps5_pfn_vkCmdNextSubpass(commandBuffer, contents);
 }
 
 static PFN_vkCmdPipelineBarrier ps5_pfn_vkCmdPipelineBarrier;
@@ -186,7 +208,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdPipelineBarrier(VkCommandBuffer commandBuffer, V
 {
     if (!ps5_pfn_vkCmdPipelineBarrier)
         ps5_pfn_vkCmdPipelineBarrier = (PFN_vkCmdPipelineBarrier)vkGetInstanceProcAddr(NULL, "vkCmdPipelineBarrier");
-    return ps5_pfn_vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
+    ps5_pfn_vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, dependencyFlags, memoryBarrierCount, pMemoryBarriers, bufferMemoryBarrierCount, pBufferMemoryBarriers, imageMemoryBarrierCount, pImageMemoryBarriers);
 }
 
 static PFN_vkCmdResetQueryPool ps5_pfn_vkCmdResetQueryPool;
@@ -194,7 +216,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdResetQueryPool(VkCommandBuffer commandBuffer, Vk
 {
     if (!ps5_pfn_vkCmdResetQueryPool)
         ps5_pfn_vkCmdResetQueryPool = (PFN_vkCmdResetQueryPool)vkGetInstanceProcAddr(NULL, "vkCmdResetQueryPool");
-    return ps5_pfn_vkCmdResetQueryPool(commandBuffer, queryPool, firstQuery, queryCount);
+    ps5_pfn_vkCmdResetQueryPool(commandBuffer, queryPool, firstQuery, queryCount);
 }
 
 static PFN_vkCmdSetDepthBias ps5_pfn_vkCmdSetDepthBias;
@@ -202,7 +224,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetDepthBias(VkCommandBuffer commandBuffer, floa
 {
     if (!ps5_pfn_vkCmdSetDepthBias)
         ps5_pfn_vkCmdSetDepthBias = (PFN_vkCmdSetDepthBias)vkGetInstanceProcAddr(NULL, "vkCmdSetDepthBias");
-    return ps5_pfn_vkCmdSetDepthBias(commandBuffer, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
+    ps5_pfn_vkCmdSetDepthBias(commandBuffer, depthBiasConstantFactor, depthBiasClamp, depthBiasSlopeFactor);
 }
 
 static PFN_vkCmdSetScissor ps5_pfn_vkCmdSetScissor;
@@ -210,7 +232,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetScissor(VkCommandBuffer commandBuffer, uint32
 {
     if (!ps5_pfn_vkCmdSetScissor)
         ps5_pfn_vkCmdSetScissor = (PFN_vkCmdSetScissor)vkGetInstanceProcAddr(NULL, "vkCmdSetScissor");
-    return ps5_pfn_vkCmdSetScissor(commandBuffer, firstScissor, scissorCount, pScissors);
+    ps5_pfn_vkCmdSetScissor(commandBuffer, firstScissor, scissorCount, pScissors);
 }
 
 static PFN_vkCmdSetViewport ps5_pfn_vkCmdSetViewport;
@@ -218,7 +240,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdSetViewport(VkCommandBuffer commandBuffer, uint3
 {
     if (!ps5_pfn_vkCmdSetViewport)
         ps5_pfn_vkCmdSetViewport = (PFN_vkCmdSetViewport)vkGetInstanceProcAddr(NULL, "vkCmdSetViewport");
-    return ps5_pfn_vkCmdSetViewport(commandBuffer, firstViewport, viewportCount, pViewports);
+    ps5_pfn_vkCmdSetViewport(commandBuffer, firstViewport, viewportCount, pViewports);
 }
 
 static PFN_vkCmdWriteTimestamp ps5_pfn_vkCmdWriteTimestamp;
@@ -226,7 +248,7 @@ VKAPI_ATTR void VKAPI_CALL vkCmdWriteTimestamp(VkCommandBuffer commandBuffer, Vk
 {
     if (!ps5_pfn_vkCmdWriteTimestamp)
         ps5_pfn_vkCmdWriteTimestamp = (PFN_vkCmdWriteTimestamp)vkGetInstanceProcAddr(NULL, "vkCmdWriteTimestamp");
-    return ps5_pfn_vkCmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, query);
+    ps5_pfn_vkCmdWriteTimestamp(commandBuffer, pipelineStage, queryPool, query);
 }
 
 static PFN_vkCreateBuffer ps5_pfn_vkCreateBuffer;
@@ -234,7 +256,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateBuffer(VkDevice device, const VkBufferCre
 {
     if (!ps5_pfn_vkCreateBuffer)
         ps5_pfn_vkCreateBuffer = (PFN_vkCreateBuffer)vkGetInstanceProcAddr(NULL, "vkCreateBuffer");
-    return ps5_pfn_vkCreateBuffer(device, pCreateInfo, pAllocator, pBuffer);
+    return traced_result("vkCreateBuffer", ps5_pfn_vkCreateBuffer(device, pCreateInfo, pAllocator, pBuffer), 0);
 }
 
 static PFN_vkCreateBufferView ps5_pfn_vkCreateBufferView;
@@ -242,7 +264,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateBufferView(VkDevice device, const VkBuffe
 {
     if (!ps5_pfn_vkCreateBufferView)
         ps5_pfn_vkCreateBufferView = (PFN_vkCreateBufferView)vkGetInstanceProcAddr(NULL, "vkCreateBufferView");
-    return ps5_pfn_vkCreateBufferView(device, pCreateInfo, pAllocator, pView);
+    return traced_result("vkCreateBufferView", ps5_pfn_vkCreateBufferView(device, pCreateInfo, pAllocator, pView), 0);
 }
 
 static PFN_vkCreateCommandPool ps5_pfn_vkCreateCommandPool;
@@ -250,7 +272,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateCommandPool(VkDevice device, const VkComm
 {
     if (!ps5_pfn_vkCreateCommandPool)
         ps5_pfn_vkCreateCommandPool = (PFN_vkCreateCommandPool)vkGetInstanceProcAddr(NULL, "vkCreateCommandPool");
-    return ps5_pfn_vkCreateCommandPool(device, pCreateInfo, pAllocator, pCommandPool);
+    return traced_result("vkCreateCommandPool", ps5_pfn_vkCreateCommandPool(device, pCreateInfo, pAllocator, pCommandPool), 0);
 }
 
 static PFN_vkCreateComputePipelines ps5_pfn_vkCreateComputePipelines;
@@ -258,7 +280,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateComputePipelines(VkDevice device, VkPipel
 {
     if (!ps5_pfn_vkCreateComputePipelines)
         ps5_pfn_vkCreateComputePipelines = (PFN_vkCreateComputePipelines)vkGetInstanceProcAddr(NULL, "vkCreateComputePipelines");
-    return ps5_pfn_vkCreateComputePipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+    return traced_result("vkCreateComputePipelines", ps5_pfn_vkCreateComputePipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines), 0);
 }
 
 static PFN_vkCreateDescriptorPool ps5_pfn_vkCreateDescriptorPool;
@@ -266,7 +288,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDescriptorPool(VkDevice device, const VkD
 {
     if (!ps5_pfn_vkCreateDescriptorPool)
         ps5_pfn_vkCreateDescriptorPool = (PFN_vkCreateDescriptorPool)vkGetInstanceProcAddr(NULL, "vkCreateDescriptorPool");
-    return ps5_pfn_vkCreateDescriptorPool(device, pCreateInfo, pAllocator, pDescriptorPool);
+    return traced_result("vkCreateDescriptorPool", ps5_pfn_vkCreateDescriptorPool(device, pCreateInfo, pAllocator, pDescriptorPool), 0);
 }
 
 static PFN_vkCreateDescriptorSetLayout ps5_pfn_vkCreateDescriptorSetLayout;
@@ -274,7 +296,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDescriptorSetLayout(VkDevice device, cons
 {
     if (!ps5_pfn_vkCreateDescriptorSetLayout)
         ps5_pfn_vkCreateDescriptorSetLayout = (PFN_vkCreateDescriptorSetLayout)vkGetInstanceProcAddr(NULL, "vkCreateDescriptorSetLayout");
-    return ps5_pfn_vkCreateDescriptorSetLayout(device, pCreateInfo, pAllocator, pSetLayout);
+    return traced_result("vkCreateDescriptorSetLayout", ps5_pfn_vkCreateDescriptorSetLayout(device, pCreateInfo, pAllocator, pSetLayout), 0);
 }
 
 static PFN_vkCreateDevice ps5_pfn_vkCreateDevice;
@@ -282,7 +304,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
 {
     if (!ps5_pfn_vkCreateDevice)
         ps5_pfn_vkCreateDevice = (PFN_vkCreateDevice)vkGetInstanceProcAddr(NULL, "vkCreateDevice");
-    return ps5_pfn_vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
+    return traced_result("vkCreateDevice", ps5_pfn_vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice), 1);
 }
 
 static PFN_vkCreateFence ps5_pfn_vkCreateFence;
@@ -290,7 +312,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateFence(VkDevice device, const VkFenceCreat
 {
     if (!ps5_pfn_vkCreateFence)
         ps5_pfn_vkCreateFence = (PFN_vkCreateFence)vkGetInstanceProcAddr(NULL, "vkCreateFence");
-    return ps5_pfn_vkCreateFence(device, pCreateInfo, pAllocator, pFence);
+    return traced_result("vkCreateFence", ps5_pfn_vkCreateFence(device, pCreateInfo, pAllocator, pFence), 0);
 }
 
 static PFN_vkCreateFramebuffer ps5_pfn_vkCreateFramebuffer;
@@ -298,7 +320,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateFramebuffer(VkDevice device, const VkFram
 {
     if (!ps5_pfn_vkCreateFramebuffer)
         ps5_pfn_vkCreateFramebuffer = (PFN_vkCreateFramebuffer)vkGetInstanceProcAddr(NULL, "vkCreateFramebuffer");
-    return ps5_pfn_vkCreateFramebuffer(device, pCreateInfo, pAllocator, pFramebuffer);
+    return traced_result("vkCreateFramebuffer", ps5_pfn_vkCreateFramebuffer(device, pCreateInfo, pAllocator, pFramebuffer), 0);
 }
 
 static PFN_vkCreateGraphicsPipelines ps5_pfn_vkCreateGraphicsPipelines;
@@ -306,7 +328,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateGraphicsPipelines(VkDevice device, VkPipe
 {
     if (!ps5_pfn_vkCreateGraphicsPipelines)
         ps5_pfn_vkCreateGraphicsPipelines = (PFN_vkCreateGraphicsPipelines)vkGetInstanceProcAddr(NULL, "vkCreateGraphicsPipelines");
-    return ps5_pfn_vkCreateGraphicsPipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines);
+    return traced_result("vkCreateGraphicsPipelines", ps5_pfn_vkCreateGraphicsPipelines(device, pipelineCache, createInfoCount, pCreateInfos, pAllocator, pPipelines), 0);
 }
 
 static PFN_vkCreateImage ps5_pfn_vkCreateImage;
@@ -314,7 +336,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateImage(VkDevice device, const VkImageCreat
 {
     if (!ps5_pfn_vkCreateImage)
         ps5_pfn_vkCreateImage = (PFN_vkCreateImage)vkGetInstanceProcAddr(NULL, "vkCreateImage");
-    return ps5_pfn_vkCreateImage(device, pCreateInfo, pAllocator, pImage);
+    return traced_result("vkCreateImage", ps5_pfn_vkCreateImage(device, pCreateInfo, pAllocator, pImage), 0);
 }
 
 static PFN_vkCreateImageView ps5_pfn_vkCreateImageView;
@@ -322,7 +344,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateImageView(VkDevice device, const VkImageV
 {
     if (!ps5_pfn_vkCreateImageView)
         ps5_pfn_vkCreateImageView = (PFN_vkCreateImageView)vkGetInstanceProcAddr(NULL, "vkCreateImageView");
-    return ps5_pfn_vkCreateImageView(device, pCreateInfo, pAllocator, pView);
+    return traced_result("vkCreateImageView", ps5_pfn_vkCreateImageView(device, pCreateInfo, pAllocator, pView), 0);
 }
 
 static PFN_vkCreateInstance ps5_pfn_vkCreateInstance;
@@ -330,7 +352,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateInstance(const VkInstanceCreateInfo* pCre
 {
     if (!ps5_pfn_vkCreateInstance)
         ps5_pfn_vkCreateInstance = (PFN_vkCreateInstance)vkGetInstanceProcAddr(NULL, "vkCreateInstance");
-    return ps5_pfn_vkCreateInstance(pCreateInfo, pAllocator, pInstance);
+    return traced_result("vkCreateInstance", ps5_pfn_vkCreateInstance(pCreateInfo, pAllocator, pInstance), 1);
 }
 
 static PFN_vkCreatePipelineLayout ps5_pfn_vkCreatePipelineLayout;
@@ -338,7 +360,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreatePipelineLayout(VkDevice device, const VkP
 {
     if (!ps5_pfn_vkCreatePipelineLayout)
         ps5_pfn_vkCreatePipelineLayout = (PFN_vkCreatePipelineLayout)vkGetInstanceProcAddr(NULL, "vkCreatePipelineLayout");
-    return ps5_pfn_vkCreatePipelineLayout(device, pCreateInfo, pAllocator, pPipelineLayout);
+    return traced_result("vkCreatePipelineLayout", ps5_pfn_vkCreatePipelineLayout(device, pCreateInfo, pAllocator, pPipelineLayout), 0);
 }
 
 static PFN_vkCreateQueryPool ps5_pfn_vkCreateQueryPool;
@@ -346,7 +368,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateQueryPool(VkDevice device, const VkQueryP
 {
     if (!ps5_pfn_vkCreateQueryPool)
         ps5_pfn_vkCreateQueryPool = (PFN_vkCreateQueryPool)vkGetInstanceProcAddr(NULL, "vkCreateQueryPool");
-    return ps5_pfn_vkCreateQueryPool(device, pCreateInfo, pAllocator, pQueryPool);
+    return traced_result("vkCreateQueryPool", ps5_pfn_vkCreateQueryPool(device, pCreateInfo, pAllocator, pQueryPool), 0);
 }
 
 static PFN_vkCreateRenderPass ps5_pfn_vkCreateRenderPass;
@@ -354,7 +376,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateRenderPass(VkDevice device, const VkRende
 {
     if (!ps5_pfn_vkCreateRenderPass)
         ps5_pfn_vkCreateRenderPass = (PFN_vkCreateRenderPass)vkGetInstanceProcAddr(NULL, "vkCreateRenderPass");
-    return ps5_pfn_vkCreateRenderPass(device, pCreateInfo, pAllocator, pRenderPass);
+    return traced_result("vkCreateRenderPass", ps5_pfn_vkCreateRenderPass(device, pCreateInfo, pAllocator, pRenderPass), 0);
 }
 
 static PFN_vkCreateSampler ps5_pfn_vkCreateSampler;
@@ -362,7 +384,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateSampler(VkDevice device, const VkSamplerC
 {
     if (!ps5_pfn_vkCreateSampler)
         ps5_pfn_vkCreateSampler = (PFN_vkCreateSampler)vkGetInstanceProcAddr(NULL, "vkCreateSampler");
-    return ps5_pfn_vkCreateSampler(device, pCreateInfo, pAllocator, pSampler);
+    return traced_result("vkCreateSampler", ps5_pfn_vkCreateSampler(device, pCreateInfo, pAllocator, pSampler), 0);
 }
 
 static PFN_vkCreateSemaphore ps5_pfn_vkCreateSemaphore;
@@ -370,7 +392,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateSemaphore(VkDevice device, const VkSemaph
 {
     if (!ps5_pfn_vkCreateSemaphore)
         ps5_pfn_vkCreateSemaphore = (PFN_vkCreateSemaphore)vkGetInstanceProcAddr(NULL, "vkCreateSemaphore");
-    return ps5_pfn_vkCreateSemaphore(device, pCreateInfo, pAllocator, pSemaphore);
+    return traced_result("vkCreateSemaphore", ps5_pfn_vkCreateSemaphore(device, pCreateInfo, pAllocator, pSemaphore), 0);
 }
 
 static PFN_vkCreateShaderModule ps5_pfn_vkCreateShaderModule;
@@ -378,7 +400,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateShaderModule(VkDevice device, const VkSha
 {
     if (!ps5_pfn_vkCreateShaderModule)
         ps5_pfn_vkCreateShaderModule = (PFN_vkCreateShaderModule)vkGetInstanceProcAddr(NULL, "vkCreateShaderModule");
-    return ps5_pfn_vkCreateShaderModule(device, pCreateInfo, pAllocator, pShaderModule);
+    return traced_result("vkCreateShaderModule", ps5_pfn_vkCreateShaderModule(device, pCreateInfo, pAllocator, pShaderModule), 0);
 }
 
 static PFN_vkDestroyBuffer ps5_pfn_vkDestroyBuffer;
@@ -386,7 +408,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyBuffer(VkDevice device, VkBuffer buffer, con
 {
     if (!ps5_pfn_vkDestroyBuffer)
         ps5_pfn_vkDestroyBuffer = (PFN_vkDestroyBuffer)vkGetInstanceProcAddr(NULL, "vkDestroyBuffer");
-    return ps5_pfn_vkDestroyBuffer(device, buffer, pAllocator);
+    ps5_pfn_vkDestroyBuffer(device, buffer, pAllocator);
 }
 
 static PFN_vkDestroyFramebuffer ps5_pfn_vkDestroyFramebuffer;
@@ -394,7 +416,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyFramebuffer(VkDevice device, VkFramebuffer f
 {
     if (!ps5_pfn_vkDestroyFramebuffer)
         ps5_pfn_vkDestroyFramebuffer = (PFN_vkDestroyFramebuffer)vkGetInstanceProcAddr(NULL, "vkDestroyFramebuffer");
-    return ps5_pfn_vkDestroyFramebuffer(device, framebuffer, pAllocator);
+    ps5_pfn_vkDestroyFramebuffer(device, framebuffer, pAllocator);
 }
 
 static PFN_vkDestroyImage ps5_pfn_vkDestroyImage;
@@ -402,7 +424,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyImage(VkDevice device, VkImage image, const 
 {
     if (!ps5_pfn_vkDestroyImage)
         ps5_pfn_vkDestroyImage = (PFN_vkDestroyImage)vkGetInstanceProcAddr(NULL, "vkDestroyImage");
-    return ps5_pfn_vkDestroyImage(device, image, pAllocator);
+    ps5_pfn_vkDestroyImage(device, image, pAllocator);
 }
 
 static PFN_vkDestroyImageView ps5_pfn_vkDestroyImageView;
@@ -410,7 +432,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyImageView(VkDevice device, VkImageView image
 {
     if (!ps5_pfn_vkDestroyImageView)
         ps5_pfn_vkDestroyImageView = (PFN_vkDestroyImageView)vkGetInstanceProcAddr(NULL, "vkDestroyImageView");
-    return ps5_pfn_vkDestroyImageView(device, imageView, pAllocator);
+    ps5_pfn_vkDestroyImageView(device, imageView, pAllocator);
 }
 
 static PFN_vkDestroyPipeline ps5_pfn_vkDestroyPipeline;
@@ -418,7 +440,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyPipeline(VkDevice device, VkPipeline pipelin
 {
     if (!ps5_pfn_vkDestroyPipeline)
         ps5_pfn_vkDestroyPipeline = (PFN_vkDestroyPipeline)vkGetInstanceProcAddr(NULL, "vkDestroyPipeline");
-    return ps5_pfn_vkDestroyPipeline(device, pipeline, pAllocator);
+    ps5_pfn_vkDestroyPipeline(device, pipeline, pAllocator);
 }
 
 static PFN_vkDestroyRenderPass ps5_pfn_vkDestroyRenderPass;
@@ -426,7 +448,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyRenderPass(VkDevice device, VkRenderPass ren
 {
     if (!ps5_pfn_vkDestroyRenderPass)
         ps5_pfn_vkDestroyRenderPass = (PFN_vkDestroyRenderPass)vkGetInstanceProcAddr(NULL, "vkDestroyRenderPass");
-    return ps5_pfn_vkDestroyRenderPass(device, renderPass, pAllocator);
+    ps5_pfn_vkDestroyRenderPass(device, renderPass, pAllocator);
 }
 
 static PFN_vkDestroySampler ps5_pfn_vkDestroySampler;
@@ -434,7 +456,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroySampler(VkDevice device, VkSampler sampler, 
 {
     if (!ps5_pfn_vkDestroySampler)
         ps5_pfn_vkDestroySampler = (PFN_vkDestroySampler)vkGetInstanceProcAddr(NULL, "vkDestroySampler");
-    return ps5_pfn_vkDestroySampler(device, sampler, pAllocator);
+    ps5_pfn_vkDestroySampler(device, sampler, pAllocator);
 }
 
 static PFN_vkDestroySemaphore ps5_pfn_vkDestroySemaphore;
@@ -442,7 +464,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroySemaphore(VkDevice device, VkSemaphore semap
 {
     if (!ps5_pfn_vkDestroySemaphore)
         ps5_pfn_vkDestroySemaphore = (PFN_vkDestroySemaphore)vkGetInstanceProcAddr(NULL, "vkDestroySemaphore");
-    return ps5_pfn_vkDestroySemaphore(device, semaphore, pAllocator);
+    ps5_pfn_vkDestroySemaphore(device, semaphore, pAllocator);
 }
 
 static PFN_vkDestroyShaderModule ps5_pfn_vkDestroyShaderModule;
@@ -450,7 +472,7 @@ VKAPI_ATTR void VKAPI_CALL vkDestroyShaderModule(VkDevice device, VkShaderModule
 {
     if (!ps5_pfn_vkDestroyShaderModule)
         ps5_pfn_vkDestroyShaderModule = (PFN_vkDestroyShaderModule)vkGetInstanceProcAddr(NULL, "vkDestroyShaderModule");
-    return ps5_pfn_vkDestroyShaderModule(device, shaderModule, pAllocator);
+    ps5_pfn_vkDestroyShaderModule(device, shaderModule, pAllocator);
 }
 
 static PFN_vkDeviceWaitIdle ps5_pfn_vkDeviceWaitIdle;
@@ -458,7 +480,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkDeviceWaitIdle(VkDevice device)
 {
     if (!ps5_pfn_vkDeviceWaitIdle)
         ps5_pfn_vkDeviceWaitIdle = (PFN_vkDeviceWaitIdle)vkGetInstanceProcAddr(NULL, "vkDeviceWaitIdle");
-    return ps5_pfn_vkDeviceWaitIdle(device);
+    return traced_result("vkDeviceWaitIdle", ps5_pfn_vkDeviceWaitIdle(device), 0);
 }
 
 static PFN_vkEndCommandBuffer ps5_pfn_vkEndCommandBuffer;
@@ -466,7 +488,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
     if (!ps5_pfn_vkEndCommandBuffer)
         ps5_pfn_vkEndCommandBuffer = (PFN_vkEndCommandBuffer)vkGetInstanceProcAddr(NULL, "vkEndCommandBuffer");
-    return ps5_pfn_vkEndCommandBuffer(commandBuffer);
+    return traced_result("vkEndCommandBuffer", ps5_pfn_vkEndCommandBuffer(commandBuffer), 0);
 }
 
 static PFN_vkEnumerateDeviceExtensionProperties ps5_pfn_vkEnumerateDeviceExtensionProperties;
@@ -474,7 +496,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateDeviceExtensionProperties(VkPhysicalDe
 {
     if (!ps5_pfn_vkEnumerateDeviceExtensionProperties)
         ps5_pfn_vkEnumerateDeviceExtensionProperties = (PFN_vkEnumerateDeviceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateDeviceExtensionProperties");
-    return ps5_pfn_vkEnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pPropertyCount, pProperties);
+    return traced_result("vkEnumerateDeviceExtensionProperties", ps5_pfn_vkEnumerateDeviceExtensionProperties(physicalDevice, pLayerName, pPropertyCount, pProperties), 0);
 }
 
 static PFN_vkEnumerateInstanceExtensionProperties ps5_pfn_vkEnumerateInstanceExtensionProperties;
@@ -482,7 +504,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkEnumerateInstanceExtensionProperties(const char
 {
     if (!ps5_pfn_vkEnumerateInstanceExtensionProperties)
         ps5_pfn_vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties)vkGetInstanceProcAddr(NULL, "vkEnumerateInstanceExtensionProperties");
-    return ps5_pfn_vkEnumerateInstanceExtensionProperties(pLayerName, pPropertyCount, pProperties);
+    return traced_result("vkEnumerateInstanceExtensionProperties", ps5_pfn_vkEnumerateInstanceExtensionProperties(pLayerName, pPropertyCount, pProperties), 0);
 }
 
 static PFN_vkEnumeratePhysicalDevices ps5_pfn_vkEnumeratePhysicalDevices;
@@ -490,7 +512,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkEnumeratePhysicalDevices(VkInstance instance, u
 {
     if (!ps5_pfn_vkEnumeratePhysicalDevices)
         ps5_pfn_vkEnumeratePhysicalDevices = (PFN_vkEnumeratePhysicalDevices)vkGetInstanceProcAddr(NULL, "vkEnumeratePhysicalDevices");
-    return ps5_pfn_vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices);
+    return traced_result("vkEnumeratePhysicalDevices", ps5_pfn_vkEnumeratePhysicalDevices(instance, pPhysicalDeviceCount, pPhysicalDevices), 1);
 }
 
 static PFN_vkFlushMappedMemoryRanges ps5_pfn_vkFlushMappedMemoryRanges;
@@ -498,7 +520,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkFlushMappedMemoryRanges(VkDevice device, uint32
 {
     if (!ps5_pfn_vkFlushMappedMemoryRanges)
         ps5_pfn_vkFlushMappedMemoryRanges = (PFN_vkFlushMappedMemoryRanges)vkGetInstanceProcAddr(NULL, "vkFlushMappedMemoryRanges");
-    return ps5_pfn_vkFlushMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges);
+    return traced_result("vkFlushMappedMemoryRanges", ps5_pfn_vkFlushMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges), 0);
 }
 
 static PFN_vkFreeDescriptorSets ps5_pfn_vkFreeDescriptorSets;
@@ -506,7 +528,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkFreeDescriptorSets(VkDevice device, VkDescripto
 {
     if (!ps5_pfn_vkFreeDescriptorSets)
         ps5_pfn_vkFreeDescriptorSets = (PFN_vkFreeDescriptorSets)vkGetInstanceProcAddr(NULL, "vkFreeDescriptorSets");
-    return ps5_pfn_vkFreeDescriptorSets(device, descriptorPool, descriptorSetCount, pDescriptorSets);
+    return traced_result("vkFreeDescriptorSets", ps5_pfn_vkFreeDescriptorSets(device, descriptorPool, descriptorSetCount, pDescriptorSets), 0);
 }
 
 static PFN_vkFreeMemory ps5_pfn_vkFreeMemory;
@@ -514,7 +536,7 @@ VKAPI_ATTR void VKAPI_CALL vkFreeMemory(VkDevice device, VkDeviceMemory memory, 
 {
     if (!ps5_pfn_vkFreeMemory)
         ps5_pfn_vkFreeMemory = (PFN_vkFreeMemory)vkGetInstanceProcAddr(NULL, "vkFreeMemory");
-    return ps5_pfn_vkFreeMemory(device, memory, pAllocator);
+    ps5_pfn_vkFreeMemory(device, memory, pAllocator);
 }
 
 static PFN_vkGetBufferMemoryRequirements ps5_pfn_vkGetBufferMemoryRequirements;
@@ -522,7 +544,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetBufferMemoryRequirements(VkDevice device, VkBuff
 {
     if (!ps5_pfn_vkGetBufferMemoryRequirements)
         ps5_pfn_vkGetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements)vkGetInstanceProcAddr(NULL, "vkGetBufferMemoryRequirements");
-    return ps5_pfn_vkGetBufferMemoryRequirements(device, buffer, pMemoryRequirements);
+    ps5_pfn_vkGetBufferMemoryRequirements(device, buffer, pMemoryRequirements);
 }
 
 static PFN_vkGetDeviceQueue ps5_pfn_vkGetDeviceQueue;
@@ -530,7 +552,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetDeviceQueue(VkDevice device, uint32_t queueFamil
 {
     if (!ps5_pfn_vkGetDeviceQueue)
         ps5_pfn_vkGetDeviceQueue = (PFN_vkGetDeviceQueue)vkGetInstanceProcAddr(NULL, "vkGetDeviceQueue");
-    return ps5_pfn_vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
+    ps5_pfn_vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, pQueue);
 }
 
 static PFN_vkGetImageMemoryRequirements ps5_pfn_vkGetImageMemoryRequirements;
@@ -538,7 +560,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetImageMemoryRequirements(VkDevice device, VkImage
 {
     if (!ps5_pfn_vkGetImageMemoryRequirements)
         ps5_pfn_vkGetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)vkGetInstanceProcAddr(NULL, "vkGetImageMemoryRequirements");
-    return ps5_pfn_vkGetImageMemoryRequirements(device, image, pMemoryRequirements);
+    ps5_pfn_vkGetImageMemoryRequirements(device, image, pMemoryRequirements);
 }
 
 static PFN_vkGetPhysicalDeviceFeatures ps5_pfn_vkGetPhysicalDeviceFeatures;
@@ -546,7 +568,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceFeatures(VkPhysicalDevice physical
 {
     if (!ps5_pfn_vkGetPhysicalDeviceFeatures)
         ps5_pfn_vkGetPhysicalDeviceFeatures = (PFN_vkGetPhysicalDeviceFeatures)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceFeatures");
-    return ps5_pfn_vkGetPhysicalDeviceFeatures(physicalDevice, pFeatures);
+    ps5_pfn_vkGetPhysicalDeviceFeatures(physicalDevice, pFeatures);
 }
 
 static PFN_vkGetPhysicalDeviceFormatProperties ps5_pfn_vkGetPhysicalDeviceFormatProperties;
@@ -554,7 +576,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceFormatProperties(VkPhysicalDevice 
 {
     if (!ps5_pfn_vkGetPhysicalDeviceFormatProperties)
         ps5_pfn_vkGetPhysicalDeviceFormatProperties = (PFN_vkGetPhysicalDeviceFormatProperties)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceFormatProperties");
-    return ps5_pfn_vkGetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties);
+    ps5_pfn_vkGetPhysicalDeviceFormatProperties(physicalDevice, format, pFormatProperties);
 }
 
 static PFN_vkGetPhysicalDeviceImageFormatProperties ps5_pfn_vkGetPhysicalDeviceImageFormatProperties;
@@ -562,7 +584,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceImageFormatProperties(VkPhysic
 {
     if (!ps5_pfn_vkGetPhysicalDeviceImageFormatProperties)
         ps5_pfn_vkGetPhysicalDeviceImageFormatProperties = (PFN_vkGetPhysicalDeviceImageFormatProperties)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceImageFormatProperties");
-    return ps5_pfn_vkGetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties);
+    return traced_result("vkGetPhysicalDeviceImageFormatProperties", ps5_pfn_vkGetPhysicalDeviceImageFormatProperties(physicalDevice, format, type, tiling, usage, flags, pImageFormatProperties), 0);
 }
 
 static PFN_vkGetPhysicalDeviceMemoryProperties ps5_pfn_vkGetPhysicalDeviceMemoryProperties;
@@ -570,7 +592,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceMemoryProperties(VkPhysicalDevice 
 {
     if (!ps5_pfn_vkGetPhysicalDeviceMemoryProperties)
         ps5_pfn_vkGetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceMemoryProperties");
-    return ps5_pfn_vkGetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties);
+    ps5_pfn_vkGetPhysicalDeviceMemoryProperties(physicalDevice, pMemoryProperties);
 }
 
 static PFN_vkGetPhysicalDeviceProperties ps5_pfn_vkGetPhysicalDeviceProperties;
@@ -578,7 +600,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceProperties(VkPhysicalDevice physic
 {
     if (!ps5_pfn_vkGetPhysicalDeviceProperties)
         ps5_pfn_vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceProperties");
-    return ps5_pfn_vkGetPhysicalDeviceProperties(physicalDevice, pProperties);
+    ps5_pfn_vkGetPhysicalDeviceProperties(physicalDevice, pProperties);
 }
 
 static PFN_vkGetPhysicalDeviceQueueFamilyProperties ps5_pfn_vkGetPhysicalDeviceQueueFamilyProperties;
@@ -586,7 +608,7 @@ VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceQueueFamilyProperties(VkPhysicalDe
 {
     if (!ps5_pfn_vkGetPhysicalDeviceQueueFamilyProperties)
         ps5_pfn_vkGetPhysicalDeviceQueueFamilyProperties = (PFN_vkGetPhysicalDeviceQueueFamilyProperties)vkGetInstanceProcAddr(NULL, "vkGetPhysicalDeviceQueueFamilyProperties");
-    return ps5_pfn_vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
+    ps5_pfn_vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, pQueueFamilyPropertyCount, pQueueFamilyProperties);
 }
 
 static PFN_vkGetQueryPoolResults ps5_pfn_vkGetQueryPoolResults;
@@ -594,7 +616,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkGetQueryPoolResults(VkDevice device, VkQueryPoo
 {
     if (!ps5_pfn_vkGetQueryPoolResults)
         ps5_pfn_vkGetQueryPoolResults = (PFN_vkGetQueryPoolResults)vkGetInstanceProcAddr(NULL, "vkGetQueryPoolResults");
-    return ps5_pfn_vkGetQueryPoolResults(device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags);
+    return traced_result("vkGetQueryPoolResults", ps5_pfn_vkGetQueryPoolResults(device, queryPool, firstQuery, queryCount, dataSize, pData, stride, flags), 0);
 }
 
 static PFN_vkInvalidateMappedMemoryRanges ps5_pfn_vkInvalidateMappedMemoryRanges;
@@ -602,7 +624,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkInvalidateMappedMemoryRanges(VkDevice device, u
 {
     if (!ps5_pfn_vkInvalidateMappedMemoryRanges)
         ps5_pfn_vkInvalidateMappedMemoryRanges = (PFN_vkInvalidateMappedMemoryRanges)vkGetInstanceProcAddr(NULL, "vkInvalidateMappedMemoryRanges");
-    return ps5_pfn_vkInvalidateMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges);
+    return traced_result("vkInvalidateMappedMemoryRanges", ps5_pfn_vkInvalidateMappedMemoryRanges(device, memoryRangeCount, pMemoryRanges), 0);
 }
 
 static PFN_vkMapMemory ps5_pfn_vkMapMemory;
@@ -610,7 +632,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkMapMemory(VkDevice device, VkDeviceMemory memor
 {
     if (!ps5_pfn_vkMapMemory)
         ps5_pfn_vkMapMemory = (PFN_vkMapMemory)vkGetInstanceProcAddr(NULL, "vkMapMemory");
-    return ps5_pfn_vkMapMemory(device, memory, offset, size, flags, ppData);
+    return traced_result("vkMapMemory", ps5_pfn_vkMapMemory(device, memory, offset, size, flags, ppData), 0);
 }
 
 static PFN_vkQueueSubmit ps5_pfn_vkQueueSubmit;
@@ -618,7 +640,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount
 {
     if (!ps5_pfn_vkQueueSubmit)
         ps5_pfn_vkQueueSubmit = (PFN_vkQueueSubmit)vkGetInstanceProcAddr(NULL, "vkQueueSubmit");
-    return ps5_pfn_vkQueueSubmit(queue, submitCount, pSubmits, fence);
+    return traced_result("vkQueueSubmit", ps5_pfn_vkQueueSubmit(queue, submitCount, pSubmits, fence), 0);
 }
 
 static PFN_vkResetFences ps5_pfn_vkResetFences;
@@ -626,7 +648,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkResetFences(VkDevice device, uint32_t fenceCoun
 {
     if (!ps5_pfn_vkResetFences)
         ps5_pfn_vkResetFences = (PFN_vkResetFences)vkGetInstanceProcAddr(NULL, "vkResetFences");
-    return ps5_pfn_vkResetFences(device, fenceCount, pFences);
+    return traced_result("vkResetFences", ps5_pfn_vkResetFences(device, fenceCount, pFences), 0);
 }
 
 static PFN_vkUnmapMemory ps5_pfn_vkUnmapMemory;
@@ -634,7 +656,7 @@ VKAPI_ATTR void VKAPI_CALL vkUnmapMemory(VkDevice device, VkDeviceMemory memory)
 {
     if (!ps5_pfn_vkUnmapMemory)
         ps5_pfn_vkUnmapMemory = (PFN_vkUnmapMemory)vkGetInstanceProcAddr(NULL, "vkUnmapMemory");
-    return ps5_pfn_vkUnmapMemory(device, memory);
+    ps5_pfn_vkUnmapMemory(device, memory);
 }
 
 static PFN_vkUpdateDescriptorSets ps5_pfn_vkUpdateDescriptorSets;
@@ -642,7 +664,7 @@ VKAPI_ATTR void VKAPI_CALL vkUpdateDescriptorSets(VkDevice device, uint32_t desc
 {
     if (!ps5_pfn_vkUpdateDescriptorSets)
         ps5_pfn_vkUpdateDescriptorSets = (PFN_vkUpdateDescriptorSets)vkGetInstanceProcAddr(NULL, "vkUpdateDescriptorSets");
-    return ps5_pfn_vkUpdateDescriptorSets(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
+    ps5_pfn_vkUpdateDescriptorSets(device, descriptorWriteCount, pDescriptorWrites, descriptorCopyCount, pDescriptorCopies);
 }
 
 static PFN_vkWaitForFences ps5_pfn_vkWaitForFences;
@@ -650,5 +672,5 @@ VKAPI_ATTR VkResult VKAPI_CALL vkWaitForFences(VkDevice device, uint32_t fenceCo
 {
     if (!ps5_pfn_vkWaitForFences)
         ps5_pfn_vkWaitForFences = (PFN_vkWaitForFences)vkGetInstanceProcAddr(NULL, "vkWaitForFences");
-    return ps5_pfn_vkWaitForFences(device, fenceCount, pFences, waitAll, timeout);
+    return traced_result("vkWaitForFences", ps5_pfn_vkWaitForFences(device, fenceCount, pFences, waitAll, timeout), 0);
 }
