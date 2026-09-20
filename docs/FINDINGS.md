@@ -225,3 +225,68 @@ analogue of the measured `0x80000183`.
 published `PS5Vulkan/main` (`2b494d2`) and unpushed, with uncommitted round-8
 work in the tree. Also measured: the repository has two remotes with the same URL
 (`PS5Vulkan` current, `main` 244 commits stale) and a `master` branch 308 behind.
+
+## The title takes SIGSYS on its exit path, every run, and the console calls it a crash
+
+**Measured.** The klog listener capture `klog/vkquake-listen-113523.log` holds
+three runs of this title and **three identical SIGSYS records**. In each, the
+kernel first records the process leaving through `exit()` and then reports a fatal
+signal on a user thread:
+
+```
+# process pid=182, eboot.bin calls exit() exit_value=1.
+#
+# A user thread receives a fatal signal
+#
+# signal: 12 (SIGSYS)
+...
+# rip: 00000008000003ac  eflags: 00000246
+#
+# backtrace:
+# 0000000000b8caab
+# 0000000000ace520
+# 0000000000a6ed7f
+# 0000000000a6c09a
+# 0000000000400190
+```
+
+All three records carry the **same rip**, `0x8000003ac`, which is inside
+libkernel's syscall stubs rather than anywhere in the image. A repeated identical
+instruction is a deterministic path, not a race.
+
+The record for pid 182 is committed as `evidence/exit-sigsys/`, distilled from a
+verbatim slice of the capture.
+
+**It is not the error path's fault, and it is not `Sys_Error`'s.** The exit values
+across the three runs are 1, 0 and 0 — the two runs that left through `exit(0)`
+took the same signal at the same instruction as the one that left through
+`exit(1)`. So the signal is on the exit path itself and fires whatever the exit
+value is.
+
+**What it costs.** The console answers a fatal signal the way it answers any
+crash: `SCE_SHELL_UTIL_ERROR_APPLICATION_CRASH`, a coredump under
+`devlog/system/sce_coredumps.0/PPSA99010_*/`, and a `gpudump.elf` run as part of
+the same report pipeline. There is no GPU fault behind that — no fault message
+appears anywhere in the capture, and the GPU dump is routine report tooling — but
+the effect is that the klog of an ordinary run reads like a crash. The title's own
+trace cannot show it: the trace ends at the message box, because the signal
+arrives while `exit()` is unwinding, after everything the engine prints.
+
+**This corrects an earlier entry.** The `W_LoadWadFile` run was recorded as dying
+of SIGSYS *because* the game data was missing. Deploying `id1/pak0.pak` removed the
+reason `Sys_Error` was called, which is why that run stopped failing — but the
+signal itself is on the exit path and was never fixed. The earlier reading
+attributed a symptom of the exit path to the reason for the exit. Both runs carry
+`rip: 00000008000003ac`.
+
+**Not symbolized, deliberately.** `build/title.map` is from a later build than the
+binary that crashed — the build identity moved from `440199d7` to `c0677c1f`, and
+the identity covers `src/`, `platform/ps5/`, three build scripts and the linked
+archives. Symbolizing those five frames with a mismatched map is the failure mode
+`tools/symbolize-crash.py` warns about in its own header, so the frames are
+recorded raw. A re-run against a freshly built and deployed title is what makes
+them readable.
+
+**Boundary.** The listener capture `klog/vkquake-listen-113523.log` (not
+committed; `klog/` is ignored), build identity `440199d7`, console clock
+2026-01-14.

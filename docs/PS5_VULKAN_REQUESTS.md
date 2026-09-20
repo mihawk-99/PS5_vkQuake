@@ -114,7 +114,7 @@ fourth, "nothing has recorded", which that sentence does not enumerate.
 
 ### How an application reached it
 
-This port is vkQuake 1.36.0 on the console, and it is the first real application
+This port is vkQuake 1.36.0 on the console (PPSA99010), and it is the first real application
 on the driver. It gets through instance creation, physical-device enumeration and
 `vkCreateDevice`, and then stops in device initialisation with its own error.
 

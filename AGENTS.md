@@ -23,6 +23,8 @@ Read in this order and stop as soon as you have what you need:
    the blockers, the last verified runs. Read last, before you start work.
 4. On demand only, when the task needs it: `docs/FINDINGS.md` (the evidence
    behind each invariant), `docs/PHASE_LOG.md` (append-only run logs),
+   `docs/PORT.md` (what the port is made of: the build, the title identity, the
+   code map),
    `docs/PS5_VULKAN_REQUESTS.md` (requests to the driver, which is maintained
    separately and read-only from here), and the inherited RetroArch documents
    under `docs/inherited/` — `REFERENCE.md` (its step ladder and environment),
