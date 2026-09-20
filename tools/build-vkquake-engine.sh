@@ -119,6 +119,22 @@ while IFS= read -r source; do
     port_sources+=("$source")
 done < <(find platform/ps5 -maxdepth 1 -name '*.c' -printf '%p\n' 2>/dev/null | sort)
 
+# The generated C: vkQuake ships GLSL and a build description, not shaders, so the
+# SPIR-V arrays and the embedded pak are made here. Both are symbols the renderer
+# and the filesystem layer reference by name, so they are not optional and the
+# link fails without them - 132 _spv symbols and three pak symbols.
+#
+# The generators run only when compiling, never for --list: listing what would be
+# built should not take a minute and should not need glslang installed.
+generated_sources=()
+if [[ $mode != --list ]]; then
+    bash "$root/tools/build-vkquake-shaders.sh" >&2
+    while IFS= read -r source; do
+        [[ -n $source ]] || continue
+        generated_sources+=("$source")
+    done < <(find build/vkquake/generated -maxdepth 1 -name '*.c' -printf '%p\n' 2>/dev/null | sort)
+fi
+
 if [[ $mode == --list ]]; then
     printf 'compiled (%d from upstream, %d from the port layer):\n' "${#to_compile[@]}" "${#port_sources[@]}"
     printf '  %s\n' "${to_compile[@]}"
@@ -209,6 +225,10 @@ for source in "${to_compile[@]}"; do
 done
 
 for source in "${port_sources[@]}"; do
+    compile_one "$root/$source" "$source"
+done
+
+for source in "${generated_sources[@]}"; do
     compile_one "$root/$source" "$source"
 done
 

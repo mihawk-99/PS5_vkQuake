@@ -5,11 +5,15 @@ Volatile. Rewritten in place; the runs are in `docs/PHASE_LOG.md`, the plan is i
 
 ## Where the port is
 
-Milestone **M2**, on the compile half of it. vkQuake's engine compiles for
-`x86_64-sie-ps5`, and so does its **entire Vulkan backend** — `gl_vidsdl.c`, 5036
-lines, unmodified — because the port describes the console to the renderer instead
-of editing it. Nothing has run on the console, and the title does not link yet:
-vkQuake's entry point and seven platform files are still missing.
+**A signed title exists and every gate is green.** `dist/PPSA99010/eboot.bin`,
+23.8 MB, carrying the whole engine and the whole platform layer — `main`,
+`Host_Init`, `VID_Init`, `GL_EndRendering`, `Sys_Init`, `IN_Init`, `SNDDMA_Init`,
+`R_CreatePipelines` are all in it. vkQuake's own sources are unmodified: its
+5036-line Vulkan backend compiles and links as upstream wrote it, because the port
+describes the console to the renderer rather than editing the renderer.
+
+Nothing has run on the console yet. That is the whole of what M1 and M2 still
+owe, and it waits on a manual run.
 
 The frontend is gone. `src/` holds only PS5 platform code, the RetroArch tools,
 assets, vendor trees, evidence captures and PPSSPP plans are deleted, and the
@@ -76,9 +80,13 @@ host's real pthreads), `tests/test_game_data_ignored.py` and
 `tests/test_audio_ps5.py` (the AudioOut backend, now with no include path beyond
 the repository root — if it ever needs one again, frontend coupling has returned).
 
-`tools/verify.sh build` is **red, and expected to be**: `tools/build-title.sh`
-reaches the link and fails on the undefined `VID_*`, `Sys_*`, `IN_*` and
-`SNDDMA_*` symbols. That is M1's work, not a regression.
+`tools/verify.sh` is **green on all five gates** — `format unit build integration
+evidence` — which is the first time the build gate has passed in this repository.
+
+The shaders and the embedded pak are generated, not committed, because upstream
+generates them: `tools/build-vkquake-shaders.sh` runs 67 `glslangValidator` jobs
+and a `mkpak` through host-built `bintoc`, and refuses to finish unless the
+symbols it produced are exactly the set `Shaders/shaders.h` declares.
 
 ## src/, after the strip
 
@@ -92,36 +100,26 @@ reaches the link and fails on the undefined `VID_*`, `Sys_*`, `IN_*` and
 | `audio_ps5.cpp` | AudioOut ring and worker thread; the `audio_driver_t` table is gone |
 | `input_ps5.cpp`, `input_ps5.h` | The pad, behind a small C surface in the console's own numbering |
 
-## The platform files the port layer still owes
+## The two device interfaces
 
-Seven, excluded from the archive by name and printed by
-`tools/build-vkquake-engine.sh --list`. `gl_vidsdl.c` is no longer among them:
-it compiles, and the port answered it with a display model and a surface rather
-than a rewrite.
+`in_sdl.c`, `in_sdl2.c` and `snd_sdl.c` are the only upstream platform files still
+excluded, and `platform/ps5/ps5_input.c` and `ps5_audio.c` stand in for them:
+the engine's `IN_*` and `SNDDMA_*` interfaces, implemented and **deliberately
+doing nothing**. The interesting half of both already exists — `src/input_ps5.cpp`
+reads the pad, `src/audio_ps5.cpp` drives AudioOut — so what is missing is the key
+mapping and the `dma_t` adapter. Those are M4 and M5.
 
-How far each is, measured by compiling it with the error limit lifted:
-
-| File | Errors | What it wants |
-| --- | --- | --- |
-| `sys_sdl.c` | **0** | already compiles |
-| `sys_sdl_unix.c` | 1 | `SDL_OpenURL` |
-| `pl_linux.c` | 1 | the window icon |
-| `main_sdl.c` | 8 | `SDL_Init`, `SDL_Quit`, `SDL_GetVersion` |
-| `snd_sdl.c` | 43 | the SDL audio-device API |
-| `in_sdl.c` | 152 | the SDL gamepad and event API |
-
-Those counts are the work list, and they say the remaining platform work is the
-audio device and the pad — M5 and M4 — not the renderer.
+They report absence rather than inventing input or accepting samples a device
+would never drain, because a title that moves on its own or stalls a frame is
+harder to read from a console log than one that is simply silent.
 
 ## Next
 
-1. The entry point and the two `sys_sdl` files, so the title links and boots —
-   that is M1, and the first thing a console run can prove. `sys_sdl.c` already
-   compiles and `sys_sdl_unix.c` needs one function.
-2. Then the console run that closes M2: vkQuake's own `GL_InitInstance` and
-   `GL_InitDevice` against the linked driver, a swapchain on the display-plane
-   surface, and a cleared frame presented to VideoOut. Everything up to the
-   console is in place; what is left is the link and the run.
+One thing: **run it on the console.** The title is deployed and waiting. What a
+run answers is whether vkQuake's own `GL_InitInstance` and `GL_InitDevice` survive
+contact with `../PS5_Vulkan`, whether the display-plane surface is accepted at
+3840x2160, and whether a frame reaches VideoOut — which is M2, and M1 with it.
+Everything up to the console is in place and nothing further can be settled here.
 
 ## Open questions
 
