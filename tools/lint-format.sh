@@ -5,10 +5,15 @@
 #   bash tools/lint-format.sh --write    format in place
 #
 # What is checked, and why the boundary sits where it does. clang-format is run
-# over src/, tests/ and tooling/native/ - the code this project writes - and never
-# over vendor/ or build/, which are RetroArch's and generated: reformatting those
-# would make the port's diff against upstream unreadable, and the invariant in
-# AGENTS.md is that upstream stays upstream.
+# over src/, tests/, tooling/native/ and platform/ - the code this project writes -
+# and never over vendor/ or build/, which are upstream's and generated:
+# reformatting those would make the port's diff against upstream unreadable, and
+# the invariant in AGENTS.md is that upstream stays upstream.
+#
+# platform/ joined the list when the vkQuake port layer did. The port layer is
+# this project's own C, it is the code most likely to be read by someone comparing
+# it against the SDL source it replaces, and a policy that covers src/ but not the
+# directory beside it is an accident of history rather than a decision.
 #
 # .clang-format at the repository root is the policy. It is read by clang-format
 # itself, so this script does not restate any of it.
@@ -32,7 +37,7 @@ fi
 [[ -n $formatter ]] || { echo "error: clang-format is required for the format gate" >&2; exit 2; }
 [[ -f .clang-format ]] || { echo "error: no .clang-format at the repository root" >&2; exit 2; }
 
-mapfile -t sources < <(find src tests tooling/native -type f \
+mapfile -t sources < <(find src tests tooling/native platform -type f \
     \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
     2>/dev/null | sort)
 
