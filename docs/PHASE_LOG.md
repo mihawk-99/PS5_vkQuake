@@ -983,3 +983,70 @@ resolved to NULL and was called.
 title actually needs: it remembers the instance from `vkCreateInstance` and the device
 from `vkCreateDevice`, keeps the null-instance path for the four globals, and resolves
 everything else through the instance first and the device second.
+
+### M2's device half, and the first blocker that is a real one
+
+The run with the loader fix is the furthest this title has been:
+
+```
+vkEnumeratePhysicalDevices -> 0
+Vendor: AMD
+Device: PS5 AGC GPU (ps5vk)
+vkCreateDevice -> 0
+Device extensions:
+ VK_KHR_swapchain
+
+ERROR-OUT BEGIN
+QUAKE ERROR: Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format
+```
+
+The physical device enumerated, the device was identified as `PS5 AGC GPU (ps5vk)`,
+`vkCreateDevice` returned 0, and the swapchain extension is enabled. The instance and
+the device halves of M2 are now **proven on hardware**.
+
+And the failure is legible, which is the stderr redirect earning its place: the engine
+names its own problem instead of dying silently with `exit_value=0`.
+
+### The depth-stencil gap, measured
+
+vkQuake requires one of exactly two formats, each with
+`VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` on optimal tiling:
+
+```c
+vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_D24_UNORM_S8_UINT, &format_properties);
+qboolean x8_d24_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
+vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_D32_SFLOAT_S8_UINT, &format_properties);
+qboolean d32_support = ...;
+...
+// This cannot happen with a compliant Vulkan driver. The spec requires support for one of the formats.
+Sys_Error ("Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format");
+```
+
+`../PS5_Vulkan` reports **zero** combined depth-stencil formats - `grep -cE
+'D24_UNORM_S8|D32_SFLOAT_S8|D16_UNORM_S8' driver/ps5vk_image.c` is 0 - and two
+depth-only ones:
+
+```
+driver/ps5vk_image.c:428  {VK_FORMAT_D16_UNORM,  ... DEPTH_STENCIL_ATTACHMENT_BIT | SAMPLED | BLIT_SRC | TRANSFER_SRC | TRANSFER_DST, 0, 7 /*16_UNORM*/ ...}
+driver/ps5vk_image.c:442  {VK_FORMAT_D32_SFLOAT, ... DEPTH_STENCIL_ATTACHMENT_BIT | TRANSFER_SRC | TRANSFER_DST | SAMPLED | BLIT_SRC, 0, 22 /*32_FLOAT*/ ...}
+```
+
+and its draw path accepts only those two:
+
+```
+driver/ps5vk_draw.c:534  if ((depth_view->format != VK_FORMAT_D32_SFLOAT &&
+driver/ps5vk_draw.c:535       depth_view->format != VK_FORMAT_D16_UNORM) || ...
+```
+
+**This is a driver conformance gap, not an application bug.** The Vulkan specification
+requires an implementation to support at least one of `D24_UNORM_S8_UINT` or
+`D32_SFLOAT_S8_UINT` for depth-stencil attachment, which is what vkQuake's comment
+says when it calls the case impossible. Every conformant Vulkan application that wants
+a depth buffer meets this, so it is the driver's gap to close rather than something
+this port should work around - and it is the first blocker found here that is not
+this project's own code.
+
+It is also small: an entry mapping the combined format onto the same `32_FLOAT`
+hardware word the depth-only one already uses, with the stencil aspect ignored, plus
+the draw path's two-format check widened to three. Quake uses no stencil, so ignoring
+it costs nothing that has been measured.
