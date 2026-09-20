@@ -54,9 +54,11 @@ is half-built.
 
 `docs/REFERENCE.md` — the step ladder and the environment — does not exist yet. It
 is written when M1's steps are known well enough to describe, which is after the
-first console run rather than before it. The three documents below that were
-carried over from the RetroArch project describe the console-side procedure
-truthfully and name RetroArch where they do; they are inherited, not adapted.
+first console run rather than before it. Until then the console-side procedure is
+the inherited one under `docs/inherited/`, which describes it truthfully and names
+RetroArch where it does: `DEPLOYMENT.md` for reaching the title's folder and
+reading a run back, `TROUBLESHOOTING.md` for the failures that are the console's
+rather than the code's, and `TESTING.md` for what the gates mean.
 
 ## Invariants
 
