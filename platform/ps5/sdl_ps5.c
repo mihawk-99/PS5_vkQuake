@@ -113,8 +113,13 @@ struct SDL_sem
     Uint32 count;
 };
 
+/* The probe's clock: see src/probe.c. The engine creates mutexes at several points
+ * through Host_Init and this is the only one of them this project owns. */
+extern void ps5_probe_watch(void);
+
 SDL_mutex *SDL_CreateMutex(void)
 {
+    ps5_probe_watch();
     SDL_mutex *mutex = malloc(sizeof *mutex);
     if (!mutex)
     {

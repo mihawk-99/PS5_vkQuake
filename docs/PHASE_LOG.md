@@ -625,3 +625,45 @@ imported by this port and by no title that has run here (`closedir`, `execvp`,
 `fork`, `freeaddrinfo`, `getaddrinfo`, `gethostbyname`, `getuid`, `opendir`,
 `pthread_attr_getstacksize`, `raise`, `readdir`), which is a narrower list and not
 a safer one: `getcwd` is not on it.
+
+### The probe answered the opposite of the hypothesis, which is the useful answer
+
+The run with `/app0/probe.txt` present wrote this to `/app0/trace.txt`:
+
+```
+probe: static pointer tables, read before main
+probe: net_drivers at 1aa1ff0, count 2
+probe:   [0].Init = b212c0
+probe:   [1].Init = b23690
+probe: net_landrivers at 1aa20f0, count 2
+probe:   [0].Init = b26ae0
+probe:   [1].Init = b27700
+probe: end
+```
+
+**Every pointer is valid before main.** The relocations are applied, the module
+writer carries them, and the two adjacent tables the static analysis could not
+reconcile are both correct at that moment. The probe was built to distinguish
+"the loader did not apply it" from "something zeroed it", and it settled on the
+second.
+
+It settled on it because of the crash that follows in the same run: `r12` is
+`1aa20f0`, the address the probe read, and `r13` is 0 - the same slot - and the
+call goes to zero. Net_landrivers[0].Init is correct before main and zero at
+NET_Init.
+
+So the question narrowed from "is the image relocated" to "what writes eight zero
+bytes at 0x1aa2100 during Host_Init", and Host_Init's order is known:
+
+  Mem_Init, Tasks_Init, Cbuf_Init, Cmd_Init, LOG_Init, Cvar_Init, COM_Init,
+  COM_InitFilesystem, Host_InitLocal, W_LoadWadFile, Key_Init, Con_Init, PR_Init,
+  Mod_Init, NET_Init
+
+with the trace showing the run reaches Con_Init's "Console initialized." and dies
+at NET_Init, so the writer is one of those.
+
+`src/probe.c` now also exports `ps5_probe_watch`, which logs the same pointer, and
+`platform/ps5/sdl_ps5.c` calls it on every `SDL_CreateMutex`. Upstream's host.c is
+not this project's to edit, but the engine calls SDL throughout that sequence and
+SDL is this project's shim, so the trace gets a sample per mutex between main and
+the fault. The last sample before the crash names the step that did it.
