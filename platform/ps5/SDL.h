@@ -322,6 +322,132 @@ extern "C"
     void SDL_Log(const char *fmt, ...);
     void SDL_LogError(int category, const char *fmt, ...);
 
+    /* ---------------------------------------------------------------------------
+     * Windows, displays and cursors.
+     *
+     * Why these are here at all, when the shim's rule is that a symbol needs a
+     * caller: vkQuake's Vulkan backend calls them. gl_vidsdl.c opens a window before
+     * it opens a device, enumerates the display modes to build its own mode list, and
+     * asks for the drawable size after every mode change. None of that is drawing -
+     * it is the console describing its one screen to an engine written for desktops -
+     * and the whole of it is this block.
+     *
+     * What the console answers. There is one display and one mode, and the mode is
+     * not a preference: ../PS5_Vulkan drives VideoOut at 3840x2160 and its
+     * vkCreateDisplayPlaneSurfaceKHR asserts that the surface extent equals that, so
+     * a swapchain built at any other size is refused rather than scaled. The drawable
+     * size therefore reports the display's mode and not the size the caller asked a
+     * window to be - the request is honoured as a request, and the answer is what the
+     * screen is. vkQuake compares the two in GL_CreateSwapChain and would otherwise
+     * build a swapchain the driver will not accept.
+     *
+     * The window token is not a window. It carries the flags and the size a caller
+     * set, because upstream reads them back - VID_GetFullscreen is SDL_GetWindowFlags
+     * masked with SDL_WINDOW_FULLSCREEN - and nothing else about it means anything.
+     * ------------------------------------------------------------------------- */
+
+    typedef struct SDL_Window SDL_Window;
+    typedef struct SDL_Cursor SDL_Cursor;
+
+    typedef struct SDL_DisplayMode
+    {
+        Uint32 format;
+        int w;
+        int h;
+        int refresh_rate;
+        void *driverdata;
+    } SDL_DisplayMode;
+
+/* SDL2's window flags, at SDL2's values. These are the numbers upstream's
+ * comparisons were compiled against, so they are copied rather than invented. */
+#define SDL_WINDOW_FULLSCREEN 0x00000001u
+#define SDL_WINDOW_OPENGL 0x00000002u
+#define SDL_WINDOW_SHOWN 0x00000004u
+#define SDL_WINDOW_HIDDEN 0x00000008u
+#define SDL_WINDOW_BORDERLESS 0x00000010u
+#define SDL_WINDOW_RESIZABLE 0x00000020u
+#define SDL_WINDOW_MINIMIZED 0x00000040u
+#define SDL_WINDOW_MAXIMIZED 0x00000080u
+#define SDL_WINDOW_INPUT_GRABBED 0x00000100u
+#define SDL_WINDOW_INPUT_FOCUS 0x00000200u
+#define SDL_WINDOW_MOUSE_FOCUS 0x00000400u
+#define SDL_WINDOW_FULLSCREEN_DESKTOP (SDL_WINDOW_FULLSCREEN | 0x00001000u)
+#define SDL_WINDOW_VULKAN 0x10000000u
+
+#define SDL_WINDOWPOS_UNDEFINED 0x1FFF0000u
+#define SDL_WINDOWPOS_CENTERED 0x2FFF0000u
+#define SDL_WINDOWPOS_CENTERED_DISPLAY(X) (SDL_WINDOWPOS_CENTERED | (X))
+
+/* One pixel format, because there is one framebuffer format on this console.
+ * ARGB8888 is what SDL_BITSPERPIXEL below is asked about. */
+#define SDL_PIXELFORMAT_ARGB8888 0x16362004u
+#define SDL_BITSPERPIXEL(format) (((format) >> 8) & 0xFFu)
+
+/* The subsystem flags upstream passes to SDL_InitSubSystem. Only VIDEO does
+ * anything: it is what makes SDL_GetCurrentVideoDriver answer. */
+#define SDL_INIT_TIMER 0x00000001u
+#define SDL_INIT_AUDIO 0x00000010u
+#define SDL_INIT_VIDEO 0x00000020u
+#define SDL_INIT_CDROM 0x00000100u
+#define SDL_INIT_JOYSTICK 0x00000200u
+#define SDL_INIT_GAMECONTROLLER 0x00002000u
+#define SDL_INIT_EVENTS 0x00004000u
+
+    int SDL_InitSubSystem(Uint32 flags);
+    void SDL_QuitSubSystem(Uint32 flags);
+    const char *SDL_GetCurrentVideoDriver(void);
+    int SDL_GetNumVideoDisplays(void);
+
+    SDL_Window *SDL_CreateWindow(const char *title, int x, int y, int w, int h, Uint32 flags);
+    void SDL_DestroyWindow(SDL_Window *window);
+    void SDL_ShowWindow(SDL_Window *window);
+    void SDL_RaiseWindow(SDL_Window *window);
+    void SDL_SetWindowSize(SDL_Window *window, int w, int h);
+    void SDL_SetWindowPosition(SDL_Window *window, int x, int y);
+    int SDL_SetWindowFullscreen(SDL_Window *window, Uint32 flags);
+    void SDL_SetWindowDisplayMode(SDL_Window *window, const SDL_DisplayMode *mode);
+    void SDL_SetWindowBordered(SDL_Window *window, SDL_bool bordered);
+    void SDL_SetWindowTitle(SDL_Window *window, const char *title);
+    Uint32 SDL_GetWindowFlags(SDL_Window *window);
+    int SDL_GetWindowDisplayIndex(SDL_Window *window);
+    Uint32 SDL_GetWindowPixelFormat(SDL_Window *window);
+    void SDL_GetWindowSize(SDL_Window *window, int *w, int *h);
+
+    int SDL_GetNumDisplayModes(int displayIndex);
+    int SDL_GetDisplayMode(int displayIndex, int modeIndex, SDL_DisplayMode *mode);
+    int SDL_GetDesktopDisplayMode(int displayIndex, SDL_DisplayMode *mode);
+    int SDL_GetCurrentDisplayMode(int displayIndex, SDL_DisplayMode *mode);
+
+/* Cursors exist so that upstream's calls to show and hide one have somewhere to
+ * go. There is no pointer on this console and nothing to draw, so the token is
+ * opaque and every call but the create is a no-op. */
+#define SDL_SYSTEM_CURSOR_ARROW 0
+#define SDL_SYSTEM_CURSOR_IBEAM 1
+#define SDL_SYSTEM_CURSOR_WAIT 2
+#define SDL_SYSTEM_CURSOR_CROSSHAIR 3
+#define SDL_SYSTEM_CURSOR_WAITARROW 4
+#define SDL_SYSTEM_CURSOR_SIZENWSE 5
+#define SDL_SYSTEM_CURSOR_SIZENESW 6
+#define SDL_SYSTEM_CURSOR_SIZEWE 7
+#define SDL_SYSTEM_CURSOR_SIZENS 8
+#define SDL_SYSTEM_CURSOR_SIZEALL 9
+#define SDL_SYSTEM_CURSOR_NO 10
+#define SDL_SYSTEM_CURSOR_HAND 11
+
+    SDL_Cursor *SDL_CreateSystemCursor(int id);
+    void SDL_FreeCursor(SDL_Cursor *cursor);
+    void SDL_SetCursor(SDL_Cursor *cursor);
+    void SDL_ShowCursor(int toggle);
+
+    /* The mouse-mode calls the input layer makes. Kept beside the cursor block
+     * because they are the same absence: no pointer to grab, none to warp, and no
+     * text to input. */
+    int SDL_SetRelativeMouseMode(SDL_bool enabled);
+    SDL_bool SDL_GetRelativeMouseMode(void);
+    void SDL_WarpMouseInWindow(SDL_Window *window, int x, int y);
+    void SDL_StartTextInput(void);
+    void SDL_StopTextInput(void);
+
 #ifdef __cplusplus
 }
 #endif
