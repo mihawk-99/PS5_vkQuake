@@ -219,3 +219,25 @@ $ bash tools/build-vkquake-engine.sh
 ==> [vkquake] toolchain canary: emulated TLS present, so PS5_CLANG is the target compiler
 ==> [vkquake] 3.6M, 72 objects
 ```
+
+---
+
+## 2026-09-20: The title's artwork is vkQuake's
+
+`sce_sys/icon0.png` was RetroArch's launcher icon. It is now upstream vkQuake's
+own `Misc/vkQuake_512.png`, copied unchanged: the launcher icon has to be a
+512x512 PNG (`tools/validate-assets.sh`) and that file already is one, so nothing
+was resampled on the way in.
+
+Three assets were removed rather than replaced. `pic0.dds` and `pic1.dds` are the
+home screen backgrounds; the validator wants both or neither, and a conforming one
+must be a single 3840x2160 BC7_UNORM DX10 DDS with no mipmaps. This host cannot
+produce that: ImageMagick 7.1.2 writes DXT5 whatever `dds:compression=bc7` asks
+for, and there is no `texconv`, `compressonatorcli`, `nvcompress`, `bc7enc` or
+`astcenc` installed. Measured, not assumed - the file it produced carried
+`DXT5` at offset 84 with a legacy pixel format where the profile wants `DX10` and
+format 98. `snd0.at9` went with them: ATRAC9 needs an encoder this host lacks, and
+Quake ships no startup sound to convert.
+
+$ bash tools/validate-assets.sh sce_sys
+Presentation assets validated: sce_sys

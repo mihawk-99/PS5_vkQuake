@@ -28,9 +28,23 @@ RetroArch documentation is preserved unchanged under `docs/inherited/`.
 | `titleName` | `vkQuake` |
 
 Applied with the boilerplate's own initializer: `make init TITLE_ID=PPSA99010
-APP_NAME=vkQuake`. `icon0.png`, `pic0.dds` and `pic1.dds` are still the RetroArch
-title's artwork; vkQuake ships icons at `vendor/vkQuake/Misc/vkQuake_256.png` and
-`_512.png` when that matters.
+APP_NAME=vkQuake`.
+
+The artwork is vkQuake's. `sce_sys/icon0.png` is upstream's own
+`vendor/vkQuake/Misc/vkQuake_512.png`, which is already the 512x512 PNG the
+launcher icon has to be — no conversion, so nothing was resampled on the way in.
+The RetroArch title's `pic0.dds`, `pic1.dds` and `snd0.at9` are gone.
+
+`pic0.dds` and `pic1.dds` are the home screen backgrounds, and they are optional:
+`tools/validate-assets.sh` requires both or neither. They are absent rather than
+replaced because a conforming one must be a single 3840x2160 BC7_UNORM DX10 DDS
+without mipmaps, and this host has no BC7 encoder — ImageMagick 7.1.2 silently
+writes DXT5 whatever `dds:compression=bc7` asks for, and no `texconv`,
+`compressonatorcli` or `nvcompress` is installed. Shipping RetroArch's artwork in
+a vkQuake title would be worse than shipping none, and a DXT5 file would fail the
+validator on the next build rather than on the console. `snd0.at9` went the same
+way: it needs an ATRAC9 encoder this host does not have, and Quake has no shipped
+startup sound to convert.
 
 ## The game data
 
