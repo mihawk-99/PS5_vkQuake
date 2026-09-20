@@ -66,22 +66,21 @@ meson_listing=$(
 # file; "unported" means the replacement is not written yet, which is a state the
 # port is allowed to be in but is not allowed to hide.
 #
-# gl_vidsdl.c is not here, and that is the point of the row it used to occupy. It
-# is vkQuake's entire Vulkan backend - 5000 lines of instance, device, swapchain,
-# frame recording and present - and it now compiles for this console unmodified,
-# because the only SDL it needed was the window, the display modes, the cursors
-# and the surface, and platform/ps5/{SDL.h,SDL_vulkan.h,ps5_window.c} provide
-# those. Nothing about the renderer is patched; the console is described to it.
+# Five files are left, and they are the two device APIs. Everything else -
+# including gl_vidsdl.c, main_sdl.c, both sys_sdl files and pl_linux.c - compiles
+# for this console unmodified, because each needed only SDL functions the port
+# answers in platform/ps5/. Nothing upstream is patched; the console is described
+# to it.
+#
+# in_sdl.c and in_sdl2.c want the SDL gamepad and event API; snd_sdl.c wants the
+# SDL audio-device API. Those are real interfaces rather than window bookkeeping,
+# and they are M4 and M5.
 excluded=$(cat <<'EOF'
-main_sdl.c	unported	SDL_Init/SDL_Quit and the client loop's delay
-sys_sdl.c	unported	the file handle table's mutex and the folder dialog
-sys_sdl_unix.c	unported	getcwd-based basedir, the perf counter, backtrace, /proc
 in_sdl.c	unported	the shared input layer: key mapping, deadzones, joy movement
 in_sdl2.c	unported	the SDL2 event loop and gamepad reads
 in_sdl3.c	unported	the SDL3 twin of the above; only one of the two is ever built
 snd_sdl.c	unported	the SDL2 audio device behind SNDDMA_*
 snd_sdl3.c	unported	the SDL3 twin of the above
-pl_linux.c	unported	the window icon, the clipboard and the error message box
 EOF
 )
 

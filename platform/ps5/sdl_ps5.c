@@ -804,3 +804,88 @@ Uint32 SDL_GetGlobalMouseState(int *x, int *y)
 {
     return SDL_GetMouseState(x, y);
 }
+
+/* ---------------------------------------------------------------------------
+ * Lifecycle, the version, and the browser.
+ *
+ * The header says why these are here and why the version is 2.0.0. What is worth
+ * repeating is that SDL_Init on this console has nothing to bring up: the display
+ * is opened by whoever needs it, the pad by whoever needs that, and the audio
+ * device by the sound backend. This only records that the engine asked.
+ * ------------------------------------------------------------------------- */
+
+static Uint32 sdl_initialised;
+
+int SDL_Init(Uint32 flags)
+{
+    sdl_initialised |= flags;
+    return 0; /* SDL2's contract is 0 for success, and main_sdl.c tests >= 0. */
+}
+
+void SDL_Quit(void)
+{
+    sdl_initialised = 0;
+}
+
+void SDL_GetVersion(SDL_version *ver)
+{
+    if (!ver)
+        return;
+    ver->major = SDL_MAJOR_VERSION;
+    ver->minor = SDL_MINOR_VERSION;
+    ver->patch = SDL_PATCHLEVEL;
+}
+
+/* There is no browser, no shell and no URL handler on this console. Reporting
+ * failure is what a desktop with no browser reports, which is a case the caller
+ * already handles; reporting success would leave it waiting for something that
+ * will never happen. */
+int SDL_OpenURL(const char *url)
+{
+    SDL_SetError("this console has nothing to open %s with", url ? url : "(null)");
+    return -1;
+}
+
+/* ---------------------------------------------------------------------------
+ * Surfaces, for the window icon that a console does not have.
+ *
+ * SDL_RWFromConstMem above is what makes this path unreachable: it refuses, and
+ * PL_SetWindowIcon returns on the NULL before it decodes anything. These are
+ * defined so the reference resolves and the link succeeds.
+ * ------------------------------------------------------------------------- */
+
+SDL_Surface *SDL_LoadBMP_RW(SDL_RWops *src, int freesrc)
+{
+    if (src && freesrc)
+        SDL_RWclose(src);
+    SDL_SetError("this console sets no window icon");
+    return NULL;
+}
+
+/* Packing an RGB triple into the surface's format. The console has one format and
+ * the window-icon path never asks, but the arithmetic is the honest one rather
+ * than a constant. */
+Uint32 SDL_MapRGB(const SDL_PixelFormat *format, Uint8 r, Uint8 g, Uint8 b)
+{
+    (void)format;
+    return ((Uint32)0xFFu << 24) | ((Uint32)r << 16) | ((Uint32)g << 8) | (Uint32)b;
+}
+
+int SDL_SetColorKey(SDL_Surface *surface, int flag, Uint32 key)
+{
+    (void)surface;
+    (void)flag;
+    (void)key;
+    return 0;
+}
+
+void SDL_FreeSurface(SDL_Surface *surface)
+{
+    free(surface);
+}
+
+void SDL_SetWindowIcon(SDL_Window *window, SDL_Surface *icon)
+{
+    (void)window;
+    (void)icon;
+}

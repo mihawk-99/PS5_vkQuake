@@ -37,9 +37,16 @@ fi
 [[ -n $formatter ]] || { echo "error: clang-format is required for the format gate" >&2; exit 2; }
 [[ -f .clang-format ]] || { echo "error: no .clang-format at the repository root" >&2; exit 2; }
 
+# Generated sources are not formatted, they are regenerated. platform/ps5/vk_globals.c
+# is emitted by tools/gen-vk-globals.py, and running clang-format over it would
+# make the file disagree with its generator - which is the one thing that has to
+# stay checkable about it. It is checked the other way instead, below: the
+# generator is asked whether the file on disk is what it would write.
+generated_sources=(platform/ps5/vk_globals.c)
+
 mapfile -t sources < <(find src tests tooling/native platform -type f \
     \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) \
-    2>/dev/null | sort)
+    2>/dev/null | sort | grep -v -x -F "$(printf '%s\n' "${generated_sources[@]}")" || true)
 
 if (( ${#sources[@]} == 0 )); then
     echo "==> [lint-format] no sources to format"
@@ -60,6 +67,23 @@ fi
 # needs. The file list is passed explicitly so the same set is checked whether or
 # not this is a git work tree.
 if "$formatter" --dry-run --Werror "${sources[@]}" 2>/tmp/lint-format.error; then
+    # The generated sources are checked by asking their generator whether the
+    # committed copy is what it would write. A generated file that has drifted
+    # from its generator is worse than one that is merely unformatted, so this is
+    # a failure and not a warning.
+    for source in "${generated_sources[@]}"; do
+        [[ -f $source ]] || continue
+        case $source in
+            platform/ps5/vk_globals.c)
+                python3 tools/gen-vk-globals.py --check >/dev/null || {
+                    echo "$source has drifted from tools/gen-vk-globals.py" >&2
+                    echo "run 'python3 tools/gen-vk-globals.py' to regenerate it" >&2
+                    echo "lint-format: FAIL" >&2
+                    exit 1
+                }
+                ;;
+        esac
+    done
     echo "lint-format: PASS"
 else
     # clang-format's own message names the file and the line it would change.
