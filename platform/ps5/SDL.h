@@ -439,6 +439,75 @@ extern "C"
     void SDL_SetCursor(SDL_Cursor *cursor);
     void SDL_ShowCursor(int toggle);
 
+    /* ---------------------------------------------------------------------------
+     * Lifecycle, the version, and the browser.
+     *
+     * The last three things vkQuake's own main and system files call. SDL_Init and
+     * SDL_Quit bookend the run; SDL_GetVersion is printed once so a console log
+     * says which SDL the engine believed it was talking to; SDL_OpenURL is the
+     * "open this link" call in the platform layer, which on a console has no
+     * browser to open and answers accordingly.
+     *
+     * The version reports 2.0.0, and that number describes the interface level
+     * this shim implements rather than a library: there is no SDL on this console,
+     * and the line it produces in a run log is the only place the difference would
+     * show. Patching upstream's printf to say so is not worth the divergence.
+     * ------------------------------------------------------------------------- */
+
+    typedef struct SDL_version
+    {
+        Uint8 major;
+        Uint8 minor;
+        Uint8 patch;
+    } SDL_version;
+
+#define SDL_MAJOR_VERSION 2
+#define SDL_MINOR_VERSION 0
+#define SDL_PATCHLEVEL 0
+#define SDL_VERSIONNUM(X, Y, Z) ((X) * 1000 + (Y) * 100 + (Z))
+#define SDL_VERSIONNUM_MAJOR(version) ((version) / 1000)
+#define SDL_VERSIONNUM_MINOR(version) (((version) % 1000) / 100)
+#define SDL_VERSIONNUM_MICRO(version) ((version) % 100)
+
+    int SDL_Init(Uint32 flags);
+    void SDL_Quit(void);
+    void SDL_GetVersion(SDL_version *ver);
+
+    /* ---------------------------------------------------------------------------
+     * Surfaces, for the window icon that a console does not have.
+     *
+     * pl_linux.c's PL_SetWindowIcon decodes a small BMP and hands it to SDL. On
+     * this console the launcher icon is sce_sys/icon0.png read by the shell, not
+     * something the title sets, so the work has nowhere to go. The path is
+     * unreachable rather than merely useless: it begins at SDL_RWFromConstMem,
+     * which this shim refuses, and PL_SetWindowIcon returns on the NULL. What is
+     * below exists so that the reference is defined and the link succeeds, and so
+     * that the path would still behave if the refusal above it ever changed.
+     * ------------------------------------------------------------------------- */
+
+    typedef struct SDL_PixelFormat
+    {
+        Uint32 format;
+    } SDL_PixelFormat;
+
+    typedef struct SDL_Surface
+    {
+        SDL_PixelFormat *format;
+        int w;
+        int h;
+        void *pixels;
+    } SDL_Surface;
+
+    SDL_Surface *SDL_LoadBMP_RW(SDL_RWops *src, int freesrc);
+    Uint32 SDL_MapRGB(const SDL_PixelFormat *format, Uint8 r, Uint8 g, Uint8 b);
+    int SDL_SetColorKey(SDL_Surface *surface, int flag, Uint32 key);
+    void SDL_FreeSurface(SDL_Surface *surface);
+    void SDL_SetWindowIcon(SDL_Window *window, SDL_Surface *icon);
+
+    /* No browser, no shell command, nothing to hand a URL to. Failure is what a
+     * desktop with no browser reports, and the caller already handles it. */
+    int SDL_OpenURL(const char *url);
+
     /* The mouse-mode calls the input layer makes. Kept beside the cursor block
      * because they are the same absence: no pointer to grab, none to warp, and no
      * text to input. */
