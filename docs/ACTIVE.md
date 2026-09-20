@@ -5,6 +5,12 @@ Volatile. Rewritten in place; the runs are in `docs/PHASE_LOG.md`, the plan is i
 
 ## Where the port is
 
+**The title runs on the console, and reaches the engine.** Two console runs have
+happened. The first died in `Sys_Init` on `getcwd`, which the SDK declares and the
+runtime does not provide. The second got through `main`, `Sys_Init` and `Host_Init`
+and died in `W_LoadWadFile` because the game data had never been deployed - that is
+fixed, and `id1/pak0.pak` is on the console.
+
 **A signed title exists and every gate is green.** `dist/PPSA99010/eboot.bin`,
 23.8 MB, carrying the whole engine and the whole platform layer — `main`,
 `Host_Init`, `VID_Init`, `GL_EndRendering`, `Sys_Init`, `IN_Init`, `SNDDMA_Init`,
@@ -115,7 +121,8 @@ harder to read from a console log than one that is simply silent.
 
 ## Next
 
-One thing: **run it on the console.** The title is deployed and waiting. What a
+One thing: **run it again.** The data is deployed and the title now traces what the
+driver answers, so a run says how far the Vulkan path got. What a
 run answers is whether vkQuake's own `GL_InitInstance` and `GL_InitDevice` survive
 contact with `../PS5_Vulkan`, whether the display-plane surface is accepted at
 3840x2160, and whether a frame reaches VideoOut — which is M2, and M1 with it.

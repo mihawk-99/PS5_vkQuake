@@ -48,4 +48,9 @@ void mark_init(const char *step, bool have_video, int width, int height) noexcep
  * than naming a C++ namespace from inside it. */
 extern "C" void ps5_input_trace(const char *line) noexcept;
 
+/* The same door for the port layer's own C. platform/ps5/vk_globals.c is
+ * generated C and reports through this, so a console run says what the driver
+ * answered - which is what M2 has to show. */
+extern "C" void ps5_trace(const char *line) noexcept;
+
 #endif

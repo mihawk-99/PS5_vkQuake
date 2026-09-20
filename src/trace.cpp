@@ -27,6 +27,37 @@ void write(const char *line) noexcept
     std::fflush(file);
     std::fclose(file);
 }
+
+/* Point the C streams at the trace file, before main.
+ *
+ * Why a constructor. vkQuake reports through stdout and stderr, and on this
+ * console neither reaches anything: not the kernel log, not the title's folder,
+ * not FTP. The second console run died inside Sys_Error - the engine had failed
+ * to load its game data - and the console's report said which function called
+ * Sys_Error and nothing about why, because Sys_Error's own message went to a
+ * stream with no reader. The backtrace was readable and the reason was not.
+ *
+ * Appending rather than truncating, so the sequence of a run survives, and
+ * unbuffered, because everything that prints an error and then exits would
+ * otherwise lose it: the console's libc buffers these streams and exit does not
+ * flush. That is exactly the case this exists for.
+ *
+ * An earlier project on this console solved the same problem the same way. It is
+ * a development aid and it is removed when the reason for it is gone;
+ * docs/ACTIVE.md says when that is.
+ */
+struct ConsoleStreams
+{
+    ConsoleStreams() noexcept
+    {
+        if (std::freopen(trace_path, "a", stderr) != nullptr)
+            std::setvbuf(stderr, nullptr, _IONBF, 0);
+        if (std::freopen(trace_path, "a", stdout) != nullptr)
+            std::setvbuf(stdout, nullptr, _IONBF, 0);
+    }
+};
+
+const ConsoleStreams console_streams;
 } // namespace
 
 void mark(const char *step) noexcept
@@ -52,6 +83,15 @@ void mark_init(const char *step, bool have_video, int width, int height) noexcep
 
 /* The C door src/input_ps5.cpp writes through; see the note in trace.hpp. */
 extern "C" void ps5_input_trace(const char *line) noexcept
+{
+    ps5::debug::mark(line);
+}
+
+/* The same door for the port layer's own C, which cannot name a C++ namespace.
+ * platform/ps5/vk_globals.c is generated and uses this to report what the driver
+ * answered, so a console run says how far the Vulkan path got rather than only
+ * how far it did not. */
+extern "C" void ps5_trace(const char *line) noexcept
 {
     ps5::debug::mark(line);
 }
