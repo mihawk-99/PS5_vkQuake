@@ -5,10 +5,11 @@ Volatile. Rewritten in place; the runs are in `docs/PHASE_LOG.md`, the plan is i
 
 ## Where the port is
 
-Milestone **M0**. The engine compiles for `x86_64-sie-ps5` and the SDL
-compatibility layer that makes that possible is written and tested. Nothing has
-run on the console, and the title does not link yet: vkQuake's entry point and the
-ten platform files the port layer owes do not exist.
+Milestone **M2**, on the compile half of it. vkQuake's engine compiles for
+`x86_64-sie-ps5`, and so does its **entire Vulkan backend** — `gl_vidsdl.c`, 5036
+lines, unmodified — because the port describes the console to the renderer instead
+of editing it. Nothing has run on the console, and the title does not link yet:
+vkQuake's entry point and seven platform files are still missing.
 
 The frontend is gone. `src/` holds only PS5 platform code, the RetroArch tools,
 assets, vendor trees, evidence captures and PPSSPP plans are deleted, and the
@@ -61,10 +62,11 @@ entirely. The guard was verified by removing the rules and watching it go red.
 
 ## What is built, and what proves it
 
-`tools/build-vkquake-engine.sh` compiles 72 sources — the 71 of vkQuake's
-non-platform engine that upstream's `meson.build` names, plus
-`platform/ps5/sdl_ps5.c` — into `build/vkquake/libvkquake_engine.ps5.a` (3.6M,
-1914 defined symbols including `Host_Init` and `Cvar_RegisterVariable`). It needs
+`tools/build-vkquake-engine.sh` compiles 74 sources — 72 of vkQuake's engine
+from upstream's own `meson.build`, including its whole Vulkan backend, plus
+`platform/ps5/sdl_ps5.c` and `platform/ps5/ps5_window.c` — into
+`build/vkquake/libvkquake_engine.ps5.a` (3.7M), defining `Host_Init`,
+`Cvar_RegisterVariable`, `VID_Init` and `GL_EndRendering` among 1900-odd others. It needs
 no environment set up: like the boilerplate's `tools/build.sh`, it resolves the
 payload SDK from `.deps/native/ps5-payload-sdk` itself.
 
@@ -90,24 +92,36 @@ reaches the link and fails on the undefined `VID_*`, `Sys_*`, `IN_*` and
 | `audio_ps5.cpp` | AudioOut ring and worker thread; the `audio_driver_t` table is gone |
 | `input_ps5.cpp`, `input_ps5.h` | The pad, behind a small C surface in the console's own numbering |
 
-## The ten files the port layer owes
+## The platform files the port layer still owes
 
-Excluded from the archive by name, each recorded with what replaces it. All ten
-are still `unported`; `tools/build-vkquake-engine.sh --list` prints them.
+Seven, excluded from the archive by name and printed by
+`tools/build-vkquake-engine.sh --list`. `gl_vidsdl.c` is no longer among them:
+it compiles, and the port answered it with a display model and a surface rather
+than a rewrite.
 
-`gl_vidsdl.c` (window, display modes, the `VkSurfaceKHR`), `main_sdl.c` (entry
-point and the client loop's delay), `sys_sdl.c` + `sys_sdl_unix.c` (file handle
-table, base directory, performance counter, directory scan), `in_sdl.c` +
-`in_sdl2.c` (event loop, gamepad, key mapping), `snd_sdl.c` (the seven `SNDDMA_*`
-functions), `pl_linux.c` (window icon, clipboard, message box).
+How far each is, measured by compiling it with the error limit lifted:
+
+| File | Errors | What it wants |
+| --- | --- | --- |
+| `sys_sdl.c` | **0** | already compiles |
+| `sys_sdl_unix.c` | 1 | `SDL_OpenURL` |
+| `pl_linux.c` | 1 | the window icon |
+| `main_sdl.c` | 8 | `SDL_Init`, `SDL_Quit`, `SDL_GetVersion` |
+| `snd_sdl.c` | 43 | the SDL audio-device API |
+| `in_sdl.c` | 152 | the SDL gamepad and event API |
+
+Those counts are the work list, and they say the remaining platform work is the
+audio device and the pad — M5 and M4 — not the renderer.
 
 ## Next
 
-1. The entry point and `sys_ps5.c`, so the title links and boots — that is M1, and
-   the first thing a console run can prove.
-2. `vid_ps5.c`: vkQuake's `GL_InitInstance`/`GL_InitDevice` reached with a PS5
-   surface. Three SDL calls carry all of it — the instance extension list,
-   `SDL_Vulkan_GetVkGetInstanceProcAddr`, and surface creation.
+1. The entry point and the two `sys_sdl` files, so the title links and boots —
+   that is M1, and the first thing a console run can prove. `sys_sdl.c` already
+   compiles and `sys_sdl_unix.c` needs one function.
+2. Then the console run that closes M2: vkQuake's own `GL_InitInstance` and
+   `GL_InitDevice` against the linked driver, a swapchain on the display-plane
+   surface, and a cleared frame presented to VideoOut. Everything up to the
+   console is in place; what is left is the link and the run.
 
 ## Open questions
 

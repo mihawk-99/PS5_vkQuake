@@ -241,3 +241,83 @@ Quake ships no startup sound to convert.
 
 $ bash tools/validate-assets.sh sce_sys
 Presentation assets validated: sce_sys
+
+---
+
+## 2026-09-20: M2 — vkQuake's Vulkan backend compiles for the console, unmodified
+
+The step the port turns on. `gl_vidsdl.c` - vkQuake's entire Vulkan renderer
+backend, 5036 lines of instance creation, physical-device selection, feature
+negotiation, swapchain building, frame recording and present - now compiles for
+`x86_64-sie-ps5` with **no edit to the file**. It is in the engine archive:
+
+```
+$ bash tools/build-vkquake-engine.sh
+==> [vkquake] compiled 74 sources for x86_64-sie-ps5
+==> [vkquake] 3.7M, 74 objects
+$ llvm-nm --defined-only build/vkquake/libvkquake_engine.ps5.a | grep -E ' T (VID_Init|GL_EndRendering)$'
+0000000000000000 T GL_EndRendering
+0000000000000000 T VID_Init
+```
+
+How, and why this is a milestone rather than a compile. The measure came first:
+compiling the file with the error limit lifted gave **44 undeclared identifiers,
+and every one of them a window, a display mode or a cursor**. Not one was Vulkan.
+vkQuake asks SDL for five things - the instance extension list, the loader entry
+point, a `VkSurfaceKHR`, the drawable size, and a library handle - and does
+everything else itself in plain Vulkan. So the port describes the console to the
+renderer rather than editing the renderer.
+
+What the console answers, in `platform/ps5/SDL.h`, `SDL_vulkan.h` and
+`ps5_window.c`:
+
+- **One display, one mode: 3840x2160 at 60 Hz.** Not a chosen default.
+  `../PS5_Vulkan` drives VideoOut at that size and its
+  `ps5vk_CreateDisplayPlaneSurfaceKHR` asserts `pCreateInfo->imageExtent` equals
+  it, so a surface at any other size is refused rather than scaled. So
+  `SDL_Vulkan_GetDrawableSize` reports the screen's mode and not the size a window
+  was asked to be - vkQuake compares the two against the surface's `currentExtent`
+  in `GL_CreateSwapChain` and would otherwise build a swapchain the driver
+  rejects.
+- **The surface is a `VkDisplayPlaneSurfaceKHR`.** The sequence is the one
+  RetroArch's `khr_display` context driver proved on this hardware - enumerate
+  displays, planes and modes, pick the plane that can drive the display, create -
+  collapsed to the shape the console has, but with the plural queries kept so a
+  driver that grows a second display is described correctly rather than assumed
+  away.
+- **Everything resolves through the driver's own `vkGetInstanceProcAddr`**, which
+  `libps5vk.ps5.a` defines. The driver is linked, not loaded: a PS5 title cannot
+  dlopen a repository-built `.so`.
+
+Coverage is checked rather than assumed. `gl_vidsdl.o` needs 28 SDL symbols; the
+two shim objects define all 28, and the check is a `comm` of the two symbol lists
+so a gap cannot hide:
+
+```
+$ comm -23 build/needs.txt build/have.txt     # needed, not provided
+                                              # (empty)
+```
+
+The window token is not a window and is not pretending to be: it carries the
+flags and the size a caller set, because upstream reads them back -
+`VID_GetFullscreen` is `SDL_GetWindowFlags` masked with `SDL_WINDOW_FULLSCREEN`,
+and the answer decides `modestate`.
+
+### What M2 still needs
+
+The backend compiles and is in the archive. It has not run: the title does not
+link, because vkQuake's entry point and the seven remaining platform files are
+still missing. How close those are, measured the same way:
+
+| File | Errors | What it wants |
+| --- | --- | --- |
+| `sys_sdl.c` | **0** | already compiles |
+| `sys_sdl_unix.c` | 1 | `SDL_OpenURL` |
+| `pl_linux.c` | 1 | the window icon |
+| `main_sdl.c` | 8 | `SDL_Init`, `SDL_Quit`, `SDL_GetVersion` |
+| `snd_sdl.c` | 43 | the SDL audio-device API |
+| `in_sdl.c` | 152 | the SDL gamepad and event API |
+
+So the order is: `main_sdl.c` and the two `sys_sdl` files first, which is M1's
+linking title; then the audio and input device APIs, which are M4 and M5 and are
+the two real pieces of platform work left.

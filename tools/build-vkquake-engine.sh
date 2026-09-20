@@ -65,8 +65,14 @@ meson_listing=$(
 # The SDL platform layer, and what replaces it. The second column is the port
 # file; "unported" means the replacement is not written yet, which is a state the
 # port is allowed to be in but is not allowed to hide.
+#
+# gl_vidsdl.c is not here, and that is the point of the row it used to occupy. It
+# is vkQuake's entire Vulkan backend - 5000 lines of instance, device, swapchain,
+# frame recording and present - and it now compiles for this console unmodified,
+# because the only SDL it needed was the window, the display modes, the cursors
+# and the surface, and platform/ps5/{SDL.h,SDL_vulkan.h,ps5_window.c} provide
+# those. Nothing about the renderer is patched; the console is described to it.
 excluded=$(cat <<'EOF'
-gl_vidsdl.c	unported	the SDL window, display modes, cursors and the VkSurfaceKHR
 main_sdl.c	unported	SDL_Init/SDL_Quit and the client loop's delay
 sys_sdl.c	unported	the file handle table's mutex and the folder dialog
 sys_sdl_unix.c	unported	getcwd-based basedir, the perf counter, backtrace, /proc
