@@ -22,12 +22,13 @@ Read in this order and stop as soon as you have what you need:
 3. `docs/ACTIVE.md` — the volatile state: the current step, the next actions,
    the blockers, the last verified runs. Read last, before you start work.
 4. On demand only, when the task needs it: `docs/FINDINGS.md` (the evidence
-   behind each invariant), `docs/PHASE_LOG.md` (append-only run logs), and the
-   inherited RetroArch documents under `docs/inherited/` — `REFERENCE.md` (its
-   step ladder and environment), `DEPLOYMENT.md` (the console-side procedure,
-   which still applies), `TESTING.md`, `TROUBLESHOOTING.md`, `GPU_PATH_CRITERIA.md`
-   (the acceptance criteria for the Vulkan route) and `FINDINGS.md` (the driver
-   measurements this port inherited).
+   behind each invariant), `docs/PHASE_LOG.md` (append-only run logs),
+   `docs/PS5_VULKAN_REQUESTS.md` (requests to the driver, which is maintained
+   separately and read-only from here), and the inherited RetroArch documents
+   under `docs/inherited/` — `REFERENCE.md` (its step ladder and environment),
+   `DEPLOYMENT.md` (the console-side procedure, which still applies), `TESTING.md`,
+   `TROUBLESHOOTING.md`, `GPU_PATH_CRITERIA.md` (the acceptance criteria for the
+   Vulkan route) and `FINDINGS.md` (the driver measurements this port inherited).
 
 Never read a long log end to end to answer a status question: `docs/ACTIVE.md`
 and each log's own summary say what passed.
