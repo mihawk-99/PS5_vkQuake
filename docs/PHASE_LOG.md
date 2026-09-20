@@ -923,3 +923,63 @@ carries on with the loopback address - which is what a console wants anyway.
 
 The probe switch and the trace file were cleared afterwards, so the next run records
 the engine's own output and nothing else.
+
+### M2: vkQuake's Vulkan instance initialises on the console
+
+The run after the `gethostbyname` shim is the one the whole port has been aimed at.
+
+```
+UDP4_Init: gethostbyname failed (host not found)
+UDP4_OpenSocket: Permission denied
+UDP4_Init: Unable to open control socket, UDP disabled
+Server using protocol 999+ (FTE-RMQ)
+Exe: 11:30:16 Sep 20 2026
+SDL Video Driver: PS5 VideoOut
+
+Vulkan Initialization
+Using Vulkan 1.1
+vkCreateInstance -> 0
+Instance extensions:
+ VK_KHR_surface
+ VK_KHR_display
+ VK_KHR_get_physical_device_properties2
+```
+
+Networking initialised and reported its failures gracefully - the shim working, and the
+console refusing sockets as it will. `SV_Init` ran, the engine printed its banner,
+our SDL shim answered the video-driver query, `VID_Init` was reached, and vkQuake's
+own Vulkan instance came up against ../PS5_Vulkan with **result 0**. The extension list
+is the one platform/ps5/SDL_vulkan.h hands it - surface, display, and the Mesa
+runtime's properties2 - which is what the driver declares.
+
+The crash that follows is in this project's own generated code, and it is the same
+class of mistake as the last four rounds in one respect only: a call went to zero and
+the console named the caller.
+
+```
+6cca56: mov  vulkan_instance,%rdi
+6cca63: call vkEnumeratePhysicalDevices     <-- through the generated forwarder
+6cca69: test %eax,%eax                      <-- VID_Init +0xbf9
+```
+
+The forwarder resolved the command with `vkGetInstanceProcAddr(NULL, ...)`, for all
+seventy-nine of them. That is right for the four true globals and wrong for the rest,
+and the driver says so in one line:
+
+```c
+ps5vk_GetInstanceProcAddr(VkInstance _instance, const char *pName)
+{
+   VK_FROM_HANDLE(ps5vk_instance, instance, _instance);
+   return vk_instance_get_proc_addr(instance ? &instance->vk : NULL, ...);
+}
+```
+
+With a null instance it answers only `vkCreateInstance`,
+`vkEnumerateInstanceExtensionProperties`, `vkEnumerateInstanceLayerProperties` and
+`vkEnumerateInstanceVersion`. `vkEnumeratePhysicalDevices` is instance-level, so it
+resolved to NULL and was called.
+
+`tools/gen-vk-globals.py` now emits the part of a loader a statically linked single-ICD
+title actually needs: it remembers the instance from `vkCreateInstance` and the device
+from `vkCreateDevice`, keeps the null-instance path for the four globals, and resolves
+everything else through the instance first and the device second.
