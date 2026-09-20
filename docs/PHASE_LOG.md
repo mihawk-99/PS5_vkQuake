@@ -759,3 +759,20 @@ One thing that broke in the process and is worth keeping: the two hooks are weak
 host test, and a strong reference to the probe made both untestable - the link
 failed with the probe absent. A missing diagnostic should mean no diagnostic, not a
 build error.
+
+### The probe cannot tell "no change" from "not called"
+
+The repairing watch ran and logged once - the value `b26d00`, correct, at Sys_Init's
+mutex - and then nothing, and the run stopped in the same place. But that is the
+same output the probe would produce if it were never called again: change-triggered
+logging makes "the value never changed" and "the hook never fired" identical, and
+they are the two answers that would send this in opposite directions.
+
+So the watch now also logs every 256th call with a counter. If the samples continue
+up to the crash, then the hook is firing that late and no change ever happened -
+which would mean the call is not reading the word the probe reads, and the
+disassembly is wrong in a way three rounds of checking have not found. If the
+samples stop early, the allocator hook is not firing and the probe is looking at
+nothing between the last mutex and the crash.
+
+Either answer is the end of this ambiguity, which is what the last round cost.

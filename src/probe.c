@@ -149,11 +149,18 @@ void ps5_probe_watch(void)
         return;
 
     void *init = *(void **)(net_landrivers + INIT_OFFSET);
-    /* Only on change, and only once for the first value. The allocator calls this
-     * on every allocation, which through Host_Init is thousands of times; logging
-     * each one would bury the one line that matters and fill the console's folder
-     * with a megabyte of "still correct". */
-    if (reported && init == last)
+    /* On change, and otherwise only every 256th call.
+     *
+     * The change is what matters and is logged the moment it is seen. The periodic
+     * line answers the question the previous version could not: whether this is
+     * being called at all that late. Logging every call would bury the one line that
+     * matters and fill the console's folder; logging only changes made "no change"
+     * and "not called" look identical, which is exactly the ambiguity that cost the
+     * last round. Now the samples are visible and sparse, and if they stop before
+     * the crash then the hook is not firing and the probe is looking at nothing. */
+    static unsigned calls;
+    ++calls;
+    if (reported && init == last && calls % 256 != 0)
         return;
 
     char line[160];
@@ -171,7 +178,7 @@ void ps5_probe_watch(void)
     }
     else
     {
-        snprintf(line, sizeof line, "probe: watch net_landrivers[0].Init = %p", init);
+        snprintf(line, sizeof line, "probe: watch #%u net_landrivers[0].Init = %p", calls, init);
     }
     last = init;
     reported = 1;
