@@ -120,6 +120,8 @@ __attribute__((constructor)) static void ps5_probe_tables(void)
 void ps5_probe_watch(void)
 {
     static int enabled = -1;
+    static void *last = NULL;
+    static int reported = 0;
     if (enabled < 0)
     {
         FILE *control = fopen("/app0/probe.txt", "rb");
@@ -131,6 +133,15 @@ void ps5_probe_watch(void)
         return;
 
     void *init = *(void **)(net_landrivers + INIT_OFFSET);
+    /* Only on change, and only once for the first value. The allocator calls this
+     * on every allocation, which through Host_Init is thousands of times; logging
+     * each one would bury the one line that matters and fill the console's folder
+     * with a megabyte of "still correct". */
+    if (reported && init == last)
+        return;
+    last = init;
+    reported = 1;
+
     char line[128];
     snprintf(line, sizeof line, "probe: watch net_landrivers[0].Init = %p", init);
     ps5_trace(line);

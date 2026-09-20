@@ -667,3 +667,63 @@ at NET_Init, so the writer is one of those.
 not this project's to edit, but the engine calls SDL throughout that sequence and
 SDL is this project's shim, so the trace gets a sample per mutex between main and
 the fault. The last sample before the crash names the step that did it.
+
+### The pointer is never zeroed, so the call is not reading it
+
+The run with the change-watching probe settled it, and settled it against the
+reading of the crash that two rounds of analysis had been built on:
+
+```
+probe: net_landrivers at 1aa60f0, count 2
+probe:   [0].Init = b26b80
+probe: end
+Command line:
+Using SDL version 2.0.0
+probe: watch net_landrivers[0].Init = b26b80
+Detected 16 CPUs.
+Initializing vkQuake 1.36.0
+Host_Init
+probe: watch net_landrivers[0].Init = b26b80     (x200, to the end)
+getpwuid: Operation not permitted
+Steam library not found.
+Playing shareware version.
+probe: watch net_landrivers[0].Init = b26b80
+Console initialized.
+```
+
+**The value never changes.** It is correct before main and still correct at the last
+sample, which is after `Con_Init` printed "Console initialized." Nothing zeroes it.
+
+So the call is not reading that slot, and the disassembly must be being read
+wrongly. For this build, whose map matches the crash this time:
+
+```
+$ python3 tools/symbolize-crash.py klog/vkquake-listen-110526.log
+  0x000000b237d1  Datagram_Init +0xa1
+  0x000000b20b47  NET_Init +0x207
+  0x000000a6ea34  Host_Init +0x94
+  0x000000a6bdda  main +0xfa
+```
+
+and the register dump pairs with it - `r12 = 1aa60f0`, which is exactly this
+build's `net_landrivers`, and `r13 = 0`:
+
+```
+7237b1: lea 0xf82938(%rip),%r12   # 16a60f0 <net_landrivers>
+7237cc: call *0x10(%r12,%r13,1)
+7237d1: cmp $0xffffffff,%eax      <-- the return address in the backtrace
+```
+
+The probe reads `net_landrivers + 0x10` and gets `b26b80`. The call reads
+`0x10(%r12,%r13,1)` with `r12 = net_landrivers` and `r13 = 0` and goes to zero. The
+same address, in the same run, two answers. One of the two readings is wrong and
+the disassembly is the more likely of them: the probe's arithmetic is three lines
+of C, and the instruction's meaning depends on what `r12` holds *at the call*, which
+the dump only shows after the fault.
+
+The next instrument narrows it without needing to resolve that. `ps5_probe_watch`
+now logs only when the value *changes*, and `src/memory_ps5.cpp` calls it from
+`__wrap_malloc`. PR_Init and Mod_Init run between the last mutex and the crash and
+create none, but they allocate constantly, so the allocator puts a sample inside
+them - and because the probe is change-triggered, a trace that would otherwise be
+thousands of identical lines stays readable whichever way the answer goes.
