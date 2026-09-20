@@ -321,3 +321,71 @@ still missing. How close those are, measured the same way:
 So the order is: `main_sdl.c` and the two `sys_sdl` files first, which is M1's
 linking title; then the audio and input device APIs, which are M4 and M5 and are
 the two real pieces of platform work left.
+
+---
+
+## 2026-09-20: M1 — the title links, and every gate is green
+
+`dist/PPSA99010/eboot.bin`, 23,827,634 bytes, signed, container valid. The build
+gate had never passed in this repository; all five do now.
+
+```
+$ bash tools/verify.sh
+==> [shaders] compiled 67 shaders and packaged vkquake.pak
+==> [vkquake] compiled 150 sources for x86_64-sie-ps5
+==> [vkquake] 4.4M, 150 objects
+==> [title] built dist/PPSA99010 (5 files, eboot.bin 23827634 bytes)
+verify: PASS (format unit build integration evidence)
+```
+
+The linked binary carries the whole engine and the whole platform layer:
+
+```
+$ llvm-nm build/llvm-pie.elf | grep -E ' (main|Host_Init|VID_Init|GL_EndRendering|Sys_Init|IN_Init|SNDDMA_Init|R_CreatePipelines)$'
+000000000066b980 t main
+000000000066e640 t Host_Init
+00000000006cb850 t VID_Init
+00000000006ca520 t GL_EndRendering
+000000000078c650 t Sys_Init
+0000000000793740 t IN_Init
+00000000007936d0 t SNDDMA_Init
+000000000069f9d0 t R_CreatePipelines
+```
+
+They are local rather than global because the link uses
+`tooling/native/app-symbols.map`, which is what a title wants: exactly one
+exported entry point and no accidental ABI surface.
+
+### The shaders and the pak, which upstream generates and does not commit
+
+Two categories of symbol the link was missing, both produced by upstream's meson
+at build time and neither committed: 132 `_spv` symbols and three `vkquake_pak`
+ones. `Shaders/Compiled/` ships holding two empty directories.
+
+`tools/build-vkquake-shaders.sh` reproduces the pipeline: `bintoc` and `mkpak`
+built from upstream's own sources with the host compiler, then 67 jobs through
+`glslangValidator` and `spirv-opt`, then a `.c` per shader and one for the pak.
+The job list comes from upstream's `meson.build`, so a shader it adds or a variant
+whose defines it changes appears here rather than failing at pipeline creation on
+the console.
+
+One real bug found in writing it, and one check that now prevents its return.
+`Shaders/shaders.h` is committed and declares every blob the renderer looks for -
+`DECLARE_SHADER_SPV(alias_vert)` declares `alias_vert_spv`. The first version of
+the generator derived the symbol by stripping the extension and appending `_spv`,
+which makes `alias.vert` and `alias.frag` both `alias_spv`; eight pairs of a .vert
+and a .frag share a stem, and each pair silently kept only whichever compiled
+last. The symbol is now the whole file name with every character outside
+`[A-Za-z0-9_]` folded, and the generator compares its output against shaders.h's
+own declaration list and fails on any difference in either direction - which is
+the check that would have caught it.
+
+### The seven libc functions the payload SDK declares and does not define
+
+`platform/ps5/libc_shims.c`, the same shape as `src/locale_shims.c` and for the
+same reason: a clean-room libc that declares a function in its headers and does
+not carry it makes the compiler accept the call and the linker refuse it.
+`getline` is implemented properly, because upstream uses it; `backtrace`,
+`getpwuid`, `gethostbyaddr` and `hstrerror` answer with the absence that is true
+on this console, and each says in the file why that answer is the one upstream
+already handles.
