@@ -160,7 +160,14 @@ void ps5_probe_watch(void)
      * the crash then the hook is not firing and the probe is looking at nothing. */
     static unsigned calls;
     ++calls;
-    if (reported && init == last && calls % 256 != 0)
+    /* Every call, up to a bound. The sampled version left one gap open: a write with
+     * no allocation after it would never be seen, and the last sample was 256 calls
+     * before the crash, so "the value never changed" and "it changed after the last
+     * sample" were still indistinguishable. Full resolution closes it - the last line
+     * before the fault is then the value the call itself would have read. The bound
+     * is only there so a title that allocates a hundred thousand times cannot fill
+     * the console's folder. */
+    if (calls > 4000)
         return;
 
     char line[160];

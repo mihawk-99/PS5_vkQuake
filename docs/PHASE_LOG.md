@@ -811,3 +811,36 @@ this port were spent proving a table was fine when the table was never the subje
 The flag is restored, with upstream's reason and this port's evidence for it in the
 comment. A backtrace that names the wrong function is worse than no backtrace,
 because it is believable.
+
+### Frame pointers did not change the frame, so the frame was not the problem
+
+Restoring `-fno-omit-frame-pointer` and re-running gave the identical backtrace:
+
+```
+  0x000000b23981  Datagram_Init +0xa1
+  0x000000b20cf7  NET_Init +0x207
+```
+
+and the same registers - `r12 = 1aa60f0`, `r13 = 0` - against this build's own
+disassembly, which still puts the call at `Datagram_Init +0xa1` reading
+`0x10(%r12,%r13,1)`. The flag was worth restoring on its own merits and is upstream's
+own choice, but it did not explain this.
+
+So the reading stands and the probe stands, and the only way both hold is a write
+with no allocation after it - the sampled watch logged every 256th call and the last
+one was 256 calls before the fault. The watch now logs every call up to a bound, so
+the last line before the fault is the value the call itself would have read. That
+closes the last gap in the instrumentation: there is no longer a window in which a
+write can hide.
+
+What the addresses do confirm, from this run's own probe:
+
+```
+probe: net_drivers at 1aa5ff0, count 2
+probe:   [1].Init = b238e0        == Datagram_Init, which is where the backtrace says we are
+probe: net_landrivers at 1aa60f0, count 2
+probe:   [0].Init = b26d30        == UDP4_Init, the call's target
+```
+
+The table, the code and the fault address all name the same thing. Only the value
+disagrees.
