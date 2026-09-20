@@ -106,8 +106,14 @@ void *resize(void *pointer, size_t size)
 
 } // namespace
 
+/* The probe's second clock: see src/probe.c. PR_Init and Mod_Init run between the
+ * last mutex and the crash and create none, but they allocate constantly, so this
+ * is what puts a sample inside them. The probe logs only when the value changes. */
+extern "C" void ps5_probe_watch(void);
+
 extern "C" void *__wrap_malloc(size_t size)
 {
+    ps5_probe_watch();
     const auto caller = uintptr_t(__builtin_return_address(0));
     void *p = allocate(size);
     if (p)
