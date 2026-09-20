@@ -1,12 +1,17 @@
-/* PS5 RetroArch - native PCM audio backend.
+/* PS5 vkQuake - native PCM audio backend.
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * AudioOut ABI/constants and call ordering follow ProsperoLight's
  * moonlight_stream.cpp (Copyright 2026 BlackBearReloaded, GPL-3.0-or-later).
- * RetroArch supplies PCM; no SDL, network decoder or Opus dependency is used.
+ * The engine supplies PCM through the SNDDMA_* backend this file will grow; no
+ * SDL, network decoder or Opus dependency is used.
+ *
+ * This file was a RetroArch audio_driver_t. That driver table is gone and what
+ * is left is the console's audio device: a ring the producer writes and a worker
+ * thread that blocks in sceAudioOutOutput. The interface it exposes is the one
+ * its own callers use, so the vkQuake side can drive it directly.
  */
-#include <audio/audio_driver.h>
 #include <pthread.h>
 #include <algorithm>
 #include <cmath>
@@ -23,7 +28,6 @@ extern "C"
     int32_t sceAudioOutOpen(int32_t, int32_t, int32_t, uint32_t, uint32_t, uint32_t);
     int32_t sceAudioOutOutput(int32_t, const void *);
     int32_t sceAudioOutClose(int32_t);
-    const char *ps5_frontend_build_identity();
 }
 
 namespace
@@ -305,13 +309,6 @@ bool use_float(void *)
 }
 } // namespace
 
-extern "C"
-{
-    audio_driver_t audio_ps5 = {audio_init, audio_write, audio_stop, audio_start, audio_alive,
-                                nonblock,   audio_free,  use_float,  "ps5",       nullptr,
-                                nullptr,    available,   buffer_size};
-}
-
 /* Opt-in bring-up test; normal launches never generate audio themselves. */
 extern "C" void ps5_audio_test_if_requested()
 {
@@ -322,7 +319,7 @@ extern "C" void ps5_audio_test_if_requested()
     std::remove("/app0/audio-test.txt");
     std::fprintf(stderr, "audio ps5 test: left 440 Hz, then right 660 Hz, repeated; 12.5%% peak\n");
     unsigned actual_rate = 0;
-    auto *a = static_cast<Audio *>(audio_ps5.init(nullptr, 44100, 32, 0, &actual_rate));
+    auto *a = static_cast<Audio *>(audio_init(nullptr, 44100, 32, 0, &actual_rate));
     bool ok = a && actual_rate == rate;
     uint64_t accepted = 0, played = 0, errors = 0;
     size_t high_water = 0, capacity = 0;
@@ -363,29 +360,28 @@ extern "C" void ps5_audio_test_if_requested()
                     samples[i * 2] = phase % 2 ? 0 : value;
                     samples[i * 2 + 1] = phase % 2 ? value : 0;
                 }
-                ok = audio_ps5.write(a, samples, frames * frame_bytes) ==
-                     ssize_t(frames * frame_bytes);
+                ok = audio_write(a, samples, frames * frame_bytes) == ssize_t(frames * frame_bytes);
                 offset += frames;
             }
             ok = ok && wait_empty(a);
-            ok = audio_ps5.stop(a) && ok;
-            ok = !audio_ps5.alive(a) && ok;
-            ok = audio_ps5.start(a, false) && ok;
+            ok = audio_stop(a) && ok;
+            ok = !audio_alive(a) && ok;
+            ok = audio_start(a, false) && ok;
         }
         // A full nonblocking write accepts only the queue's capacity, without waiting.
-        const size_t size = audio_ps5.buffer_size(a);
+        const size_t size = buffer_size(a);
         auto *quiet = static_cast<uint8_t *>(std::calloc(size * 2, 1));
         if (ok && quiet)
         {
-            audio_ps5.set_nonblock_state(a, true);
-            nonblocking_bytes = audio_ps5.write(a, quiet, size * 2);
+            nonblock(a, true);
+            nonblocking_bytes = audio_write(a, quiet, size * 2);
             ok = nonblocking_bytes == ssize_t(size) && wait_empty(a);
-            audio_ps5.set_nonblock_state(a, false);
+            nonblock(a, false);
         }
         else
             ok = false;
         std::free(quiet);
-        ok = audio_ps5.stop(a) && ok;
+        ok = audio_stop(a) && ok;
         pthread_mutex_lock(&a->mutex);
         accepted = a->accepted;
         played = a->played;
@@ -400,13 +396,12 @@ extern "C" void ps5_audio_test_if_requested()
     if (report)
     {
         std::fprintf(report,
-                     "{\"build_identity\":\"%s\",\"passed\":%s,\"rate\":%u,"
+                     "{\"passed\":%s,\"rate\":%u,"
                      "\"grain_frames\":256,\"frame_bytes\":4,\"accepted_frames\":%llu,"
                      "\"played_frames\":%llu,\"errors\":%llu,\"peak_frames\":%zu,"
                      "\"capacity_frames\":%zu,\"nonblocking_bytes\":%lld}\n",
-                     ps5_frontend_build_identity(), ok ? "true" : "false", actual_rate,
-                     (unsigned long long)accepted, (unsigned long long)played,
-                     (unsigned long long)errors, high_water, capacity,
+                     ok ? "true" : "false", actual_rate, (unsigned long long)accepted,
+                     (unsigned long long)played, (unsigned long long)errors, high_water, capacity,
                      (long long)nonblocking_bytes);
         std::fclose(report);
     }

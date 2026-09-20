@@ -1,12 +1,13 @@
 /*
- * PS5 RetroArch - the console's display, owned by this project.
+ * PS5 vkQuake - the console's display, owned by this project.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * This is the layer a RetroArch video driver sits on: it opens VideoOut, takes
- * the direct memory the console's GPU scans out, registers two buffers and
- * presents one at a time.
+ * This is the console's display: it opens VideoOut, takes the direct memory the
+ * console's GPU scans out, registers two buffers and presents one at a time. It
+ * is the CPU-written path, used to bring a title up and to prove the shell before
+ * a renderer works; vkQuake's own frames go through Vulkan instead.
  *
  * Every constant and the tiled addressing below are taken from the sibling native
  * application that proved them on hardware

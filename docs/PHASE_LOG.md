@@ -126,3 +126,96 @@ down something unmeasured.
 rather than requiring the caller to export `PS5_PAYLOAD_SDK`. Verified by running
 it in a shell with neither `PS5_PAYLOAD_SDK` nor `PS5_CLANG` set: 72 sources,
 3.6M, exit 0.
+
+---
+
+## 2026-09-20: M0 — the RetroArch material is removed
+
+The tree is vkQuake's. What follows is what went, what stayed, and what stayed
+only because deleting it would have destroyed work the port needs.
+
+### Removed
+
+Tracked: `assets/` (the XMB and RGUI menus' own artwork), `config/retroarch.cfg`,
+`evidence/` (33 captures of RetroArch runs), `parked/`, `title/`, the two PPSSPP
+plans at the root, sixteen RetroArch tools (`build-retroarch.sh`,
+`retroarch-sources.sh`, `retroarch-flags.sh`, `apply-port-patches.py`,
+`apply-runtime-probes.py`, `fetch-retroarch.sh`, the six per-core builders,
+`check-core.py`, `core-imports.py`, `probe-xmb-allocations.py`,
+`analyze-gpu-profile.py`), `tooling/{fbneo,genesis-plus-gx,mgba,ppsspp,snes9x}`
+and `tools/check-memory-diagnostics.py`, which validated a RetroArch build down
+to `build/ra/obj/menu_drivers_xmb.c.o` and a hardcoded `dist/PPSA99169`.
+
+Sources: `src/video_ps5.cpp` (a RetroArch `video_driver_t` over `display.cpp`),
+`src/main.cpp` (the entry point that built RetroArch's argv), `src/vulkan_trace.cpp`,
+`src/menu_memory.h` and `src/memory_xmb.h` (XMB-only), and `src/thread_probe.cpp`,
+which loads `ppsspp_libretro.so` and calls `retro_api_version` — frontend
+diagnostics, not PS5 plumbing.
+
+Untracked, and therefore permanent: `vendor/retroarch` (247M),
+`vendor/retroarch-assets` (15M), `vendor/fceumm`, `work/`, `handoff/` and the
+stale `dist/` output. `klog/` is kept: 1.6G of captured console runs that cannot
+be regenerated. `handoff/PPSSPP_UPSTREAM_LIBRETRO_RESEARCH.md` went with it, and
+the identical file is in `../PS5_RetroArch/handoff/`.
+
+### Kept, and stripped of the frontend instead
+
+The PS5 backends stay, because they are what the port reuses, and each lost its
+RetroArch surface:
+
+- `audio_ps5.cpp` — the `audio_driver_t audio_ps5` table and the
+  `<audio/audio_driver.h>` include are gone, and its test now compiles with no
+  include path beyond the repository root. It also stopped calling
+  `ps5_frontend_build_identity()`, which `main.cpp` used to define.
+- `input_ps5.cpp` — 536 lines to 311. The `input_driver_t` and
+  `input_device_driver_t` tables, the translation onto `RETRO_DEVICE_ID_JOYPAD_*`
+  and the `input_autoconfigure_*` announcements are gone; what is left is the pad
+  behind `src/input_ps5.h`, which reports the console's own button bits and six
+  axes. The mapping onto Quake's keys belongs to whoever drives the engine.
+- `memory_ps5.cpp` — the XMB menu slab allocator (`find_menu`, `allocate_menu`,
+  `ps5_menu_malloc`) is gone from `__wrap_free`, `__wrap_realloc` and the
+  ownership check.
+- `memory_diagnostics.cpp` — 439 lines to 335: the `XmbState` ring and the three
+  `ps5_memory_xmb_*` observers.
+- `display.cpp`, `display.hpp`, `trace.cpp`, `trace.hpp`, `ps5_directory.*`,
+  `locale_shims.c` — unchanged except that their headers no longer call
+  themselves RetroArch's, and the trace guard is `PS5_VKQUAKE_TRACE_HPP`.
+
+### The documentation
+
+`docs/inherited/` is restored, all fourteen files of it, exactly as the RetroArch
+project had them, and the three that had been promoted into `docs/` went back.
+`docs/` now holds this project's own four documents and nothing else. `AGENTS.md`
+describes this project instead of the last one, and its read order points at the
+inherited copies.
+
+### The parts that are build work, not deletion
+
+`tools/build-title.sh` was rewritten rather than trimmed: its step 1 built
+RetroArch and six libretro cores and its include paths were RetroArch's headers,
+because `src/`'s driver tables had to be laid out exactly as the frontend saw
+them. That whole class of problem is gone with the driver tables. What the rewrite
+keeps is the part that took failures to get right — the Vulkan archives linked
+whole, the Mesa utility objects `tools/build-mesa-util.sh` compiles, the linker
+flags, `make app` doing the actual link and signing, and the manifest recorded on
+every build.
+
+`Makefile` lost its five libretro core targets and gained `make engine`.
+`tools/check-manifest.sh` lost its FCEUmm ABI and metadata checks.
+
+The build gate is red, and expected to be: `tools/build-title.sh` reaches the link
+and fails on undefined `VID_*`, `Sys_*`, `IN_*` and `SNDDMA_*`. That is M1.
+
+```
+$ bash tools/verify.sh format
+lint-format: PASS
+verify: PASS (format)
+$ bash tools/verify.sh unit
+Ran 12 tests in 3.7s
+OK
+verify: PASS (unit)
+$ bash tools/build-vkquake-engine.sh
+==> [vkquake] compiled 72 sources for x86_64-sie-ps5
+==> [vkquake] toolchain canary: emulated TLS present, so PS5_CLANG is the target compiler
+==> [vkquake] 3.6M, 72 objects
+```

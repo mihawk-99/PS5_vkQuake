@@ -1,5 +1,5 @@
 /*
- * PS5 RetroArch - the FreeBSD locale variants the shader path needs.
+ * PS5 vkQuake - the FreeBSD locale variants the shader path needs.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later

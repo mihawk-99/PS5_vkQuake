@@ -61,7 +61,7 @@ truthfully and name RetroArch where they do; they are inherited, not adapted.
 ## Invariants
 
 These constrain every change. Breaking one is a design decision, and a design
-decision is written down in `docs/REFERENCE.md` and `docs/FINDINGS.md` before the
+decision is written down in `docs/FINDINGS.md` and `docs/PHASE_LOG.md` before the
 code that depends on it.
 
 - **Upstream stays upstream.** vkQuake is fetched at a pinned revision by
@@ -69,7 +69,7 @@ code that depends on it.
   hand-edited, and which keeps no history so it cannot be committed into. Every
   change this port makes to upstream's behaviour is either a file in `platform/`
   that is compiled *instead of* an upstream file, or an edit applied to a copy by
-  `tools/apply-port-patches.py`. A change that cannot be expressed as one of those
+  a file under `platform/`. A change that cannot be expressed as one of those
   two is a change to the strategy, not to a file.
 - **The toolchain is named everywhere.** Every compilation of PS5 code goes
   through `$PS5_PAYLOAD_SDK/bin/prospero-*` or `tooling/prospero-clang18`, in the
@@ -97,7 +97,7 @@ code that depends on it.
 | What a step is, and how it is accepted | `docs/PHASE_LOG.md` |
 | What was measured, and what it forces | `docs/FINDINGS.md` |
 | What happened, run by run | `docs/PHASE_LOG.md` |
-| How to verify, ship and debug | `docs/TESTING.md`, `docs/DEPLOYMENT.md`, `docs/TROUBLESHOOTING.md` |
+| How to verify, ship and debug | `docs/inherited/TESTING.md`, `docs/inherited/DEPLOYMENT.md`, `docs/inherited/TROUBLESHOOTING.md` |
 
 If a question has no home, add it to the table and create the document; do not
 answer it in two places.

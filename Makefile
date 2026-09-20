@@ -45,25 +45,14 @@ HOST_UNIT_TEST := build/tests/demo_renderer_tests
 all: app
 build: app
 
-.PHONY: genesis-plus-gx
-genesis-plus-gx:
-	@bash tools/build-genesis-plus-gx.sh
+# The five libretro core targets that stood here - genesis-plus-gx, fbneo, snes9x,
+# mgba and fceumm - are gone with the frontend that loaded them. A port of one
+# application does not build emulators, and the scripts they called are gone too.
 
-.PHONY: fbneo
-fbneo:
-	@bash tools/build-fbneo.sh
-
-.PHONY: snes9x
-snes9x:
-	@bash tools/build-snes9x.sh
-
-.PHONY: mgba
-mgba:
-	@bash tools/build-mgba.sh
-
-.PHONY: fceumm
-fceumm:
-	@bash tools/build-fceumm.sh
+# The engine. vkQuake's own C, cross-compiled into the archive the title links.
+.PHONY: engine
+engine:
+	@bash tools/build-vkquake-engine.sh
 
 init:
 	@printf '%s\n' '==> [init] Configuring the application identity in sce_sys/param.json'

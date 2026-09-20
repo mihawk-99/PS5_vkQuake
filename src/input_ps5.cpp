@@ -1,13 +1,14 @@
 /*
- * PS5 RetroArch - the console's gamepad, as RetroArch's input driver.
+ * PS5 vkQuake - the console's gamepad.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The joypad interface owns the native pad. RetroArch polls it for binding
- * discovery, menu stick navigation and mapped core input. The input interface
- * deliberately reports no additional gamepad state: duplicating raw buttons there
- * would OR the old hardcoded mapping back into user-configured bindings.
+ * This file owns the native pad and reports its state. It used to be RetroArch's
+ * joypad and input driver pair, polling for binding discovery and translating the
+ * pad into RetroArch's button numbering and axis encoding; both of those are gone
+ * with the frontend, and what is left is the console's own state behind the small
+ * surface in input_ps5.h.
  *
  * The ABI is not derivable and is not guessed. `scePadInit`, `scePadOpen`,
  * `scePadRead` and the 120-byte sample layout below were verified on hardware by
@@ -15,9 +16,9 @@
  * and src/moonlight_stream.cpp carry the same calls, the same button bits and the
  * same offsets, including `connected` at 0x4c and the timestamp at 0x50. The static
  * assertions are what keeps a wrong layout from compiling quietly.
- *
- * Reference: docs/REFERENCE.md, "Input".
  */
+
+#include "input_ps5.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -25,11 +26,6 @@
 #include <cstdio>
 #include <cstring>
 #include <new>
-
-#include <gfx/video_defines.h>
-
-#include <input/input_driver.h>
-#include <tasks/tasks_internal.h>
 
 extern "C"
 {
@@ -49,24 +45,10 @@ extern "C"
 
 namespace
 {
-/* The console's pad words. Verified on hardware by ../ProsperoLight; each is a bit
- * of what is held down, not an index. */
-constexpr std::uint32_t pad_button_l3 = 0x000002u;
-constexpr std::uint32_t pad_button_r3 = 0x000004u;
-constexpr std::uint32_t pad_button_options = 0x000008u;
-constexpr std::uint32_t pad_button_up = 0x000010u;
-constexpr std::uint32_t pad_button_right = 0x000020u;
-constexpr std::uint32_t pad_button_down = 0x000040u;
-constexpr std::uint32_t pad_button_left = 0x000080u;
-constexpr std::uint32_t pad_button_l1 = 0x000400u;
-constexpr std::uint32_t pad_button_r1 = 0x000800u;
-constexpr std::uint32_t pad_button_triangle = 0x001000u;
-constexpr std::uint32_t pad_button_circle = 0x002000u;
-constexpr std::uint32_t pad_button_cross = 0x004000u;
-constexpr std::uint32_t pad_button_square = 0x008000u;
-constexpr std::uint32_t pad_button_touch_pad = 0x100000u;
-/* Set while the shell is intercepting the pad; no button means anything then. */
-constexpr std::uint32_t pad_button_intercepted = UINT32_C(0x80000000);
+/* The console's pad words are named in input_ps5.h, because the port layer reads
+ * them too: the button bits are the console's own numbering and the mapping onto
+ * Quake's keys happens on the far side of that header. Keeping a second copy of
+ * the values here is how the two would drift. */
 
 /* One sample, as the console writes it. */
 struct PadSample
@@ -139,53 +121,12 @@ const PadSample *newest_sample(const PadState &state) noexcept
         if (newest == nullptr || sample.timestamp_us > newest->timestamp_us)
             newest = &sample;
     }
-    if (newest == nullptr || !newest->connected || (newest->buttons & pad_button_intercepted) != 0)
+    if (newest == nullptr || !newest->connected || (newest->buttons & ps5_pad_intercepted) != 0)
         return nullptr;
     return newest;
 }
 
-/* The pad's held buttons as RetroArch's own button indices, as a bitmask.
- *
- * The two orderings do not correspond: the console numbers its buttons by position
- * around the shell and RetroArch numbers them by the position they held on a Super
- * Nintendo pad - A rightmost, B bottom, X top, Y left. CIRCLE is therefore
- * RetroArch's A and CROSS is its B, which is what makes CIRCLE confirm a menu entry
- * and CROSS cancel it, the pairing a PlayStation player expects. */
-std::uint32_t pad_buttons_to_retropad(std::uint32_t pad) noexcept
-{
-    std::uint32_t mask = 0;
-    if (pad & pad_button_up)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_UP;
-    if (pad & pad_button_down)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_DOWN;
-    if (pad & pad_button_left)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_LEFT;
-    if (pad & pad_button_right)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_RIGHT;
-    if (pad & pad_button_circle)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_A;
-    if (pad & pad_button_cross)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_B;
-    if (pad & pad_button_triangle)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_X;
-    if (pad & pad_button_square)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_Y;
-    if (pad & pad_button_l1)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_L;
-    if (pad & pad_button_r1)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_R;
-    if (pad & pad_button_l3)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_L3;
-    if (pad & pad_button_r3)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_R3;
-    if (pad & pad_button_options)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_START;
-    if (pad & pad_button_touch_pad)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_SELECT;
-    return mask;
-}
-
-/* A stick byte as a signed 16-bit axis. */
+/* A stick byte as a signed 16-bit axis, about the centre the pad reports. */
 std::int16_t stick_axis(std::uint8_t value) noexcept
 {
     const int offset = static_cast<int>(value) - stick_centre;
@@ -289,248 +230,68 @@ void close_pad(void *data) noexcept
     }
     delete state;
 }
-
-void *joypad_init(void *) noexcept
-{
-    if (!active_pad)
-        active_pad = state_of(open_pad());
-    if (active_pad)
-        ps5_input_trace("input: ps5 joypad registered (16 buttons, 6 axes)");
-    return active_pad;
-}
-
-void joypad_destroy() noexcept
-{
-    close_pad(active_pad);
-    active_pad = nullptr;
-}
-
-void joypad_poll() noexcept
-{
-    poll_pad(active_pad);
-    if (!active_pad)
-        return;
-    // Do not announce a disconnect while the shell temporarily intercepts input.
-    bool connected = false;
-    const PadSample *latest = nullptr;
-    for (int i = 0; i < active_pad->sample_count; ++i)
-        if (!latest || active_pad->samples[i].timestamp_us > latest->timestamp_us)
-            latest = &active_pad->samples[i];
-    connected = latest && latest->connected;
-    if (connected != active_pad->announced)
-    {
-        active_pad->announced = connected;
-        if (connected)
-            input_autoconfigure_connect("PS5 Controller", nullptr, nullptr, "ps5", 0, 0, 0);
-        else
-            input_autoconfigure_disconnect(0, "PS5 Controller");
-    }
-}
-
-bool joypad_query(unsigned port) noexcept
-{
-    return port == 0 && active_pad && active_pad->announced;
-}
-
-std::uint32_t joypad_buttons(unsigned port) noexcept
-{
-    if (port != 0 || !active_pad)
-        return 0;
-    const PadSample *sample = newest_sample(*active_pad);
-    if (!sample)
-        return 0;
-    auto mask = pad_buttons_to_retropad(sample->buttons);
-    if (sample->left_trigger > 127)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_L2;
-    if (sample->right_trigger > 127)
-        mask |= UINT32_C(1) << RETRO_DEVICE_ID_JOYPAD_R2;
-    return mask;
-}
-
-std::int32_t joypad_button(unsigned port, std::uint16_t key) noexcept
-{
-    return key < 16 && (joypad_buttons(port) & (UINT32_C(1) << key)) ? 1 : 0;
-}
-
-void joypad_get_buttons(unsigned port, input_bits_t *bits) noexcept
-{
-    BIT256_CLEAR_ALL_PTR(bits);
-    BITS_COPY16_PTR(bits, joypad_buttons(port));
-}
-
-std::int16_t joypad_axis(unsigned port, std::uint32_t axis) noexcept
-{
-    if (port != 0 || !active_pad || axis == AXIS_NONE)
-        return 0;
-    const PadSample *sample = newest_sample(*active_pad);
-    if (!sample)
-        return 0;
-    bool negative = AXIS_NEG_GET(axis) < 6;
-    unsigned index = negative ? AXIS_NEG_GET(axis) : AXIS_POS_GET(axis);
-    int value;
-    switch (index)
-    {
-    case 0:
-        value = stick_axis(sample->left_x);
-        break;
-    case 1:
-        value = stick_axis(sample->left_y);
-        break;
-    case 2:
-        value = stick_axis(sample->right_x);
-        break;
-    case 3:
-        value = stick_axis(sample->right_y);
-        break;
-    case 4:
-        value = sample->left_trigger * 32767 / 255;
-        break;
-    case 5:
-        value = sample->right_trigger * 32767 / 255;
-        break;
-    default:
-        return 0;
-    }
-    return negative ? (value < 0 ? value : 0) : (value > 0 ? value : 0);
-}
-
-std::int16_t joypad_state(rarch_joypad_info_t *info, const retro_keybind *binds, unsigned) noexcept
-{
-    if (!info || !binds)
-        return 0;
-    std::uint16_t mask = 0;
-    for (unsigned i = 0; i < RARCH_FIRST_CUSTOM_BIND; ++i)
-    {
-        if (!binds[i].valid)
-            continue;
-        const auto key = binds[i].joykey != NO_BTN
-                             ? binds[i].joykey
-                             : (info->auto_binds ? info->auto_binds[i].joykey : NO_BTN);
-        const auto axis = binds[i].joyaxis != AXIS_NONE
-                              ? binds[i].joyaxis
-                              : (info->auto_binds ? info->auto_binds[i].joyaxis : AXIS_NONE);
-        if (joypad_button(info->joy_idx, key) ||
-            std::abs(int(joypad_axis(info->joy_idx, axis))) / 32768.0f > info->axis_threshold)
-            mask |= UINT16_C(1) << i;
-    }
-    return static_cast<std::int16_t>(mask);
-}
-
-const char *joypad_name(unsigned port) noexcept
-{
-    return port == 0 ? "PS5 Controller" : nullptr;
-}
-
-void *ps5_input_init(const char *) noexcept
-{
-    static int cookie;
-    return &cookie;
-}
-void ps5_input_poll(void *) noexcept
-{
-}
-void ps5_input_free(void *) noexcept
-{
-}
-
-std::int16_t ps5_input_state(void *, const input_device_driver_t *, const input_device_driver_t *,
-                             rarch_joypad_info_t *, const retro_keybind_set *, bool, unsigned,
-                             unsigned, unsigned, unsigned) noexcept
-{
-    return 0; // Mapped joypad input is supplied by RetroArch's input_state_wrap.
-}
-
-std::uint64_t ps5_input_capabilities(void *data) noexcept
-{
-    (void)data;
-    return (UINT64_C(1) << RETRO_DEVICE_JOYPAD) | (UINT64_C(1) << RETRO_DEVICE_ANALOG);
-}
 } // namespace
 
-/* The pairing between RetroArch's button numbering and the console's own words,
- * exposed as data so the host test can pin it without a console. The two orderings
- * do not correspond, and reading one as the other is a fault whose only symptom is
- * the wrong button moving the menu. */
-extern "C" const std::uint32_t *ps5_input_button_map(std::size_t *entries) noexcept
+/* --- the port's input surface ---------------------------------------------
+ *
+ * These were RetroArch's input_driver_t and input_device_driver_t, plus the
+ * translation onto RetroArch's button numbering and axis encoding that went with
+ * them. What replaces them is the console's own state, reported as it arrives:
+ * the button mask the pad sets, and the six axes at the widths the hardware uses.
+ * The mapping onto Quake's keys belongs to whoever drives the engine, and putting
+ * it here would be this file deciding what a circle button means to a game it
+ * does not know.
+ */
+extern "C"
 {
-    static const std::uint32_t map[] = {
-        RETRO_DEVICE_ID_JOYPAD_UP,     pad_button_up,
-        RETRO_DEVICE_ID_JOYPAD_DOWN,   pad_button_down,
-        RETRO_DEVICE_ID_JOYPAD_LEFT,   pad_button_left,
-        RETRO_DEVICE_ID_JOYPAD_RIGHT,  pad_button_right,
-        RETRO_DEVICE_ID_JOYPAD_B,      pad_button_cross,
-        RETRO_DEVICE_ID_JOYPAD_A,      pad_button_circle,
-        RETRO_DEVICE_ID_JOYPAD_Y,      pad_button_square,
-        RETRO_DEVICE_ID_JOYPAD_X,      pad_button_triangle,
-        RETRO_DEVICE_ID_JOYPAD_L,      pad_button_l1,
-        RETRO_DEVICE_ID_JOYPAD_R,      pad_button_r1,
-        RETRO_DEVICE_ID_JOYPAD_L3,     pad_button_l3,
-        RETRO_DEVICE_ID_JOYPAD_R3,     pad_button_r3,
-        RETRO_DEVICE_ID_JOYPAD_START,  pad_button_options,
-        RETRO_DEVICE_ID_JOYPAD_SELECT, pad_button_touch_pad,
-    };
-    if (entries != nullptr)
-        *entries = sizeof(map) / sizeof(map[0]) / 2;
-    return map;
-}
+    bool ps5_pad_open(void)
+    {
+        if (!active_pad)
+            active_pad = state_of(open_pad());
+        if (active_pad)
+            ps5_input_trace("input: ps5 pad opened (16 buttons, 6 axes)");
+        return active_pad != nullptr;
+    }
 
-/* The driver table. Positions are the interface: see `struct input_driver` in
- * input/input_driver.h. It ends at keypress_vibrate, so the literal is the whole
- * table. C linkage and a global name, because input/input_driver.c is C and names
- * this symbol in input_drivers[]. */
-extern "C" input_driver_t input_ps5 = {
-    ps5_input_init,
-    ps5_input_poll,
-    ps5_input_state,
-    ps5_input_free,
-    nullptr, /* set_sensor_state */
-    nullptr, /* get_sensor_input */
-    ps5_input_capabilities,
-    "ps5",
-    nullptr, /* grab_mouse */
-    nullptr, /* grab_stdin */
-    nullptr, /* keypress_vibrate */
-};
+    void ps5_pad_poll(void)
+    {
+        poll_pad(active_pad);
+    }
 
-// Defaults clear RetroArch's auto-binds without recreating the pad driver.
-// Reannounce once on the next poll, after all default settings have been applied.
-extern "C" void ps5_input_reset_autoconfig() noexcept
-{
-    if (active_pad)
-        active_pad->announced = false;
-}
+    void ps5_pad_close(void)
+    {
+        close_pad(active_pad);
+        active_pad = nullptr;
+    }
 
-extern "C" input_device_driver_t ps5_joypad = {
-    joypad_init, joypad_query, joypad_destroy, joypad_button, joypad_state, joypad_get_buttons,
-    joypad_axis, joypad_poll,  nullptr,        nullptr,       nullptr,      nullptr,
-    joypad_name, "ps5",
-};
+    std::uint32_t ps5_pad_buttons(void)
+    {
+        return active_pad != nullptr ? active_pad->buttons : 0;
+    }
 
-// Built into RetroArch's autoconfiguration list, so existing saved configs with
-// an empty joypad driver work without replacing the owner's settings.
-extern "C" const char ps5_controller_profile[] = "input_device = \"PS5 Controller\"\n"
-                                                 "input_driver = \"ps5\"\n"
-                                                 "input_b_btn = \"0\"\n"
-                                                 "input_y_btn = \"1\"\n"
-                                                 "input_select_btn = \"2\"\n"
-                                                 "input_start_btn = \"3\"\n"
-                                                 "input_up_btn = \"4\"\n"
-                                                 "input_down_btn = \"5\"\n"
-                                                 "input_left_btn = \"6\"\n"
-                                                 "input_right_btn = \"7\"\n"
-                                                 "input_a_btn = \"8\"\n"
-                                                 "input_x_btn = \"9\"\n"
-                                                 "input_l_btn = \"10\"\n"
-                                                 "input_r_btn = \"11\"\n"
-                                                 "input_l3_btn = \"14\"\n"
-                                                 "input_r3_btn = \"15\"\n"
-                                                 "input_l_x_plus_axis = \"+0\"\n"
-                                                 "input_l_x_minus_axis = \"-0\"\n"
-                                                 "input_l_y_plus_axis = \"+1\"\n"
-                                                 "input_l_y_minus_axis = \"-1\"\n"
-                                                 "input_r_x_plus_axis = \"+2\"\n"
-                                                 "input_r_x_minus_axis = \"-2\"\n"
-                                                 "input_r_y_plus_axis = \"+3\"\n"
-                                                 "input_r_y_minus_axis = \"-3\"\n"
-                                                 "input_l2_axis = \"+4\"\n"
-                                                 "input_r2_axis = \"+5\"\n";
+    std::int16_t ps5_pad_axis(std::uint32_t index)
+    {
+        if (active_pad == nullptr)
+            return 0;
+        const PadSample *sample = newest_sample(*active_pad);
+        if (sample == nullptr)
+            return 0;
+        switch (index)
+        {
+        case ps5_pad_axis_left_x:
+            return stick_axis(sample->left_x);
+        case ps5_pad_axis_left_y:
+            return stick_axis(sample->left_y);
+        case ps5_pad_axis_right_x:
+            return stick_axis(sample->right_x);
+        case ps5_pad_axis_right_y:
+            return stick_axis(sample->right_y);
+        case ps5_pad_axis_left_trigger:
+            return static_cast<std::int16_t>(sample->left_trigger * 32767 / 255);
+        case ps5_pad_axis_right_trigger:
+            return static_cast<std::int16_t>(sample->right_trigger * 32767 / 255);
+        default:
+            return 0;
+        }
+    }
+} // extern "C"

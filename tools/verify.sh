@@ -6,13 +6,13 @@
 #   tools/verify.sh --list     print the gates and their commands
 #   tools/verify.sh unit       run one gate alone
 #
-# Each gate is a precondition plus the command docs/TESTING.md documents. Until
+# Each gate is a precondition plus the command docs/inherited/TESTING.md documents. Until
 # a gate's script exists the gate reports the file it is waiting for and fails,
 # which is how a project that has not built anything yet stays honest about it.
 # Adding a check means adding it to the script a gate already calls, so this
 # file changes only when the set of gates changes.
 #
-# Details of what each gate means and how to add to it: docs/TESTING.md.
+# Details of what each gate means and how to add to it: docs/inherited/TESTING.md.
 
 set -euo pipefail
 
@@ -32,7 +32,7 @@ require() {
     local file=$1
     if [[ ! -e $file ]]; then
         echo "gate '$gate' is not configured: $file does not exist" >&2
-        echo "  docs/TESTING.md says what this gate must run" >&2
+        echo "  docs/inherited/TESTING.md says what this gate must run" >&2
         return 1
     fi
 }
