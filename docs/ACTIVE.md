@@ -6,16 +6,21 @@ Volatile. Rewritten in place; the runs are in `docs/PHASE_LOG.md`, the plan is i
 ## Where the port is
 
 **The title runs on the console and its Vulkan instance and device come up.**
-Three console runs have happened: the first died in `Sys_Init` on `getcwd`, which
-the SDK declares and the runtime does not provide; the second got through `main`,
-`Sys_Init` and `Host_Init` and died in `W_LoadWadFile` because the game data had
-never been deployed; the third reached the driver:
+Each console run has moved the failure point further along: `getcwd` in `Sys_Init`,
+which the SDK declares and the runtime does not provide; then `W_LoadWadFile`,
+because the game data had never been deployed; then `vkEnumeratePhysicalDevices`,
+where the forwarders had called `vkGetInstanceProcAddr(NULL, …)`; and now device
+initialisation, which the depth-stencil gap stops — see **Blockers**.
+
+The latest run is committed as evidence rather than transcribed
+(`evidence/m2-device/`, replayed by `bash tools/verify.sh evidence`):
 
 ```
 Vendor: AMD
 Device: PS5 AGC GPU (ps5vk)
 vkCreateDevice -> 0
-Device extensions: VK_KHR_swapchain
+Device extensions:
+ VK_KHR_swapchain
 
 QUAKE ERROR: Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format
 ```
@@ -63,10 +68,19 @@ upstream's own `meson.build`, plus the two platform files — into
 `Cvar_RegisterVariable`, `VID_Init` and `GL_EndRendering` among 1900-odd others.
 
 `tools/verify.sh` is green on all five gates — `format unit build integration
-evidence` — and the unit gate is 12 tests. The shaders and the embedded pak are
+evidence` — and the unit gate is 18 tests. The shaders and the embedded pak are
 generated, not committed, because upstream generates them,
 `tools/build-vkquake-shaders.sh` refusing to finish unless the symbols it
 produced are exactly the set `Shaders/shaders.h` declares.
+
+The evidence gate is no longer empty. `evidence/m2-device/` is a real console run:
+`tools/fetch-trace.py` pulls the title's own `/app0/trace.txt` off the console into
+the ignored `klog/` tree, and `tools/evidence.py distil --tail` turns the newest
+run in it into a committed, machine-readable record with the assertions it is
+replayed against. Because the title opens that trace for append, the file holds
+every run since the folder was deployed and the run being recorded is at the end;
+`--tail` is what selects it, and `tests/test_evidence.py` pins that, along with the
+verdicts of the gate itself.
 
 ## src/, after the strip
 
@@ -110,10 +124,6 @@ each call answered, closes M2's remaining half with evidence this repository own
 - **The ACO abort.** `../PS5_Vulkan` records a `aco::schedule_program` SIGFPE on
   the second compile of a signed-integer pixel shader in one process. Quake
   compiles many pipelines, so this may surface during bring-up.
-- **The console trace is not a committed artifact.** The startup trace goes to
-  `/app0/trace.txt` on the console and is read back over FTP; the failure quoted
-  above was read that way. `tools/deploy-title.py` does not fetch it, so until it
-  does, a run's trace is a claim rather than the evidence the gates expect.
 
 ## Blockers
 

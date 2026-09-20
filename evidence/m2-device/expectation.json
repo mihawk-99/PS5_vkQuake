@@ -1,0 +1,17 @@
+{
+  "step": "m2-device",
+  "note": "M2's instance and device halves on the console. The Vulkan instance is created (vkCreateInstance -> 0, the three instance extensions vkQuake asks for) and the physical device is enumerated and created (Vendor AMD, Device 'PS5 AGC GPU (ps5vk)', vkCreateDevice -> 0, with VK_KHR_swapchain enabled). The run then stops inside device initialisation on the depth-stencil format gap, which is the open blocker recorded in docs/ACTIVE.md and reported in docs/PS5_VULKAN_REQUESTS.md R1. The capture is the newest run only: the console opens trace.txt for append, so the file holds every run since deployment and --tail 46 selects this one.",
+  "must_contain": [
+    "SDL Video Driver: PS5 VideoOut",
+    "vkCreateInstance -> 0",
+    "Vendor: AMD",
+    "Device: PS5 AGC GPU (ps5vk)",
+    "vkCreateDevice -> 0",
+    "VK_KHR_swapchain",
+    "QUAKE ERROR: Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format"
+  ],
+  "must_not_contain": [
+    "W_LoadWadFile"
+  ],
+  "human_check": "This capture records the run stopping as much as it records it starting, and both halves are deliberate. The first six needles are M2's instance and device halves; the seventh is a failure the driver owns, asserted rather than merely noted so the record cannot keep claiming a pass once the behaviour changes. When ../PS5_Vulkan reports a combined depth-stencil format, this capture and its expectation must both be replaced, because the run should then continue past device initialisation into its render passes. The must_not_contain needle is a separate regression guard: if the title loses its game data again, W_LoadWadFile appears and this record goes red."
+}

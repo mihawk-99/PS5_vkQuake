@@ -70,7 +70,13 @@ def distil(args: argparse.Namespace) -> int:
         "raw_bytes": len(text.encode("utf-8")),
         # The decisions, not the noise: the first lines often carry a library
         # warning that is not part of the result, so both are kept.
-        "lines": text.splitlines()[: args.head],
+        #
+        # --tail exists for the title's own trace, which is opened for append on
+        # the console and so holds every run since the folder was deployed: the
+        # newest run, the one being recorded, is at the end of the file, and a
+        # head-only distillation would record the oldest one instead.
+        "lines": (text.splitlines()[-args.tail:] if args.tail
+                  else text.splitlines()[: args.head]),
     }
     (step_dir / "capture.json").write_text(json.dumps(capture, indent=2) + "\n",
                                            encoding="utf-8")
@@ -159,6 +165,10 @@ def main() -> int:
     d.add_argument("--revision", default="")
     d.add_argument("--command", default="")
     d.add_argument("--head", type=int, default=40)
+    d.add_argument("--tail", type=int, default=0,
+                   help="keep the last N lines instead of the first --head; for "
+                        "a capture that accumulates, such as the title's own "
+                        "append-mode trace, where the newest run is at the end")
     d.add_argument("--must-contain", action="append", default=[])
     d.add_argument("--must-not-contain", action="append", default=[])
     d.add_argument("--human-check", default="")
