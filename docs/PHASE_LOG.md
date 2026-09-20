@@ -727,3 +727,35 @@ now logs only when the value *changes*, and `src/memory_ps5.cpp` calls it from
 create none, but they allocate constantly, so the allocator puts a sample inside
 them - and because the probe is change-triggered, a trace that would otherwise be
 thousands of identical lines stays readable whichever way the answer goes.
+
+### Both readings are right, so the memory changes
+
+The probe and the call read the same address in the same run and disagree, and every
+step of both was re-checked against this build's own map rather than an older one.
+The frame is `Datagram_Init +0xa1` and `Datagram_Init` is at 0x723760 in both
+`build/title.map` and `llvm-nm`:
+
+```
+7237e1: lea 0xf82908(%rip),%r12   # 16a60f0 <net_landrivers>
+7237fc: call *0x10(%r12,%r13,1)
+723801: cmp $0xffffffff,%eax      <-- the return address in the backtrace
+```
+
+with `r12 = 1aa60f0` and `r13 = 0` in the register dump, so the call reads
+`[1aa6100]` - the byte the probe reads and reports as `b26bb0`. `NET_Init` was read
+too, in case it were the writer: it allocates sockets, allocates the message buffer,
+registers three cvars and adds four commands, and never touches the table.
+
+So the memory changes between the last sample and the call, and the remaining
+question is which step does it. The repair is the instrument: the constructor now
+records the correct value, and `ps5_probe_watch` compares against it on every
+allocation, writes a line naming the change, and puts the value back. Nothing in the
+engine writes that field - `Datagram_Init` writes `initialized` at +8 and
+`controlSock` at +0xc - so a change is damage, and restoring it is what any caller
+would have to do anyway.
+
+One thing that broke in the process and is worth keeping: the two hooks are weak.
+`src/memory_ps5.cpp` and `platform/ps5/sdl_ps5.c` are each compiled on their own by a
+host test, and a strong reference to the probe made both untestable - the link
+failed with the probe absent. A missing diagnostic should mean no diagnostic, not a
+build error.

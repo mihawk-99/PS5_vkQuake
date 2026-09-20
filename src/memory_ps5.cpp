@@ -108,12 +108,17 @@ void *resize(void *pointer, size_t size)
 
 /* The probe's second clock: see src/probe.c. PR_Init and Mod_Init run between the
  * last mutex and the crash and create none, but they allocate constantly, so this
- * is what puts a sample inside them. The probe logs only when the value changes. */
-extern "C" void ps5_probe_watch(void);
+ * is what puts a sample inside them. The probe logs only when the value changes.
+ *
+ * Weak, and checked, because the host test compiles this file on its own and does
+ * not compile the probe: a strong reference would make the allocator untestable in
+ * exchange for a diagnostic. A missing probe means no probe, not a link error. */
+extern "C" void ps5_probe_watch(void) __attribute__((weak));
 
 extern "C" void *__wrap_malloc(size_t size)
 {
-    ps5_probe_watch();
+    if (ps5_probe_watch != nullptr)
+        ps5_probe_watch();
     const auto caller = uintptr_t(__builtin_return_address(0));
     void *p = allocate(size);
     if (p)

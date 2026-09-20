@@ -114,12 +114,16 @@ struct SDL_sem
 };
 
 /* The probe's clock: see src/probe.c. The engine creates mutexes at several points
- * through Host_Init and this is the only one of them this project owns. */
-extern void ps5_probe_watch(void);
+ * through Host_Init and this is the only one of them this project owns.
+ *
+ * Weak and checked for the same reason as the allocator's: the host test compiles
+ * this file on its own, and a missing probe should mean no probe. */
+extern void ps5_probe_watch(void) __attribute__((weak));
 
 SDL_mutex *SDL_CreateMutex(void)
 {
-    ps5_probe_watch();
+    if (ps5_probe_watch != NULL)
+        ps5_probe_watch();
     SDL_mutex *mutex = malloc(sizeof *mutex);
     if (!mutex)
     {

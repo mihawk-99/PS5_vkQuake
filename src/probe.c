@@ -86,12 +86,28 @@ static void probe(const char *name, char *table, int count, int stride)
     }
 }
 
+/* What the table held before main, kept so a later change can be named and undone.
+ *
+ * The two readings that would not reconcile - the probe reading b26bb0 at
+ * [net_landrivers+0x10] and the call reading zero at the same address in the same
+ * run - were checked to the instruction, and both are right. So the memory does
+ * change in between and the only question left is when. Recording the value this
+ * early is what makes that answerable: if it is wrong later, the difference says
+ * so at the first allocation afterwards, which is inside the step that did it.
+ */
+static void *saved_init[4];
+static int saved_count;
+
 __attribute__((constructor)) static void ps5_probe_tables(void)
 {
     FILE *control = fopen("/app0/probe.txt", "rb");
     if (control == NULL)
         return;
     fclose(control);
+
+    for (int index = 0; index < net_numlandrivers && index < 2; ++index)
+        saved_init[saved_count++] =
+            *(void **)(net_landrivers + index * LANDRIVER_STRIDE + INIT_OFFSET);
 
     ps5_trace("probe: static pointer tables, read before main");
     probe("net_drivers", net_drivers, net_numdrivers, DRIVER_STRIDE);
@@ -139,10 +155,25 @@ void ps5_probe_watch(void)
      * with a megabyte of "still correct". */
     if (reported && init == last)
         return;
+
+    char line[160];
+    if (reported && saved_count > 0 && init != saved_init[0])
+    {
+        /* It changed, which is the answer the whole probe was built to get. Say
+         * what it was and what it is, and put the correct value back: nothing in
+         * the engine writes this field - Datagram_Init writes `initialized` at +8
+         * and `controlSock` at +0xc and never Init - so a change here is damage,
+         * and restoring it is what a caller would have to do anyway. */
+        snprintf(line, sizeof line, "probe: net_landrivers[0].Init changed %p -> %p; restored",
+                 last, init);
+        *(void **)(net_landrivers + INIT_OFFSET) = saved_init[0];
+        init = saved_init[0];
+    }
+    else
+    {
+        snprintf(line, sizeof line, "probe: watch net_landrivers[0].Init = %p", init);
+    }
     last = init;
     reported = 1;
-
-    char line[128];
-    snprintf(line, sizeof line, "probe: watch net_landrivers[0].Init = %p", init);
     ps5_trace(line);
 }
