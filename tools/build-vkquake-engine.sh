@@ -193,6 +193,15 @@ common_flags=(
     -D_GNU_SOURCE
     -DTASK_AFFINITY_NOT_AVAILABLE
     -O2
+    # Upstream's meson adds this with the comment "Always build keeping frame
+    # pointers to get better backtraces", and this port has now paid for leaving it
+    # out. A console crash report is a frame-pointer walk, and at -O2 without them
+    # the walk attributes frames to the wrong functions: four rounds of this port
+    # were spent on a `Datagram_Init` frame that was really inside `UDP4_Init`,
+    # because that is where the walker landed when UDP4_Init had no frame to find.
+    # A backtrace that names the wrong function is worse than no backtrace, because
+    # it is believable.
+    -fno-omit-frame-pointer
     -ffunction-sections
     -fdata-sections
     -w
