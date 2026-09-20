@@ -1,0 +1,252 @@
+/*
+ * PS5 RetroArch - the title's entry point.
+ *
+ * Copyright (C) 2026 Mihawk
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * RetroArch's own `main` is one line: `return rarch_main(argc, argv, NULL)`. So
+ * the entry point is not reconciled with RetroArch's, it simply calls the same
+ * function with the arguments this title wants, and the pipeline's `_start` stays
+ * the process entry. That is the whole of the "entry point" problem the plan
+ * listed.
+ *
+ * The display is opened by the video driver, not here: `video_ps5` owns it, and
+ * this file's job is to hand RetroArch its arguments and let its runloop drive.
+ *
+ * Arguments, and why each is here:
+ *   -f              fullscreen, which on a console is the only mode
+ *   -c <path>       the config to read and write, inside the title's own folder
+ *   --verbose       so the run is readable in the console's log
+ *   --menu          start with the menu up rather than waiting for content: this
+ *                   title has no content, and the menu is what is being proven
+ *
+ * Why this file writes a trace. The first run of this title on the console ended
+ * with the kernel reporting `eboot.bin calls exit() exit_value=0` and nothing
+ * else: no output, no crash, no message. A program that exits zero and says
+ * nothing is indistinguishable from one that never reached `main`, and the
+ * console's log cannot be asked which it was. So the entry point and the video
+ * driver append a line per step to /app0/trace.txt, and after a run that file
+ * says how far it got. See src/trace.hpp.
+ */
+
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <exception>
+#include <typeinfo>
+#include <unistd.h>
+
+#include <cxxabi.h>
+
+#include "trace.hpp"
+#include "memory_diagnostics.hpp"
+#include "../build/title_build_identity.h"
+
+/* RetroArch's entry, in C. */
+extern "C" int rarch_main(int argc, char *argv[], void *data);
+extern "C" int sceSystemServiceHideSplashScreen();
+
+extern "C" void ps5_vulkan_profile_init();
+extern "C" void ps5_audio_test_if_requested();
+extern "C" void ps5_core_loader_test_if_requested();
+extern "C" void ps5_thread_test_if_requested();
+extern "C" const char *ps5_frontend_build_identity()
+{
+    return PS5_RETROARCH_BUILD_ID;
+}
+
+namespace
+{
+/* The title's own folder, as the console mounts it: the application image is at
+ * /app0 and this is where a title may keep its configuration. */
+constexpr const char *config_path = "/app0/config/retroarch.cfg";
+
+/* Why a terminate handler exists.
+ *
+ * The driver's shader compiler is C++ and aborts the process from deep inside
+ * itself: the console reports `reason: abort is called(system)` with a backtrace
+ * through aco::visit_alu_instr, and nothing says what went wrong. The two abort
+ * sites in that function are clang's throw helpers for std::vector's length error
+ * and for a bad array length (`call __throw_length_error` followed by `ud2`), so
+ * something threw and the exception never came back as an error.
+ *
+ * An abort is also the one failure with no message anywhere: the title's trace
+ * says how far it got, and the frontend's log is a buffer that dies with the
+ * process. libc++abi still knows the exception while terminate runs, so the type
+ * and its what() are written to the trace here - the difference between "the
+ * compiler refused this shader" and "a wild size reached a container", which are
+ * not the same bug and were not distinguishable from the outside. */
+void on_terminate()
+{
+    const std::type_info *type = abi::__cxa_current_exception_type();
+    if (!type)
+    {
+        ps5::debug::mark("terminate: called with no active exception");
+        std::abort();
+    }
+
+    /* src/ is compiled without exceptions, so the exception cannot be rethrown
+     * here to read what(); libc++abi still reports its type, and the demangled
+     * name is what separates the two throw sites that were found in the shader
+     * compiler - std::length_error (a container asked for an impossible size)
+     * from std::bad_array_new_length (an array length that cannot be valid). */
+    int status = 0;
+    char *pretty = abi::__cxa_demangle(type->name(), nullptr, nullptr, &status);
+    char line[256];
+    std::snprintf(line, sizeof line, "terminate: exception type=%s",
+                  (status == 0 && pretty) ? pretty : type->name());
+    if (pretty)
+        std::free(pretty);
+    ps5::debug::mark(line);
+
+    std::abort();
+}
+} // namespace
+
+int main()
+{
+    /* First thing: prove that control reached this function at all, before
+     * anything that could fail. */
+    {
+        /* A zero-initialised static: it lives in the BSS, which this port's own
+         * CRT now clears before main. Printed so a run says whether that happened -
+         * the alternative was to read it from the far side of the frontend, where
+         * the same question cost a round. */
+        static long ps5_bss_check;
+        static long ps5_data_check = 7;
+        char line[128];
+        std::snprintf(line, sizeof line, "bss check=%ld (must be 0), data check=%ld (must be 7)",
+                      ps5_bss_check, ps5_data_check);
+        ps5::debug::mark(line);
+    }
+
+    ps5::debug::mark("main() entered; static constructors have already run");
+
+    /* Everything the libraries say goes to stderr, and a title's stderr reaches
+     * nothing on this console: not the kernel log, not RetroArch's log file, not
+     * FTP. That is why the driver's own refusals - the ones ../PS5_Vulkan states
+     * by name before returning VK_ERROR_UNKNOWN - could not be read, and why a
+     * console round could only report the error code. Pointing the stream at the
+     * trace file makes those messages part of the same record as the marks, which
+     * is also how an assertion's message stops being lost: __assert prints the
+     * expression it failed and then aborts. */
+    if (!std::freopen("/app0/trace.txt", "a", stderr))
+        ps5::debug::mark("could not send stderr to the trace file");
+    else
+    {
+        /* Unbuffered, because everything that writes an error and then aborts -
+         * an assertion, a C++ terminate - would otherwise lose it: the console's
+         * libc buffers this stream and abort does not flush. The assert message is
+         * what a console run needs most and it was the one thing never printed. */
+        std::setvbuf(stderr, nullptr, _IONBF, 0);
+        std::fputs("stderr is the trace file (unbuffered)\n", stderr);
+    }
+
+    std::set_terminate(on_terminate);
+    ps5::debug::mark(PS5_RETROARCH_BUILD_ID);
+    ps5::memory::init("/app0/memory-diagnostics.log", PS5_RETROARCH_BUILD_ID);
+    ps5_vulkan_profile_init();
+
+    /* The shell's splash covers the title until it explicitly dismisses it.
+     * video_ps5 does this while opening its display, but video_vulkan never
+     * enters that code. This is title startup work for either video driver. */
+    ps5::debug::mark_value("startup: sceSystemServiceHideSplashScreen",
+                           sceSystemServiceHideSplashScreen());
+
+    /* argv must be writable and NULL-terminated: RetroArch's option parsing
+     * walks it the way the C runtime would have. */
+    char arg0[] = "retroarch";
+    char arg_fullscreen[] = "-f";
+    char arg_config[] = "-c";
+    char arg_config_path[] = "/app0/config/retroarch.cfg";
+    char arg_verbose[] = "--verbose";
+    char arg_menu[] = "--menu";
+    /* RetroArch's own log, on the console, from the first line of main.
+     *
+     * This matters more than the config's log settings: `--log-file` sets the
+     * override and enables file logging *before* the config is parsed, so it
+     * records what happens during startup - which is exactly where the Vulkan
+     * path dies silently. A failure that says nothing is the one thing a console
+     * run cannot diagnose, and this is how the frontend is made to speak. */
+    char arg_log[] = "--log-file=/app0/retroarch.log";
+    char *argv[] = {
+        arg0, arg_fullscreen, arg_config, arg_config_path, arg_verbose, arg_log, arg_menu, nullptr,
+    };
+    (void)config_path;
+
+    ps5::debug::mark("argv built: retroarch -f -c /app0/config/retroarch.cfg --verbose --log-file");
+
+    /* Extra arguments, one per line, from /app0/args.txt when that file is there.
+     *
+     * Why a file rather than the launch arguments: the console starts this title
+     * from its own launcher, which passes none, and the frontend's most useful
+     * unattended options are exactly the ones a run needs to change - RetroArch
+     * already knows how to take a screenshot at the end of a fixed number of frames
+     * (`--max-frames=N --max-frames-ss --max-frames-ss-path=FILE`), which is the
+     * only way this port can show what the GPU produced without a camera at the
+     * screen. The file is optional, empty lines and `#` comments are skipped, and
+     * the storage is static because RetroArch's option parsing keeps pointers into
+     * it for the whole run. */
+    constexpr int max_extra_args = 16;
+    constexpr std::size_t max_extra_arg_len = 256;
+    static char extra_storage[max_extra_args][max_extra_arg_len];
+    int extra_count = 0;
+
+    if (std::FILE *extra = std::fopen("/app0/args.txt", "r"))
+    {
+        while (extra_count < max_extra_args &&
+               std::fgets(extra_storage[extra_count], max_extra_arg_len, extra))
+        {
+            char *line = extra_storage[extra_count];
+            std::size_t len = std::strlen(line);
+            while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r'))
+                line[--len] = '\0';
+            if (len == 0 || line[0] == '#')
+                continue;
+            /* The port's own options are read from this file by the frontend code that
+             * uses them (patch 0031 reads `--ps5-capture=`), and RetroArch must not see
+             * them: an option it does not know is an option it complains about. */
+            if (std::strncmp(line, "--ps5-", 6) == 0)
+                continue;
+            extra_count++;
+        }
+        std::fclose(extra);
+        ps5::debug::mark_value("argv extras from /app0/args.txt", extra_count);
+    }
+
+    char *argv_with_extras[sizeof(argv) / sizeof(argv[0]) + max_extra_args];
+    std::size_t base_count = sizeof(argv) / sizeof(argv[0]) - 1;
+    for (std::size_t i = 0; i < base_count; i++)
+        argv_with_extras[i] = argv[i];
+    for (int i = 0; i < extra_count; i++)
+        argv_with_extras[base_count + i] = extra_storage[i];
+    argv_with_extras[base_count + extra_count] = nullptr;
+
+    ps5_audio_test_if_requested();
+    ps5_core_loader_test_if_requested();
+    ps5_thread_test_if_requested();
+    const int status =
+        rarch_main(static_cast<int>(base_count + extra_count), argv_with_extras, nullptr);
+
+    /* If this line is on the console, the frontend ran and returned by itself. */
+    ps5::debug::mark_value("rarch_main returned", status);
+    ps5::memory::finish();
+
+    return status;
+}
+
+/* RetroArch has already closed its drivers and written configuration here.
+ * Native title shutdown goes through the shell; kernel exit(0) raises SIGSYS
+ * for this application instead of returning cleanly to the home screen. */
+extern "C" int sceSystemServiceLoadExec(const char *, const char *const *);
+extern "C" void catchReturnFromMain(int status)
+{
+    ps5::debug::mark_value("native quit: frontend status", status);
+    std::fflush(nullptr);
+    const int result = sceSystemServiceLoadExec("exit", nullptr);
+    ps5::debug::mark_value("native quit: system service result", result);
+    if (result >= 0)
+        for (;;)
+            usleep(100000); /* Shell termination is asynchronous. */
+}

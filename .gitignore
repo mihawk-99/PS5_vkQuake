@@ -1,0 +1,44 @@
+# Raw runs, captures and build output stay out of the repository: the distilled
+# artifact under evidence/ is what gets committed. These are this project's
+# generated paths; docs/REFERENCE.md names the same set.
+
+# Fetched upstream tree, patched by tools/fetch-upstream.sh. Never committed and
+# never edited: changes live in patches/. A manually extracted tarball next to
+# the repository root is ignored under its own name too. The committed baseline
+# in reference/ is not covered by this rule and is always tracked.
+vendor/
+RetroArch-*/
+
+# Cross-build output, the prepared upstream tree, the staged title folder, and the
+# copy of it handed to the console's owner. All four are the same artifact at
+# different points in one pipeline; the source they come from is what is committed.
+build/
+dist/
+handoff/
+work/
+
+# Fetched dependencies (host test framework, graphics SDK packages).
+.deps/
+
+# Raw console captures. The distilled record under evidence/ is what is kept, so
+# evidence/ is deliberately not ignored.
+klog/
+
+# Payload and library artifacts, staged or loose.
+*.elf
+*.so
+*.prx
+
+# Local console address and credentials.
+.env
+
+# Editor and host noise.
+*.o
+*.a
+__pycache__/
+*.pyc
+
+# The header configure generates, at any tree root. It is written into the
+# configured copy under build/, which is not committed; an older build script also
+# copied it here, and a generated file must never be able to dirty the tree.
+config.h
