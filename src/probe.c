@@ -98,3 +98,40 @@ __attribute__((constructor)) static void ps5_probe_tables(void)
     probe("net_landrivers", net_landrivers, net_numlandrivers, LANDRIVER_STRIDE);
     ps5_trace("probe: end");
 }
+
+/* --- watching the value, because it changes ---
+ *
+ * The probe above answers "is it right before main" and the answer was yes. The
+ * crash answers "is it right at NET_Init" and the answer was no, at the same
+ * address, in the same run. So it is written between the two and the only question
+ * left is when.
+ *
+ * There is no hook in Host_Init that this project owns - upstream's host.c is not
+ * ours to edit - but the engine calls SDL throughout that sequence, and SDL is
+ * this project's shim. platform/ps5/sdl_ps5.c calls this on every SDL_CreateMutex,
+ * which happens in Sys_FileInit, Con_Init, Key_Init and elsewhere, so the trace
+ * gets a handful of samples between main and the crash. The last sample before the
+ * fault names the step that did it, near enough to bisect by hand if it is not
+ * obvious.
+ *
+ * Off unless /app0/probe.txt exists, like the probe itself.
+ */
+
+void ps5_probe_watch(void)
+{
+    static int enabled = -1;
+    if (enabled < 0)
+    {
+        FILE *control = fopen("/app0/probe.txt", "rb");
+        enabled = control != NULL;
+        if (control)
+            fclose(control);
+    }
+    if (!enabled || net_landrivers == NULL)
+        return;
+
+    void *init = *(void **)(net_landrivers + INIT_OFFSET);
+    char line[128];
+    snprintf(line, sizeof line, "probe: watch net_landrivers[0].Init = %p", init);
+    ps5_trace(line);
+}
