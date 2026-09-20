@@ -389,3 +389,42 @@ not carry it makes the compiler accept the call and the linker refuse it.
 `getpwuid`, `gethostbyaddr` and `hstrerror` answer with the absence that is true
 on this console, and each says in the file why that answer is the one upstream
 already handles.
+
+### The deployed build, and the identity a run needs to be tied to its sources
+
+The first deploy failed, usefully:
+
+```
+$ python3 tools/deploy-title.py
+ValueError: eboot.bin must contain exactly one build identity; rebuild the title
+```
+
+`tools/build-title.sh` hashes the sources, the port layer, the build scripts and
+the driver archives into one identity and writes it to `build/title_build_identity.h`
+- and nothing referenced it any more. Its only consumers had been `src/main.cpp`,
+which the frontend strip deleted, and `audio_ps5.cpp`, whose test report stopped
+carrying it. So the string was computed and never compiled in.
+
+`src/build_identity.cpp` puts it back, and the reason it belongs in `src/` rather
+than the port layer is the reason it went missing: the identity covers the engine
+archive, so the engine cannot also contain the identity without the two depending
+on each other. `src/` is compiled afterwards, in step 2, from sources the identity
+has already been computed over. It is a constructor, so the line is in
+`/app0/trace.txt` before `main` runs, and the reference is what keeps the string
+in the image at all.
+
+Deployed:
+
+```
+$ python3 tools/deploy-title.py
+==> [deploy] 5 files to /data/homebrew/PPSA99010/
+    manifest.sha256                     331 bytes  babc8baea33e84ec  ok
+    sce_module/libc.prx   the console keeps its own copy (1,335,962 bytes); ours is 1,284,674
+    sce_sys/icon0.png                51,125 bytes  945b524f516f9899  ok
+    eboot.bin                    24,182,844 bytes stored; all 1 of this build's markers present  ok
+    sce_sys/param.json                  843 bytes  342378ed4428ab4a  ok
+==> [deploy] published; the console's own runtime library was kept
+```
+
+The console keeping its own `libc.prx` is expected and is what the deploy tool
+reports rather than a mismatch: the title runs against the console's copy.
