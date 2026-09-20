@@ -872,3 +872,24 @@ So the sampler is now independent of allocation: a detached thread, one millisec
 apart, logging only changes. If the value is ever wrong it says when, and if it is
 never wrong then the call is not reading this word - which would need a different
 instrument than any of these, not a better-tuned one.
+
+### The sampler came back clean, which re-reads the whole backtrace
+
+One line, `b26da0`, and never another. A millisecond-resolution sampler ran for the
+whole life of the process and the slot held `UDP4_Init` from before `main` until the
+crash. With the 846 allocation samples, there is no moment at which that word was
+wrong.
+
+So the call is not reading it, and the frame walker's answer finally reads correctly
+instead of contradictorily: **a null `call` pushes no frame.** The walker follows rbp
+chains, so the faulting instruction - a call to zero inside `UDP4_Init` - has no
+frame of its own on the stack, and the innermost frame it can find is `UDP4_Init`'s
+return address, which is into `Datagram_Init` at `+0xa1`. The symbolizer was reporting
+the *caller* of the faulting function, exactly as it should, and the port spent four
+rounds proving a table correct that was never the subject.
+
+`UDP4_Init` reaches its socket calls through GOT slots - `__error`, `strerror`,
+`getsockname`, `gethostbyname`, `socket`, `ioctl`, `bind` and the rest - and a weak
+reference reads the same slot the call does. A symbol the runtime does not provide
+reads back as NULL here for precisely the reason the call went to zero, so the probe
+now checks all sixteen and names the missing ones.

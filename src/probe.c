@@ -46,7 +46,28 @@
  * src/build_identity.cpp, which is why that one worked.
  */
 
+#include <errno.h>
+#include <netdb.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+/* Weak, so an unprovided symbol reads as NULL rather than failing the link - which
+ * is the whole point: the link succeeds either way, and only the value differs. */
+#pragma weak __error
+#pragma weak getsockname
+#pragma weak gethostbyname
+#pragma weak gethostbyaddr
+#pragma weak gethostname
+#pragma weak socket
+#pragma weak bind
+#pragma weak connect
+#pragma weak ioctl
+#pragma weak sendto
+#pragma weak recvfrom
+#pragma weak setsockopt
 
 /* The linkage only; the layout is read as raw pointers at the offsets the
  * disassembly showed, so nothing here has to match net_sys.h. */
@@ -144,6 +165,54 @@ __attribute__((constructor)) static void ps5_probe_tables(void)
     for (int index = 0; index < net_numlandrivers && index < 2; ++index)
         saved_init[saved_count++] =
             *(void **)(net_landrivers + index * LANDRIVER_STRIDE + INIT_OFFSET);
+
+    /* Which of the socket calls UDP4_Init makes is not there.
+     *
+     * The sampler proved net_landrivers[0].Init is UDP4_Init and never changes, so
+     * UDP4_Init was entered and the null call is inside it. A null `call` pushes no
+     * frame, which is why the walker reported UDP4_Init's return address - into
+     * Datagram_Init - as the innermost frame, and why four rounds went into a table
+     * that was never at fault.
+     *
+     * UDP4_Init reaches its socket calls through GOT slots. A weak reference reads
+     * the same slot the call does, so a symbol the runtime does not provide reads
+     * back as NULL here for exactly the reason the call went to zero. */
+    {
+        char line[192];
+        const struct
+        {
+            const char *name;
+            const void *address;
+        } calls[] = {
+            {"__error", (const void *)__error},
+            {"strerror", (const void *)strerror},
+            {"getsockname", (const void *)getsockname},
+            {"gethostbyname", (const void *)gethostbyname},
+            {"gethostbyaddr", (const void *)gethostbyaddr},
+            {"gethostname", (const void *)gethostname},
+            {"socket", (const void *)socket},
+            {"bind", (const void *)bind},
+            {"connect", (const void *)connect},
+            {"ioctl", (const void *)ioctl},
+            {"sendto", (const void *)sendto},
+            {"recvfrom", (const void *)recvfrom},
+            {"setsockopt", (const void *)setsockopt},
+            {"close", (const void *)close},
+            {"strcpy", (const void *)strcpy},
+            {"strrchr", (const void *)strrchr},
+        };
+        for (unsigned at = 0; at < sizeof calls / sizeof calls[0]; ++at)
+        {
+            if (calls[at].address == NULL)
+            {
+                snprintf(line, sizeof line, "probe: MISSING %s", calls[at].name);
+                ps5_trace(line);
+            }
+        }
+        snprintf(line, sizeof line, "probe: socket symbol check done (%u calls)",
+                 (unsigned)(sizeof calls / sizeof calls[0]));
+        ps5_trace(line);
+    }
 
     pthread_t thread;
     if (pthread_create(&thread, NULL, sampler, NULL) == 0)
