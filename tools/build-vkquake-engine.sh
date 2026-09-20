@@ -26,6 +26,13 @@
 # translation unit, and platform/ps5/SDL.h is what that resolves to - the ~30
 # functions the engine proper calls, not a windowing system. See that file's
 # header for the line between the two.
+#
+# Where the toolchain comes from. This repository is an application of
+# ps5-native-app-boilerplate: the Makefile, tools/build.sh, tooling/prospero-clang18,
+# the linker script and the payload SDK bootstrap are that project's, and this
+# script follows its convention of resolving the SDK from .deps/ rather than
+# asking the caller to export a path. `make deps` fetches it; nothing else has to
+# be set up.
 
 set -euo pipefail
 
@@ -119,11 +126,35 @@ if [[ $mode == --list ]]; then
     exit 0
 fi
 
-: "${PS5_PAYLOAD_SDK:?PS5_PAYLOAD_SDK is not set; run make deps or the dependency bootstrap}"
-# The SDK ships its own clang, and this host has no clang-18: defaulting to what
-# the SDK provides is what makes the script runnable from a clean checkout.
-export PS5_CLANG=${PS5_CLANG:-$PS5_PAYLOAD_SDK/bin/clang}
-[[ -x $PS5_CLANG ]] || { echo "error: PS5_CLANG=$PS5_CLANG is not executable" >&2; exit 2; }
+# The SDK is resolved here, not demanded of the caller, because that is what the
+# boilerplate this project is built on does: tools/build.sh in
+# ps5-native-app-boilerplate sets sdk_root="$root/.deps/native/ps5-payload-sdk"
+# and passes it to the compiler wrapper inline, so that a build works from a clean
+# checkout without anyone exporting anything. The same path is the same fact here,
+# and the environment variable stays supported as an override for a checkout that
+# keeps its cache elsewhere.
+sdk_root=${PS5_PAYLOAD_SDK:-$root/.deps/native/ps5-payload-sdk}
+if [[ ! -d $sdk_root ]]; then
+    echo "error: no PS5 payload SDK at $sdk_root" >&2
+    echo "       run 'make deps' (tools/setup-native-dependencies.sh) to fetch it" >&2
+    exit 2
+fi
+export PS5_PAYLOAD_SDK=$sdk_root
+
+# The wrapper wants a clang that can target x86_64-sie-ps5; the boilerplate looks
+# for clang-18 first and this host has none, so the SDK's own dispatcher is the
+# last fallback rather than the first choice. It is a dispatcher and not a second
+# toolchain - $sdk_root/bin/clang execs the LLVM its prospero-llvm-config names -
+# so the target flags come from the wrapper either way and the selection only
+# decides which LLVM runs.
+if [[ -z ${PS5_CLANG:-} ]]; then
+    PS5_CLANG=$(command -v clang-18 || command -v clang || true)
+fi
+[[ -n ${PS5_CLANG:-} && -x $PS5_CLANG ]] || {
+    echo "error: no clang for the target; set PS5_CLANG to a clang executable" >&2
+    exit 2
+}
+export PS5_CLANG
 
 cc="$root/tooling/prospero-clang18"
 # -DTASK_AFFINITY_NOT_AVAILABLE: the CPU pinning path needs _GNU_SOURCE and
