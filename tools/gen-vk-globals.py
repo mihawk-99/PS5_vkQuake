@@ -182,6 +182,7 @@ def main() -> int:
         ' */',
         '',
         '#include <stdio.h>',
+        '#include <string.h>',
         '#include <vulkan/vulkan_core.h>',
         '',
         '/* The driver\'s own exported entry point. ../PS5_Vulkan defines this one symbol at global',
@@ -193,6 +194,70 @@ def main() -> int:
         ' * how far it got. src/trace.cpp owns it, and it appends to the same file the',
         ' * title writes its build identity to. */',
         'extern void ps5_trace(const char *line);',
+        '',
+        '/* ---------------------------------------------------------------------------',
+        ' * Resolving a command, which is the part the first version of this got wrong.',
+        ' *',
+        ' * It called vkGetInstanceProcAddr(NULL, name) for all seventy-nine. That is',
+        ' * correct for the four true globals and wrong for everything else, and the driver',
+        ' * says so plainly:',
+        ' *',
+        ' *   ps5vk_GetInstanceProcAddr(VkInstance _instance, const char *pName)',
+        ' *   {  VK_FROM_HANDLE(ps5vk_instance, instance, _instance);',
+        ' *      return vk_instance_get_proc_addr(instance ? &instance->vk : NULL, ...); }',
+        ' *',
+        ' * With a null instance it returns only vkCreateInstance,',
+        ' * vkEnumerateInstanceExtensionProperties, vkEnumerateInstanceLayerProperties and',
+        ' * vkEnumerateInstanceVersion. vkEnumeratePhysicalDevices is an instance-level',
+        ' * command, so the first run of the title resolved it to NULL and called zero -',
+        ' * and the console reported that as VID_Init, which is where the call was made,',
+        ' * not where it went.',
+        ' *',
+        ' * So this is the part of a loader that a statically linked single-ICD title',
+        ' * actually needs: remember the instance and the device as they are created, and',
+        ' * resolve through whichever of them owns the command. The four globals keep the',
+        ' * null instance, because that is what global means.',
+        ' * ------------------------------------------------------------------------- */',
+        '',
+        'static VkInstance ps5_resolved_instance;',
+        'static VkDevice ps5_resolved_device;',
+        'static PFN_vkGetDeviceProcAddr ps5_get_device_proc_addr;',
+        '',
+        '/* Names that may only be asked of a null instance. Everything else is asked of',
+        ' * the instance first and the device second. */',
+        'static int ps5_is_global_command(const char *name)',
+        '{',
+        '    return strcmp(name, "vkCreateInstance") == 0 ||',
+        '           strcmp(name, "vkEnumerateInstanceExtensionProperties") == 0 ||',
+        '           strcmp(name, "vkEnumerateInstanceLayerProperties") == 0 ||',
+        '           strcmp(name, "vkEnumerateInstanceVersion") == 0;',
+        '}',
+        '',
+        'static PFN_vkVoidFunction ps5_resolve(const char *name)',
+        '{',
+        '    PFN_vkVoidFunction resolved;',
+        '    if (ps5_is_global_command(name))',
+        '        return vkGetInstanceProcAddr(NULL, name);',
+        '    if (ps5_resolved_instance != VK_NULL_HANDLE)',
+        '    {',
+        '        resolved = vkGetInstanceProcAddr(ps5_resolved_instance, name);',
+        '        if (resolved != NULL)',
+        '            return resolved;',
+        '    }',
+        '    if (ps5_resolved_device != VK_NULL_HANDLE)',
+        '    {',
+        '        if (ps5_get_device_proc_addr == NULL)',
+        '            ps5_get_device_proc_addr = (PFN_vkGetDeviceProcAddr)vkGetInstanceProcAddr(',
+        '                ps5_resolved_instance, "vkGetDeviceProcAddr");',
+        '        if (ps5_get_device_proc_addr != NULL)',
+        '        {',
+        '            resolved = (PFN_vkVoidFunction)ps5_get_device_proc_addr(ps5_resolved_device, name);',
+        '            if (resolved != NULL)',
+        '                return resolved;',
+        '        }',
+        '    }',
+        '    return vkGetInstanceProcAddr(NULL, name);',
+        '}',
         '',
         '/* Which calls report. Every command that returns VkResult logs a failure, because',
         ' * a refused call is what a run needs explained and a success is not - except the',
@@ -221,10 +286,25 @@ def main() -> int:
         body.append(f'VKAPI_ATTR {ret} VKAPI_CALL {command}({declarations})')
         body.append('{')
         body.append(f'    if (!ps5_pfn_{command})')
-        body.append(f'        ps5_pfn_{command} = (PFN_{command})vkGetInstanceProcAddr(NULL, "{command}");')
+        body.append(f'        ps5_pfn_{command} = (PFN_{command})ps5_resolve("{command}");')
         if ret == 'VkResult':
             always = '1' if command in ALWAYS else '0'
-            body.append(f'    return traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
+            # The two calls that produce the handles everything else is resolved
+            # through. Capturing them here is what makes ps5_resolve able to answer.
+            if command == 'vkCreateInstance':
+                body.append('    const VkResult instance_result =')
+                body.append(f'        traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
+                body.append('    if (instance_result == VK_SUCCESS && pInstance != NULL)')
+                body.append('        ps5_resolved_instance = *pInstance;')
+                body.append('    return instance_result;')
+            elif command == 'vkCreateDevice':
+                body.append('    const VkResult device_result =')
+                body.append(f'        traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
+                body.append('    if (device_result == VK_SUCCESS && pDevice != NULL)')
+                body.append('        ps5_resolved_device = *pDevice;')
+                body.append('    return device_result;')
+            else:
+                body.append(f'    return traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
         else:
             body.append(f'    ps5_pfn_{command}({arguments});')
         body.append('}')
