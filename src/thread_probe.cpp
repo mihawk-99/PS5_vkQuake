@@ -62,8 +62,7 @@ void write_record()
         std::fclose(out);
     }
     std::fprintf(stderr, "thread test: stage=%s requested=%u created=%u ran=%u joined=%u\n",
-                 record.stage.c_str(), record.requested, record.created, record.ran,
-                 record.joined);
+                 record.stage.c_str(), record.requested, record.created, record.ran, record.joined);
 }
 
 /* One worker body. The TLS access is the interesting part: it is what makes a new
@@ -176,8 +175,8 @@ void run_anonymous_entry_stage()
     }
 
     pthread_t thread;
-    const int created = pthread_create(&thread, nullptr,
-                                       reinterpret_cast<void *(*)(void *)>(page), nullptr);
+    const int created =
+        pthread_create(&thread, nullptr, reinterpret_cast<void *(*)(void *)>(page), nullptr);
     record.created = created == 0 ? 1 : 2; /* 2 means pthread_create failed */
     write_record();
     if (created == 0)
@@ -326,8 +325,8 @@ void run_core_entry_stage()
         return;
     }
     pthread_t thread;
-    const int created = pthread_create(&thread, nullptr,
-                                       reinterpret_cast<void *(*)(void *)>(symbol), nullptr);
+    const int created =
+        pthread_create(&thread, nullptr, reinterpret_cast<void *(*)(void *)>(symbol), nullptr);
     record.created = created == 0 ? 1 : 2;
     write_record();
     if (created == 0)
@@ -378,8 +377,8 @@ void run_anonymous_caller_stage()
         return;
     }
     /* mov rax,[rdi] ; mov rdi,[rdi+8] ; call rax ; xor eax,eax ; ret */
-    const unsigned char code[] = {0x48, 0x8b, 0x07, 0x48, 0x8b, 0x7f, 0x08,
-                                  0xff, 0xd0, 0x31, 0xc0, 0xc3};
+    const unsigned char code[] = {0x48, 0x8b, 0x07, 0x48, 0x8b, 0x7f,
+                                  0x08, 0xff, 0xd0, 0x31, 0xc0, 0xc3};
     std::memcpy(page, code, sizeof(code));
     if (mprotect(page, 0x4000, PROT_READ | PROT_EXEC) != 0)
     {
@@ -394,8 +393,8 @@ void run_anonymous_caller_stage()
     call.argument = &anon_caller_mutex;
 
     pthread_t thread;
-    const int created = pthread_create(&thread, nullptr,
-                                       reinterpret_cast<void *(*)(void *)>(page), &call);
+    const int created =
+        pthread_create(&thread, nullptr, reinterpret_cast<void *(*)(void *)>(page), &call);
     record.created = created == 0 ? 1 : 2;
     write_record();
     if (created == 0)
@@ -407,7 +406,6 @@ void run_anonymous_caller_stage()
     }
     munmap(page, 0x4000);
 }
-
 
 /* Confirmation for the crash chain the console named: a new thread's thread-specific
  * data path (pthread_getspecific -> pthread_get_specificarray_np) resolves a caller
@@ -443,8 +441,8 @@ void run_anonymous_tsd_stage()
         return;
     }
     /* mov rax,[rdi] ; mov rdi,[rdi+8] ; call rax ; xor eax,eax ; ret */
-    const unsigned char code[] = {0x48, 0x8b, 0x07, 0x48, 0x8b, 0x7f, 0x08,
-                                  0xff, 0xd0, 0x31, 0xc0, 0xc3};
+    const unsigned char code[] = {0x48, 0x8b, 0x07, 0x48, 0x8b, 0x7f,
+                                  0x08, 0xff, 0xd0, 0x31, 0xc0, 0xc3};
     std::memcpy(page, code, sizeof(code));
     if (mprotect(page, 0x4000, PROT_READ | PROT_EXEC) != 0)
     {
@@ -459,8 +457,8 @@ void run_anonymous_tsd_stage()
     call.argument = reinterpret_cast<void *>(static_cast<uintptr_t>(key));
 
     pthread_t thread;
-    const int created = pthread_create(&thread, nullptr,
-                                       reinterpret_cast<void *(*)(void *)>(page), &call);
+    const int created =
+        pthread_create(&thread, nullptr, reinterpret_cast<void *(*)(void *)>(page), &call);
     record.created = created == 0 ? 1 : 2;
     write_record();
     if (created == 0)
