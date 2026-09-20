@@ -1,4 +1,4 @@
-/* PS5 RetroArch - public SDK directory enumeration adapter. */
+/* PS5 vkQuake - public SDK directory enumeration adapter. */
 #pragma once
 #include <dirent.h>
 #ifdef __cplusplus

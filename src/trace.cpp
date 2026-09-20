@@ -1,5 +1,5 @@
 /*
- * PS5 RetroArch - the startup trace. See src/trace.hpp for why it exists.
+ * PS5 vkQuake - the startup trace. See src/trace.hpp for why it exists.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later

@@ -1,4 +1,4 @@
-/* PS5 RetroArch - native directory enumeration without libc's denied opendir.
+/* PS5 vkQuake - native directory enumeration without libc's denied opendir.
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
  */

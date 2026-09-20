@@ -13,9 +13,9 @@
 # history removed. The history is dropped on purpose. Nothing here reads it, and
 # keeping it would make vendor/vkQuake a checkout that someone could commit
 # into - the invariant is that upstream is never edited, and a tree with no
-# repository cannot be. This project's own changes are the port layer that is
-# compiled *instead of* upstream's SDL platform files, plus the port patches
-# tools/apply-port-patches.py applies to a copy under build/.
+# repository cannot be. This project's own changes are the port layer under
+# platform/, which is compiled *instead of* upstream's SDL platform files, plus
+# the small edits upstream's own engine sources need.
 #
 # vendor/ is git-ignored: it is fetched, not committed. A clean checkout becomes
 # buildable with this command and nothing else.

@@ -1,12 +1,12 @@
 /*
- * PS5 RetroArch - the console's display, owned by this project.
+ * PS5 vkQuake - the console's display, owned by this project.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * The layer a RetroArch video driver sits on: VideoOut, the direct memory the GPU
- * scans out, two registered buffers, present-and-wait. Nothing here is
- * RetroArch-specific, so it can be tested on its own.
+ * The console's display: VideoOut, the direct memory the GPU scans out, two
+ * registered buffers, present-and-wait. It knows nothing about what drew the
+ * frame, so it can be tested on its own and driven by any presenter.
  *
  * The frame is tiled. A caller does not write pixels directly: it uses `write` and
  * `clear`, which address the tiled layout. That keeps the one thing that is easy

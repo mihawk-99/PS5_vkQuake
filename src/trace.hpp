@@ -1,5 +1,5 @@
 /*
- * PS5 RetroArch - a startup trace, to be read from the console's title folder.
+ * PS5 vkQuake - a startup trace, to be read from the console's title folder.
  *
  * Copyright (C) 2026 Mihawk
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -22,8 +22,8 @@
  * when that is.
  */
 
-#ifndef PS5_RETROARCH_TRACE_HPP
-#define PS5_RETROARCH_TRACE_HPP
+#ifndef PS5_VKQUAKE_TRACE_HPP
+#define PS5_VKQUAKE_TRACE_HPP
 
 namespace ps5::debug
 {
