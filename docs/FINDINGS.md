@@ -166,3 +166,62 @@ ignoring the stencil aspect; that estimate was wrong and that entry is supersede
 
 **Requested.** `docs/PS5_VULKAN_REQUESTS.md`, R1, with the code paths, the
 specification requirement and the acceptance test.
+
+## The driver's own audit classifies the clause it violates as "conditional"
+
+**Measured.** Reading `../PS5_Vulkan` before sending it the stencil request turned
+up why this gap survived: the driver's format audit cannot express it.
+
+`tools/format_audit.py:140-151` walks the specification's required-format table
+and splits every cell by its marker. A `{sym1}` cell is checked against the
+reported table and filed as missing when the entry does not carry the feature. A
+`{sym2}` or `{sym3}` cell is appended to `conditional` **without `carried` being
+consulted at all**, and `main` returns `1 if args.check and missing else 0`
+(`:171`) — so a conditional row cannot fail the gate. The tool's own output shows
+the consequence: `VK_FORMAT_D32_SFLOAT` appears in the conditional list for
+`VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` even though
+`driver/ps5vk_image.c:442-446` carries that bit. A satisfied row and a violated
+one are indistinguishable inside the bucket.
+
+The reason it matters here is that the `DEPTH_STENCIL_ATTACHMENT` footnote in
+`formats-v1.4.354.adoc` carries **two `must` clauses under one `{sym2}` marker**:
+the bit "must: be supported for at least one of `VK_FORMAT_X8_D24_UNORM_PACK32`
+and `VK_FORMAT_D32_SFLOAT`, and must: be supported for at least one of
+`VK_FORMAT_D24_UNORM_S8_UINT` and `VK_FORMAT_D32_SFLOAT_S8_UINT`." The driver
+satisfies the first through `D32_SFLOAT` and violates the second, because it
+reports the bit for neither S8 format.
+
+So the audit's headline "4 formats miss a required feature" is an undercount for
+this footnote, and its three named obstacles — the descriptor type, the hardware's
+fetch order and the compiler — do not include the fourth, the stencil registers
+`docs/V0_FORMATS_AUDIT.md:238` quotes this row against.
+
+**This is not an oversight in the driver's record.** `docs/V0_FORMATS_AUDIT.md:238`
+carries the row, its reason and its closing path, and `:24` says conditional rows
+are "listed as conditional so a conditional row is never mistaken for a closed
+one". The classification is doing its job; what it cannot do is distinguish a
+caveat from a disjunction, and this footnote is a disjunction. That is a tooling
+gap, and it is separable from the driver work.
+
+**A public source does not close the driver half.** ps5-opengl has no stencil path
+either — its `src/` holds only `platform/` — so "nothing has recorded" holds for
+it too. Mesa's `amdgfxregs.h` does carry the encodings, in the form the tree
+already vendors at
+`.deps/native/opengl-sdk/third_party/opengnm-psbc/src/amd/common/amdgfxregs.h`:
+`DB_DEPTH_CONTROL` `0x028800` with `STENCIL_ENABLE` bit 0, `STENCILFUNC` bits 8-10
+and the `V_028800_FRAG_*` compare enumeration (`:12877`); `DB_STENCIL_CONTROL`
+`0x02842C` with `STENCILFAIL`/`STENCILZPASS`/`STENCILZFAIL` four bits each and the
+`V_02842C_STENCIL_*` op enumeration (`:11487`); `DB_STENCILREFMASK` `0x028430` and
+`_BF` `0x028434` (`:11523`, `:11537`); `DB_STENCIL_INFO` `0x028044` (`:10121`).
+
+That is a partial lead, not the answer, and the distinction is worth keeping:
+the driver does not address registers absolutely. It writes AGC register packets
+in ps5-opengl's compacted numbering, where `DB_Z_INFO` is offset `0x010` and Mesa
+puts the register at `0x028040`. Mesa therefore supplies field positions and
+enumerations, not the offset mapping and not the measured enable word — the
+analogue of the measured `0x80000183`.
+
+**Boundary.** `../PS5_Vulkan` local `main` at `23bcea1`, one commit ahead of the
+published `PS5Vulkan/main` (`2b494d2`) and unpushed, with uncommitted round-8
+work in the tree. Also measured: the repository has two remotes with the same URL
+(`PS5Vulkan` current, `main` 244 commits stale) and a `master` branch 308 behind.

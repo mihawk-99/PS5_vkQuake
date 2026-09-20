@@ -10,31 +10,115 @@ One section per request, newest last.
 
 ---
 
-## R1 — A depth-stencil format, and the stencil path behind it
+## R1 — `format_audit.py` cannot see this footnote's second must-clause
 
 **Status.** Open. Blocks M2's render-pass step in this port.
 
-**Reported against.** `../PS5_Vulkan` at `23bcea1`.
+**Reported against.** `../PS5_Vulkan` local `main` at `23bcea1`, which is **one
+commit ahead of the published `PS5Vulkan/main` (`2b494d2`)** and is not pushed;
+the round-8 work in the tree is uncommitted. Line numbers below are from that
+tree, and the `tools/format_audit.py` and `docs/V0_FORMATS_AUDIT.md` content they
+name is unchanged from `2b494d2`.
 
-### What this is
+### The short version
 
-PS5 vkQuake is a port of vkQuake 1.36.0 to the console, built on this driver as
-its Vulkan implementation. It is the first real application on the driver rather
-than a probe or a tutorial program, so it is the first thing to exercise the
-driver the way a shipped title does.
+`VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT`'s footnote in the specification
+contains **two `must` clauses that share one `{sym2}` marker**. The driver
+satisfies the first and violates the second. `tools/format_audit.py` files every
+`{sym2}` row as conditional **without ever checking whether the requirement is
+met**, and `--check` fails only on `sym1` rows — so the violated clause is
+invisible to the gate. A real application reached it.
 
-It now gets through instance creation, physical-device enumeration and
-`vkCreateDevice`, and then stops during device initialisation.
+This is reported as a tooling finding first, because the tooling half is
+verifiable in one command and stands on its own whatever is decided about the
+driver half.
 
-### What happens
+### The evidence, in four steps
 
-The console run reaches the device and then aborts:
+**1. The footnote requires two things, and one marker covers both.** From the
+vendored specification, `.deps/native/vulkan-docs/formats-v1.4.354.adoc`, the
+footnote under the "Mandatory Format Support" table's
+`DEPTH_STENCIL_ATTACHMENT` column:
+
+> `VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` feature must: be supported for
+> at least one of `VK_FORMAT_X8_D24_UNORM_PACK32` and `VK_FORMAT_D32_SFLOAT`, and
+> must: be supported for at least one of `VK_FORMAT_D24_UNORM_S8_UINT` and
+> `VK_FORMAT_D32_SFLOAT_S8_UINT`.
+
+Both clauses are `must`. The table marks all four formats `{sym2}`
+(`formats-v1.4.354.adoc:3737-3738`), and `{sym2}` means "must: be supported on at
+least some of the named formats, with more information in the table where the
+symbol appears" (`:3282`).
+
+**2. The driver satisfies clause one and violates clause two.** It reports
+`DEPTH_STENCIL_ATTACHMENT` for `VK_FORMAT_D32_SFLOAT`
+(`driver/ps5vk_image.c:442-446`), which satisfies clause one. It reports it for
+neither `VK_FORMAT_D24_UNORM_S8_UINT` nor `VK_FORMAT_D32_SFLOAT_S8_UINT` — its
+only other depth entry is `D16_UNORM` (`:428-432`) — so clause two is unmet.
+
+**3. The audit tool never checks.** `tools/format_audit.py:140-151`:
+
+```python
+for name, features in sorted(required.items()):
+    for feature, marker in features.items():
+        carried = reported.get(name, set())
+        if marker == "sym1":
+            if feature not in carried:
+                missing.setdefault(name, []).append(feature)
+            elif feature == "VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT":
+                ...
+        else:
+            conditional.setdefault(name, []).append(f"{feature} ({marker})")
+```
+
+The `else` arm appends to `conditional` and **never consults `carried`**. And
+`main` ends `return 1 if args.check and missing else 0` (`:171`), so a conditional
+row cannot fail the gate.
+
+**4. The bucket holds satisfied and unsatisfied rows alike, which is the proof.**
+The tool's own output, `python3 tools/format_audit.py`, prints under
+"conditional (at least some formats, or with caveats)":
 
 ```
-SDL Video Driver: PS5 VideoOut
-Using Vulkan 1.1
-vkCreateInstance -> 0
-Vendor: AMD
+  VK_FORMAT_D24_UNORM_S8_UINT                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT (sym2)
+  VK_FORMAT_D32_SFLOAT                           VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT (sym2)
+  VK_FORMAT_D32_SFLOAT_S8_UINT                   VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT (sym2)
+  VK_FORMAT_X8_D24_UNORM_PACK32                  VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT (sym2)
+```
+
+`VK_FORMAT_D32_SFLOAT` is in that list and the driver **does** carry the bit. So
+the list is marker-driven, not state-driven: a row whose requirement is met and a
+row whose requirement is violated are indistinguishable inside it. The summary
+line "4 formats miss a required feature" is therefore an undercount for this
+footnote — the count of four is the two sRGB rows and the two storage-image
+atomics rows, and this clause is in neither.
+
+### It is known, and deliberately ungated
+
+This is not a claim that the row was overlooked. It is recorded:
+
+- `docs/V0_FORMATS_AUDIT.md:238`, the `DEPTH_STENCIL_ATTACHMENT` row: "the two
+  stencil formats need the stencil registers and path, which nothing has
+  recorded", closing path "a runner probe of the DB format words and the stencil
+  registers, then the C5 readback per format".
+- `docs/V0_FORMATS_AUDIT.md:24`: "`{sym2}` and `{sym3}` are required on at least
+  some of the named formats or with caveats, and are listed as conditional **so a
+  conditional row is never mistaken for a closed one**."
+
+That last line is the point. The row is not closed, and the classification exists
+to say so — but it also removes the row from the gate, and for a footnote with two
+independent clauses that is where it stops being visible. The audit's closing
+summary names three things standing in the way of the remaining rows (the
+descriptor type, the fetch order, the compiler); this row is quoted against a
+fourth, "nothing has recorded", which that sentence does not enumerate.
+
+### How an application reached it
+
+This port is vkQuake 1.36.0 on the console, and it is the first real application
+on the driver. It gets through instance creation, physical-device enumeration and
+`vkCreateDevice`, and then stops in device initialisation with its own error:
+
+```
 Device: PS5 AGC GPU (ps5vk)
 vkCreateDevice -> 0
 Device extensions: VK_KHR_swapchain
@@ -42,163 +126,103 @@ Device extensions: VK_KHR_swapchain
 QUAKE ERROR: Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format
 ```
 
-The message is vkQuake's own, from `QUAKE/gl_vidsdl.c:1416-1436`. Its logic is
-exactly this:
+`QUAKE/gl_vidsdl.c:1416-1436` queries exactly the two formats clause two names,
+requires `DEPTH_STENCIL_ATTACHMENT_BIT` on one of them, and calls the failing
+branch impossible for a compliant driver. It is right to: clause two says `must`.
 
-```c
-vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_D24_UNORM_S8_UINT, &format_properties);
-qboolean x8_d24_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
-vkGetPhysicalDeviceFormatProperties (vulkan_physical_device, VK_FORMAT_D32_SFLOAT_S8_UINT, &format_properties);
-qboolean d32_support = (format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) != 0;
-...
-else
-{
-    // This cannot happen with a compliant Vulkan driver. The spec requires support for one of the formats.
-    Sys_Error ("Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format");
-}
-```
+### Why "claim the format and ignore the stencil" is not a fix
 
-The driver reports `DEPTH_STENCIL_ATTACHMENT_BIT` for neither. Its format table
-carries two depth-only entries and no combined one:
+Worth stating, because it is the cheap-looking option and it does not work for
+this application. vkQuake uses the stencil functionally, for the sky occlusion
+trick (`QUAKE/gl_rmisc.c`): one pipeline rasterises sky geometry with
+`colorWriteMask = 0`, `stencilTestEnable = VK_TRUE`, `compareOp = ALWAYS`,
+`passOp = REPLACE` and `reference = 0x1`, writing stencil and no colour
+(`:3384-3395`); a second draws the skybox with `depthTestEnable = VK_FALSE`,
+`compareOp = EQUAL`, `writeMask = 0x0` and `reference = 0x1`, so it survives only
+where sky was rasterised (`:3424-3436`). The engine also builds a parallel
+render-pass set keyed on `MAIN_RENDER_PASS_STENCIL_CLEAR` whose variants differ
+only in stencil load and clear semantics.
 
-```
-driver/ps5vk_image.c:428  {VK_FORMAT_D16_UNORM,    ... DEPTH_STENCIL_ATTACHMENT_BIT | ...}
-driver/ps5vk_image.c:442  {VK_FORMAT_D32_SFLOAT,   ... DEPTH_STENCIL_ATTACHMENT_BIT | ...}
-```
+So a format entry mapped onto the existing `32_FLOAT` word with the stencil aspect
+ignored would leave that pass writing and testing an aspect that does not exist.
 
-and its draw path accepts only those two:
+For completeness: vkQuake uses `pDepthStencilAttachment` only and never a separate
+`pStencilAttachment`, so the driver's refusal of *separate* stencil attachments
+(`driver/ps5vk_draw.c:506`) is not the path being hit. The format table is.
 
-```
-driver/ps5vk_draw.c:534  if ((depth_view->format != VK_FORMAT_D32_SFLOAT &&
-driver/ps5vk_draw.c:535       depth_view->format != VK_FORMAT_D16_UNORM) || ...
-```
+### The two halves of a fix, and they are separable
 
-### Why this is worth acting on
+**The tooling half, which is small and independently worth doing.** A `{sym2}`
+marker is not always a disjunction — sometimes it is a caveat on a single named
+format — so the general fix is to teach the audit which footnote disjunctions
+exist and to evaluate each clause separately, rather than to make all `{sym2}`
+rows strict. For this footnote that means: parse the two `at least one of` clauses
+and check each against the reported table, so the row reports as satisfied or not
+instead of merely conditional. Whatever the mechanism, the invariant worth
+asserting is the one the current output cannot express: **a conditional row whose
+requirement is satisfiable is either met or listed as unmet.** A test that fails
+if `VK_FORMAT_D32_SFLOAT` and `VK_FORMAT_D32_SFLOAT_S8_UINT` sit in the same
+unqualified bucket would have caught this.
 
-The Vulkan specification's required-format-support table requires an
-implementation to support **at least one** of `VK_FORMAT_D24_UNORM_S8_UINT` or
-`VK_FORMAT_D32_SFLOAT_S8_UINT` for depth-stencil attachment in optimal tiling.
-This is the note vkQuake's own comment refers to when it calls the failing branch
-impossible for a compliant driver. Any conformant Vulkan application that wants a
-depth buffer meets this requirement, so it is not specific to Quake: the driver
-cannot report itself complete, and no CTS run can pass, until one of the two is
-supported.
+**The driver half, which is the stencil path.** `../PS5_Vulkan` has none:
+`DB_STENCIL_INFO` is the constant "stencil disabled" word `0x20000180`
+(`driver/ps5vk_draw.c:264`), the stencil read and write bases and
+`DB_STENCIL_CLEAR` are written zero (`:266-278`), `stencilTestEnable` is refused
+at pipeline creation (`driver/ps5vk_pipeline.c:867`) and a stencil clear is
+refused by name (`driver/ps5vk_image.c:2516`, `:2575`).
 
-### Why the stencil aspect cannot be stubbed
+**A partial lead, offered as a lead and not as the answer.** I looked for a public
+source for the encoding, since that is the first step of the method in
+`docs/BLOCKERS.md`. Two readings:
 
-This is the part worth being explicit about, because the obvious cheap fix — add
-the format to the table, map it onto the existing `32_FLOAT` hardware word, and
-ignore the stencil — **does not work for this application**.
+- **ps5-opengl has no stencil path either** — its `src/` contains only
+  `platform/` — so the driver's "nothing has recorded" holds for it too.
+- **Mesa's register database does carry the field layout and the enumerations**,
+  in the `amdgfxregs.h` already in this tree at
+  `.deps/native/opengl-sdk/third_party/opengnm-psbc/src/amd/common/amdgfxregs.h`:
+  `DB_DEPTH_CONTROL` `0x028800` (`STENCIL_ENABLE` bit 0, `STENCILFUNC` bits 8-10,
+  `STENCILFUNC_BF` bits 20-22, the `V_028800_FRAG_*` compare enumeration,
+  `:12877`), `DB_STENCIL_CONTROL` `0x02842C` (`STENCILFAIL`, `STENCILZPASS`,
+  `STENCILZFAIL` and their `_BF` twins, four bits each, with the
+  `V_02842C_STENCIL_*` op enumeration where KEEP is 0 and REPLACE is 3 or 4,
+  `:11487`), `DB_STENCILREFMASK`
+  `0x028430` and `_BF` `0x028434` (`:11523`, `:11537`), `DB_STENCIL_INFO`
+  `0x028044` (`:10121`).
 
-vkQuake uses the stencil buffer functionally, for the sky occlusion trick. It
-rasterises sky geometry that writes stencil = 1 and no colour, then draws the
-skybox with depth testing disabled and an equality test against that stencil
-value, so the skybox appears only where sky was actually rasterised. From
-`QUAKE/gl_rmisc.c`:
-
-```c
-/* 3384-3395: the sky stencil write -- colour writes masked off, stencil replaced with 1 */
-infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
-infos.depth_stencil_state.front.compareOp        = VK_COMPARE_OP_ALWAYS;
-infos.depth_stencil_state.front.passOp           = VK_STENCIL_OP_REPLACE;
-infos.depth_stencil_state.front.compareMask      = 0xFF;
-infos.depth_stencil_state.front.writeMask        = 0xFF;
-infos.depth_stencil_state.front.reference        = 0x1;
-infos.blend_attachment_states[0].colorWriteMask  = 0; // We only want to write stencil
-
-/* 3424-3436: the skybox consume -- no depth test, stencil equality against 1 */
-infos.depth_stencil_state.depthTestEnable   = VK_FALSE;
-infos.depth_stencil_state.depthWriteEnable  = VK_FALSE;
-infos.depth_stencil_state.stencilTestEnable = VK_TRUE;
-infos.depth_stencil_state.front.compareOp   = VK_COMPARE_OP_EQUAL;
-infos.depth_stencil_state.front.passOp      = VK_STENCIL_OP_KEEP;
-infos.depth_stencil_state.front.writeMask   = 0x0;
-infos.depth_stencil_state.front.reference   = 0x1;
-```
-
-The engine also builds a whole parallel set of render passes keyed on
-`MAIN_RENDER_PASS_STENCIL_CLEAR`, whose only difference from the standard passes
-is the stencil load/clear semantics — so a stencil aspect is load-bearing
-throughout the render-pass set, not in one pipeline.
-
-For completeness: vkQuake uses `pDepthStencilAttachment` only and never a
-separate `pStencilAttachment`, so the driver's refusal of *separate* stencil
-attachments (`driver/ps5vk_draw.c:506`) is not what is being hit here. What is
-hit is the format table, and what is needed behind it is the stencil plane and
-the stencil test.
-
-### Where this already sits in your own roadmap
-
-It is not an unknown unknown — your documents already track it:
-
-- `docs/M5_REFERENCE.md:559`, the open unknown named **`unknowns-depth-words`**:
-  "the `DB_Z_INFO` format words for `D16_UNORM` and the stencil formats, and the
-  stencil registers", with the route "the C5 probe's shape with each format's
-  candidate word and the stencil write/read registers", gating the
-  `DEPTH_STENCIL_ATTACHMENT` rows.
-- `docs/V0_FORMATS_AUDIT.md:238`: "the two stencil formats need the stencil
-  registers and path, which nothing has recorded".
-- `driver/tests/vk_b3_image_test.c:90` currently asserts that
-  `VK_FORMAT_D24_UNORM_S8_UINT` reports **no** features — that assertion is the
-  deliberate encoding of the gap, and it will need to change with the fix.
-
-So this request is a request to promote that unknown, not to overturn a decision.
-
-### What closing it involves
-
-Offered as a starting point from the outside, not as a design for your tree — you
-know the register path far better than this report does.
-
-1. **The format entry.** `VK_FORMAT_D32_SFLOAT_S8_UINT` with
-   `VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` in
-   `optimalTilingFeatures`, mapping onto the depth word the D32 entry already
-   uses (`DB_Z_INFO` `0x80000183`), which is what
-   `ps5vk_depth_registers` in `driver/ps5vk_draw.c:248-281` writes. Its
-   `DB_STENCIL_INFO` (`0x011`) is currently the constant `0x20000180`, i.e.
-   stencil disabled; enabling the plane is the change behind the format.
-2. **The stencil plane.** `DB_STENCIL_READ_BASE` (`0x013`),
-   `DB_STENCIL_WRITE_BASE` (`0x015`) and their `_HI` halves (`0x01b`, `0x01d`)
-   are written zero today, and `DB_STENCIL_CLEAR` (`0x00a`) likewise. Whatever
-   the console measures for the stencil plane's tile layout and base addresses
-   is the substance of `unknowns-depth-words`.
-3. **The pipeline's stencil state.** `driver/ps5vk_pipeline.c:867` currently
-   refuses `depth->stencilTestEnable` outright, and
-   `ps5vk_depth_control` (`driver/ps5vk_draw.c:287`) derives only the Z half of
-   `DB_DEPTH_CONTROL`. A draw needs front/back `compareOp`, `reference`,
-   `compareMask`, `writeMask` and the fail/depth-fail/pass ops to reach the
-   register.
-4. **The clear.** `driver/ps5vk_image.c` refuses a stencil aspect by name in
-   `vkCmdClearDepthStencilImage` (`:2516`, `:2575`). Quake clears the combined
-   attachment every frame, so the stencil half of that clear will be exercised
-   immediately.
-5. **Later, not now.** Sampled and transfer access to the stencil aspect, and
-   `VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL` from
-   `separateDepthStencilLayouts`. Quake needs neither: it never samples the
-   depth or stencil image as a texture.
+That is genuinely less than it looks, and I would rather say so than overstate it:
+the driver does not address registers absolutely. It writes AGC register packets
+(`struct ps5vk_agc_register { uint16_t offset; ... }`) in ps5-opengl's compacted
+numbering — its `DB_Z_INFO` is offset `0x010`, where Mesa puts the register at
+`0x028040` — so Mesa supplies the field positions and the op and compare
+enumerations, **not** the offset mapping and **not** the measured enable word. The
+analogue of the measured `DB_Z_INFO` word `0x80000183` is exactly what is missing,
+which is what `docs/V0_FORMATS_AUDIT.md:238` already says.
 
 ### What would prove it
 
-In your own idiom — a runner probe, in C5's shape:
+The tooling half is provable here and now: `python3 tools/format_audit.py` should
+report this clause as unmet, and the existing `tests/test_tools.py` recount is
+where a regression belongs.
 
-- Render a frame that writes stencil = 1 over part of the target with colour
-  writes masked off, then draws a second pass that tests equality against 1 with
-  depth testing disabled and a distinguishable colour. A readback of the colour
-  target shows the colour **only** where the first pass rasterised, and the
-  stencil plane reads back the written values.
-- Run the same at one and four samples, since Quake's `sample_count` is
-  configurable and the depth path already carries `NUM_SAMPLES`.
-- Then the application-level check, which is the one this port can supply: build
-  PS5 vkQuake against the driver and let it reach its render passes. Today it
-  cannot get that far.
+The driver half needs a console measurement, in the shape the audit already names:
+a runner probe of the DB format words and the stencil registers — a frame that
+writes stencil = 1 over part of a target with colour writes masked off, then a
+pass that tests equality against 1 with depth testing disabled and a
+distinguishable colour, read back so the colour appears **only** where the first
+pass rasterised, with the stencil plane read back too; then the same at one and
+four samples, since Quake's sample count is configurable.
 
-I can run that application-level check on the console and report the result,
-including a symbolized crash or a validation failure, if that is useful to you.
+Then the application-level check, which this port can supply: build PS5 vkQuake
+against the driver and let it reach its render passes. Today it cannot get that
+far. I can run that on the console and report the result, including a symbolized
+crash or a validation failure, if that is useful.
 
 ### What is not being asked
 
 - No API surface beyond what the specification already requires.
 - No change to the fixed 3840x2160@60 display mode, the swapchain path or WSI —
   those are working here and are not implicated.
-- No schedule or priority claim from this repository. It is a report that the
-  gap is reachable by an ordinary application, with the code path that reaches
-  it.
+- No schedule or priority claim from this repository.
+- Not a claim that the row was missed. It is documented and classified; the
+  request is that the classification stop hiding the clause, and that the clause
+  get a closing measurement.

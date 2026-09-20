@@ -120,10 +120,16 @@ each call answered, closes M2's remaining half with evidence this repository own
 **The driver reports no combined depth-stencil format, and vkQuake requires one.**
 `../PS5_Vulkan` reports `DEPTH_STENCIL_ATTACHMENT_BIT` for neither
 `VK_FORMAT_D24_UNORM_S8_UINT` nor `VK_FORMAT_D32_SFLOAT_S8_UINT` — the
-specification requires at least one — while vkQuake accepts nothing else and
-aborts device initialisation. There is no engine-side fix worth having: the
-stencil is functionally used for the sky occlusion trick, and the driver has no
-stencil path at all. `../PS5_Vulkan` is maintained separately and is read-only
-from here, so this is reported in `docs/PS5_VULKAN_REQUESTS.md` R1 rather than
-patched. It blocks the engine reaching its render passes; it does not block the
-surface, swapchain and present work above.
+specification's footnote requires at least one — while vkQuake accepts nothing
+else and aborts device initialisation. There is no engine-side fix worth having:
+the stencil is functionally used for the sky occlusion trick, and the driver has
+no stencil path at all.
+
+The driver's own audit knows the row and cannot gate it: the two formats are
+`{sym2}`, `tools/format_audit.py` files every `{sym2}` cell as conditional without
+checking whether it is met, and its own output lists `VK_FORMAT_D32_SFLOAT` in
+that bucket while the driver carries the bit. So the requirement is recorded as
+"conditional" rather than unmet. `../PS5_Vulkan` is maintained separately and is
+read-only from here, so this is reported in `docs/PS5_VULKAN_REQUESTS.md` R1 —
+tooling half first, driver half second — rather than patched. It blocks the engine
+reaching its render passes; it does not block the surface and swapchain work above.
