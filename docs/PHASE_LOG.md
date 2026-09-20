@@ -844,3 +844,31 @@ probe:   [0].Init = b26d30        == UDP4_Init, the call's target
 
 The table, the code and the fault address all name the same thing. Only the value
 disagrees.
+
+### The window after Con_Init has no samples in it at all
+
+Full-resolution logging settled the shape of the problem and pointed at the
+instrument rather than the code. 846 samples, every one `b26d10`, the last at
+`Console initialized.` - and then the call goes to zero.
+
+Every address is confirmed against this build: `b26d10` is `UDP4_Init`, `b238c0` is
+`Datagram_Init`, and the crash is that call at `Datagram_Init +0xa1`. The table, the
+code and the fault address all name the same thing.
+
+What the 846 samples do *not* cover is the window that matters. Every one came from
+an allocation, and from `Con_Init` through `PR_Init`, `Mod_Init` and `NET_Init` to
+the driver loop, the engine allocates through Quake's zone rather than through
+malloc - `Mem_Alloc` takes from a pool `Mem_Init` allocated once. So there are no
+samples in the window at all, and the last one is on the wrong side of it.
+
+That is the fourth instrument in a row with a blind spot the size of the thing being
+looked for: a change-triggered watch cannot tell no-change from not-called, a
+256-call sample cannot see a write in the last 255 calls, an allocation-driven watch
+cannot sample a window that does not allocate, and a backtrace without frame pointers
+names the wrong function. Each was built to remove the previous one's blind spot and
+introduced its own.
+
+So the sampler is now independent of allocation: a detached thread, one millisecond
+apart, logging only changes. If the value is ever wrong it says when, and if it is
+never wrong then the call is not reading this word - which would need a different
+instrument than any of these, not a better-tuned one.

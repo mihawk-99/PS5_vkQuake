@@ -98,6 +98,42 @@ static void probe(const char *name, char *table, int count, int stride)
 static void *saved_init[4];
 static int saved_count;
 
+/* A sampler that does not depend on allocation.
+ *
+ * The watch fired 846 times and the value never moved, but every one of those
+ * samples came from an allocation, and the window that matters - Con_Init through
+ * NET_Init to the driver loop - allocates through Quake's zone rather than through
+ * malloc. So there were no samples in the window at all, which is the fourth time an
+ * instrument of mine has had a blind spot the size of the thing it was looking for.
+ *
+ * This thread samples on its own clock instead. It is deliberately crude: one
+ * millisecond apart, logging only changes, so it costs nothing and cannot miss a
+ * write that persists for longer than that. If the value is ever wrong, this says
+ * when - and if it is never wrong, then the call is not reading this word and the
+ * disassembly is wrong in a way that wants a different instrument entirely.
+ */
+#include <pthread.h>
+#include <unistd.h>
+
+static void *sampler(void *unused)
+{
+    (void)unused;
+    void *seen = NULL;
+    for (;;)
+    {
+        void *init = *(void **)(net_landrivers + INIT_OFFSET);
+        if (init != seen)
+        {
+            seen = init;
+            char line[160];
+            snprintf(line, sizeof line, "probe: sampled net_landrivers[0].Init = %p", init);
+            ps5_trace(line);
+        }
+        usleep(1000);
+    }
+    return NULL;
+}
+
 __attribute__((constructor)) static void ps5_probe_tables(void)
 {
     FILE *control = fopen("/app0/probe.txt", "rb");
@@ -108,6 +144,10 @@ __attribute__((constructor)) static void ps5_probe_tables(void)
     for (int index = 0; index < net_numlandrivers && index < 2; ++index)
         saved_init[saved_count++] =
             *(void **)(net_landrivers + index * LANDRIVER_STRIDE + INIT_OFFSET);
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, sampler, NULL) == 0)
+        pthread_detach(thread);
 
     ps5_trace("probe: static pointer tables, read before main");
     probe("net_drivers", net_drivers, net_numdrivers, DRIVER_STRIDE);
