@@ -776,3 +776,38 @@ samples stop early, the allocator hook is not firing and the probe is looking at
 nothing between the last mutex and the crash.
 
 Either answer is the end of this ambiguity, which is what the last round cost.
+
+### The backtrace was lying, because this port dropped a flag upstream insists on
+
+The liveness counter settled what the probe could not: the hook fires, and the value
+never changes.
+
+```
+probe: watch #1   net_landrivers[0].Init = b26d30
+probe: watch #256 net_landrivers[0].Init = b26d30
+probe: watch #512 net_landrivers[0].Init = b26d30
+probe: watch #768 net_landrivers[0].Init = b26d30
+Console initialized.
+```
+
+Seven hundred and sixty-eight samples through `Host_Init`, every one the same, and
+the run still dies on a call to zero. So the call is not reading that word, the
+probe is not wrong, and the frame - `Datagram_Init +0xa1` - is.
+
+`UDP4_Init` is the function that call reaches, and it contains no tail calls, so the
+walk should have found a frame inside it and did not. The reason is this project's
+own build:
+
+```
+meson.build:9  # Always build keeping frame pointers to get better backtraces
+meson.build:10 add_project_arguments(cc.get_supported_arguments('-fno-omit-frame-pointer', ...
+```
+
+`tools/build-vkquake-engine.sh` compiled the engine at `-O2` without it. A console
+crash report is a frame-pointer walk, so with the frames omitted the walk lands
+wherever the stack looks plausible - and it landed on the caller. Four rounds of
+this port were spent proving a table was fine when the table was never the subject.
+
+The flag is restored, with upstream's reason and this port's evidence for it in the
+comment. A backtrace that names the wrong function is worse than no backtrace,
+because it is believable.
