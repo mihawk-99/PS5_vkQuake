@@ -10,6 +10,52 @@ Milestone **M0**, and inside it the engine is up: vkQuake's own C compiles for
 written and tested. Nothing has run on the console yet, and nothing links into a
 title yet.
 
+## The title's identity
+
+Set in `sce_sys/param.json`, which is the single source for all of it — `build.sh`
+validates it, `build-title.sh` reads `titleId` from it to decide the `dist/` path,
+and `deploy-title.py` reads the signed copy on the console's side rather than
+trusting a variable.
+
+| Field | Value |
+| --- | --- |
+| `titleId` | `PPSA99010` |
+| `conceptId` | `99010` |
+| `contentId` | `UP9000-PPSA99010_00-VKQUAKE000000000` |
+| `titleName` | `vkQuake` |
+| Category | game (`applicationCategoryType` 0, `contentBadgeType` 1, `launchActivity` intent) |
+
+Applied with the boilerplate's own initializer rather than by hand —
+`make init TITLE_ID=PPSA99010 APP_NAME=vkQuake`, which is `tools/init-project.sh`.
+The `contentId` suffix is the one it derives from the name: `VKQUAKE` padded to
+the sixteen characters the format requires.
+
+**Two things the identity change did not touch, and one it exposed.** `icon0.png`,
+`pic0.dds` and `pic1.dds` are still the RetroArch title's artwork; vkQuake ships
+its own icons at `vendor/vkQuake/Misc/vkQuake_256.png` and `_512.png`, so a
+conversion is available when the artwork matters. And `dist/` still holds
+`PPSA99169/` and a RetroArch release ZIP, with `handoff/` holding two more titles
+— stale outputs of the previous project, untracked and gitignored, so removing
+them is not recoverable from this repository. They are left in place because they
+are the owner's files and not this port's to delete, but `deploy-title.py`
+refuses to deploy while more than one title is built, so they must be moved or
+removed before the first console run.
+
+## The game data
+
+The owner supplies `pak0.pak`; this repository never fetches, commits or stages
+it. It lives at `id1/pak0.pak` — the relative path vkQuake's own filesystem layer
+looks for under the base directory, `COM_AddGameDirectory(GAMENAME)` with
+`GAMENAME` `"id1"` — and it becomes `/app0/id1/pak0.pak` on the console.
+
+`.gitignore` covers `pak0.pak`, `pak*.pak` and `id1/` anywhere in the tree, and
+`tests/test_game_data_ignored.py` checks that it does: it asks `git check-ignore`
+about the paths data can occupy, scans the index for anything pak-shaped that is
+already tracked, and requires the file on disk to be absent from `git status`
+entirely. The guard was verified by removing the rules and watching it go red —
+two failures, one of them `?? id1/pak0.pak` — then restoring them and watching it
+go green. A rule that has never been seen to fail is a rule nobody has tested.
+
 The three commits that got here are `550b64c` (the baseline imported and vkQuake
 pinned at 1.36.0), `24d8345` (the RetroArch frontend stripped out) and `5017b08`
 plus `943316f` (the engine archive, and the compatibility layer).

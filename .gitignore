@@ -32,6 +32,16 @@ klog/
 # Local console address and credentials.
 .env
 
+# Game data. Quake's pak0.pak is retail content and is the console owner's to
+# supply: this repository never fetches it, never commits it and never stages it,
+# so it is ignored wherever it lands - at the root for a development run, or in an
+# id1/ directory beside the title when the engine looks for it there. A pak is
+# never a build input, so ignoring the extension as well costs nothing and covers
+# the add-on packs. docs/PLAN.md states the same rule from the other side.
+pak0.pak
+pak*.pak
+id1/
+
 # Editor and host noise.
 *.o
 *.a
