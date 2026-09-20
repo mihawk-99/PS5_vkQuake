@@ -1204,3 +1204,65 @@ Verify:
   verify: PASS (format unit build integration evidence)
   ==> [evidence] m2-device: OK (raw klog/trace-20260920T155302Z.txt, 74 lines)
   ==> [evidence] 1 capture(s) replayed, 0 failed
+
+### The klog listener came back with a crash the trace file could not show
+
+The listener started in an earlier step finished, and its capture
+(`klog/vkquake-listen-113523.log`, 688 KB over 8,066 lines) holds something the
+title's own trace cannot: **the kernel's record of what happens after the title
+prints its last line.**
+
+Three runs of this title are in it, and all three end the same way. The kernel
+first records the process leaving through `exit()`, then reports a fatal signal on
+a user thread:
+
+```
+# process pid=182, eboot.bin calls exit() exit_value=1.
+# A user thread receives a fatal signal
+# signal: 12 (SIGSYS)
+# rip: 00000008000003ac
+# backtrace:
+# 0000000000b8caab  # 0000000000ace520  # 0000000000a6ed7f
+# 0000000000a6c09a  # 0000000000400190
+```
+
+The three records carry the **same rip**, in libkernel's syscall stubs. The three
+exit values are 1, 0 and 0 — so this is not the error path and not `Sys_Error`: a
+run that left through `exit(0)` took the identical signal at the identical
+instruction. It sits on the exit path itself.
+
+**This is this port's bug, not the driver's**, and it is the reason the klog of an
+ordinary run reads like a crash: the console answers a fatal signal with
+`SCE_SHELL_UTIL_ERROR_APPLICATION_CRASH`, a coredump and a `gpudump.elf` run. No
+GPU fault appears anywhere in the capture; the GPU dump is routine report tooling.
+
+**It also corrects the record.** The `W_LoadWadFile` run was written up as dying of
+SIGSYS because the game data was missing, and deploying `id1/pak0.pak` was recorded
+as the fix. It did make that run stop failing — but the signal was never on that
+path. Both runs carry `rip: 00000008000003ac`, and the earlier entry attributed a
+symptom of the exit path to the reason for the exit. `docs/FINDINGS.md` carries the
+correction.
+
+The record is `evidence/exit-sigsys/`: one complete kernel record, distilled from a
+verbatim 34-line slice of the capture held in the ignored `klog/` tree, asserting
+the exit line, the signal, the rip and the backtrace. The other two records are the
+same shape and the same rip, which the capture's own note states so a reader knows
+this is three-for-three rather than a single sample.
+
+**The five frames are recorded raw, not symbolized.** `build/title.map` is from a
+later build than the binary that crashed — the identity moved from `440199d7` to
+`c0677c1f`, and the identity covers `src/`, `platform/ps5/`, three build scripts and
+the linked archives, so the map describes a different image. Symbolizing with it
+would produce exactly the confident wrong names `tools/symbolize-crash.py` warns
+about in its header. The next step for this bug is a re-run against a freshly built
+title, so the crash and the map are the same build.
+
+Worth stating plainly: none of this blocks the request to `../PS5_Vulkan`. The
+depth-stencil finding stands on its own, and the console calling every run a crash
+does not change what the run said before it stopped.
+
+Verify:
+  $ python3 tools/evidence.py compare evidence/
+  exit-sigsys: OK (raw klog/vkquake-exit-sigsys-113523.txt, 37 lines)
+  m2-device: OK (raw klog/trace-20260920T155302Z.txt, 74 lines)
+  2 capture(s) replayed, 0 failed

@@ -1,0 +1,13 @@
+{
+  "step": "exit-sigsys",
+  "note": "The title takes SIGSYS on its exit path. The engine's Sys_Error calls exit(1) - the kernel records that first, in the line above the signal - and a thread then receives signal 12 at rip 0x8000003ac, which is inside libkernel's syscall stubs rather than anywhere in the image. The listener capture holds three runs of this title and three of these records, every one with the same rip, so this is deterministic and not a race. The console answers it the way it answers any fatal signal: SCE_SHELL_UTIL_ERROR_APPLICATION_CRASH, a coredump and a gpudump, which is why the klog of an ordinary run reads like a crash.",
+  "must_contain": [
+    "calls exit() exit_value=1",
+    "signal: 12 (SIGSYS)",
+    "rip: 00000008000003ac",
+    "backtrace:",
+    "0000000000a6c09a"
+  ],
+  "must_not_contain": [],
+  "human_check": "This one is THIS port's, not the driver's, and it is the reason an ordinary run reads as a crash. It also explains an earlier mis-attribution: the W_LoadWadFile run was recorded as dying of SIGSYS because of the missing game data, but deploying the pak only removed the reason Sys_Error was called - the signal is on the exit path itself and fires whatever the exit value is, including exit(0). The five backtrace frames are NOT symbolized because build/title.map is from a later build than the one that crashed (the identity moved from 440199d7 to c0677c1f), and symbolizing with a mismatched map gives confident wrong names. Rebuild, re-run, and symbolize against the matching map before trying to fix this."
+}
