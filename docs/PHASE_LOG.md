@@ -1146,3 +1146,61 @@ so the audit's "nothing has recorded" stands.
 
 No code changed in this step and nothing was pushed. `../PS5_Vulkan` was read
 only, as it must be: it is maintained separately.
+
+### The console trace becomes an artifact, and the request stops quoting one
+
+Every console run so far was read over FTP and then written about. The request to
+`../PS5_Vulkan` quoted one of those transcripts, and the evidence gate reported
+"0 captures" -- a gate that had nothing to replay and a request whose central fact
+was a claim. This step closes both.
+
+`tools/fetch-trace.py` pulls the title's own `/app0/trace.txt` into the ignored
+`klog/` tree. It reuses `tools/deploy-title.py`'s `load_settings` and `title_id`
+rather than repeating them, so there is one definition of where the console is and
+one of which title is being talked to -- the same import `tools/run-title.sh`
+already uses. Run against the console, it returned 2,027 bytes over 74 lines.
+
+Two things about that file decided how it gets recorded. The title opens its trace
+for append (`src/trace.cpp`, `fopen(path, "a")`) and `tools/deploy-title.py` never
+deletes it, so the file holds **every run since the folder was deployed** and the
+run being evidenced is at the end. `tools/evidence.py distil` kept only the first
+`--head` lines, which would have recorded the *oldest* run in the file -- in this
+capture, a run that died at `vkEnumeratePhysicalDevices` before the device was
+ever created. So `distil` gained `--tail N`, which selects the newest run instead,
+and `tests/test_evidence.py` pins it: tail records the newest run, the `--head`
+default still records the oldest for captures that do not accumulate, and `--tail`
+wins if both are given.
+
+The second thing the trace corrected is this file's own history. The runs were
+narrated as three; the append-mode file shows a further one between the pak fix
+and the device fix, which reached the instance and stopped at
+`vkEnumeratePhysicalDevices` -- the forwarder fault. `docs/ACTIVE.md` now says
+what the artifact shows rather than what the narration said.
+
+`tests/test_evidence.py` is nine cases over the gate itself, because this is the
+one gate a rebuild cannot falsify. `compare` is tested to fail: a missing needle,
+a present `must_not_contain` needle, a capture that distilled to nothing, a step
+holding only half its two files. `distil` is tested to record the right run. The
+evidence directory was decoration the moment those verdicts stopped being
+exercised, and nothing else in the suite would have noticed.
+
+The record is `evidence/m2-device/`: the newest run, distilled with `--tail 46`,
+asserting the six facts that are M2's instance and device halves -- VideoOut as
+the video driver, `vkCreateInstance -> 0`, `Vendor: AMD`, `Device: PS5 AGC GPU
+(ps5vk)`, `vkCreateDevice -> 0` and `VK_KHR_swapchain` -- plus the depth-stencil
+error the run stops on, and `W_LoadWadFile` as a `must_not_contain` so a title
+that lost its game data again cannot read as a pass.
+
+That the error is asserted rather than hidden is deliberate and is stated in the
+capture's own `human_check`: the gate is green for the state the port is actually
+in, and the record must be replaced when `../PS5_Vulkan` reports a combined
+depth-stencil format, because the run should then continue into its render passes.
+A record that asserted only the successes would have to be rewritten silently.
+
+Verify:
+  $ python3 tools/fetch-trace.py
+  $ python3 tools/evidence.py distil klog/trace-20260920T155302Z.txt --step m2-device --tail 46 ...
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  ==> [evidence] m2-device: OK (raw klog/trace-20260920T155302Z.txt, 74 lines)
+  ==> [evidence] 1 capture(s) replayed, 0 failed

@@ -116,14 +116,28 @@ fourth, "nothing has recorded", which that sentence does not enumerate.
 
 This port is vkQuake 1.36.0 on the console, and it is the first real application
 on the driver. It gets through instance creation, physical-device enumeration and
-`vkCreateDevice`, and then stops in device initialisation with its own error:
+`vkCreateDevice`, and then stops in device initialisation with its own error.
+
+The capture is committed rather than transcribed: **`evidence/m2-device/`** holds
+the console's own trace, distilled from the title's `/app0/trace.txt`, with the
+expectations it is replayed against. `python3 tools/evidence.py compare evidence/`
+reproduces the verdict offline. Verbatim, the end of that run:
 
 ```
+vkEnumeratePhysicalDevices -> 0
+vkEnumeratePhysicalDevices -> 0
+Vendor: AMD
 Device: PS5 AGC GPU (ps5vk)
 vkCreateDevice -> 0
-Device extensions: VK_KHR_swapchain
+Device extensions:
+ VK_KHR_swapchain
+
+ERROR-OUT BEGIN
+
 
 QUAKE ERROR: Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT depth buffer format
+STACK TRACE:
+(null)
 ```
 
 `QUAKE/gl_vidsdl.c:1416-1436` queries exactly the two formats clause two names,
