@@ -361,3 +361,31 @@ int gethostname(char *name, size_t length)
     memcpy(name, host, sizeof host);
     return 0;
 }
+
+/* --- forward lookup, which is the one that stopped the title ---
+ *
+ * `gethostbyname` is the eighth function of this class and the one that cost the most
+ * to find. The port shimmed seven of its neighbours - `getcwd`, `getenv`, `putenv`,
+ * `setenv`, `unsetenv`, `getline`, `getpwuid`, `backtrace`, `gethostbyaddr`,
+ * `gethostname` - and missed this one, and `UDP4_Init` calls it through a GOT slot
+ * that nothing fills:
+ *
+ *   Datagram_Init -> UDP4_Init -> call *GOT(gethostbyname) -> 0
+ *
+ * The console reported that as `Datagram_Init +0xa1`, because a null call pushes no
+ * frame and the frame-pointer walk therefore found UDP4_Init's return address - the
+ * call site in its caller - as the innermost frame. Four rounds went into proving the
+ * landriver table correct, which it always was.
+ *
+ * Returning NULL is what upstream expects and handles: `UDP4_Init` prints
+ * "gethostbyname failed" with the resolver's error and carries on with the loopback
+ * address, which is what a console wants anyway. The h_errno this sets is the same
+ * one `gethostbyaddr` sets, for the same reason: there is no resolver here, and a
+ * failed lookup is a state the engine already knows how to survive.
+ */
+struct hostent *gethostbyname(const char *name)
+{
+    (void)name;
+    resolver_error = HOST_NOT_FOUND;
+    return NULL;
+}

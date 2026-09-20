@@ -893,3 +893,33 @@ rounds proving a table correct that was never the subject.
 reference reads the same slot the call does. A symbol the runtime does not provide
 reads back as NULL here for precisely the reason the call went to zero, so the probe
 now checks all sixteen and names the missing ones.
+
+### The null call was `gethostbyname`, and the port had shimmed its neighbours
+
+The weak-symbol check from the probe named it in one line:
+
+```
+probe: MISSING gethostbyname
+probe: socket symbol check done (16 calls)
+```
+
+`UDP4_Init` calls it through a GOT slot nothing fills:
+
+```
+Datagram_Init -> UDP4_Init -> call *GOT(gethostbyname) -> 0
+```
+
+This is the ninth function of the `getcwd` class - declared by the SDK, accepted by
+the linker, absent at run time - and the port had shimmed eight of its neighbours
+(`getcwd`, `getenv`, `setenv`, `putenv`, `unsetenv`, `getline`, `getpwuid`,
+`backtrace`, `gethostbyaddr`, `gethostname`) and missed this one. The instrument that
+found it took one line, and the four rounds before it went into a table that was
+never wrong, because a null call pushes no frame and the frame walk correctly
+reported the caller of the function that faulted.
+
+`gethostbyname` now returns NULL with `HOST_NOT_FOUND`, which is what upstream
+expects: `UDP4_Init` prints "gethostbyname failed" with the resolver's error and
+carries on with the loopback address - which is what a console wants anyway.
+
+The probe switch and the trace file were cleared afterwards, so the next run records
+the engine's own output and nothing else.
