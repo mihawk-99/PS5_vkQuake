@@ -65,13 +65,17 @@ open item with that scope.
 
 ## Next
 
-**Waiting on `../PS5_Vulkan` for R6** — one topology mapped where the triangle list is. The port
-cannot dodge it: the warp mesh is tessellated (two vertices per row, drawn as one strip), so a
-list would mean changing how upstream generates it, which is the class of workaround this tree
-declines.
+**R6's driver half is in the tree and in the artifact this port links** — the topology now reaches
+the hardware as `sceAgcLinkShaders`'s `primitive_type` (DI_PT 5 for a strip, 4 otherwise), and the
+refusal accepts both — so the port is testing it rather than waiting on it. Verified the way this
+project verifies driver artifacts after three rounds of the same trap: `driver/ps5vk_pipeline.c`
+modified 12:32:10, `libps5vk.ps5.a` built 12:39:09, so the change is downstream of the source in
+the archive. The driver's own strip *case* is red on its harness's inability to express a
+non-indexed draw, which does not touch this port: only the driver archives are linked here.
 
-Nothing else is pending on this side. The run after R6 should reach the first frame, whose
-postprocess pass binds an input attachment — the one thing R2 implemented and has not driven.
+Nothing else is pending on this side. The run should create the warp pipeline and reach further —
+the first frame's postprocess pass binds an input attachment, the one thing R2 implemented and has
+not driven.
 
 ## Open questions
 
