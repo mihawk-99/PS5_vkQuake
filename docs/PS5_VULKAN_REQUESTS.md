@@ -12,7 +12,15 @@ One section per request, newest last.
 
 ## R1 — `format_audit.py` cannot see this footnote's second must-clause
 
-**Status.** Open. Blocks M2's render-pass step in this port.
+**Status. Closed by the driver** (`../PS5_Vulkan` `ad500a0`; the tree this was reported
+against, `23bcea1`, no longer exists). Both halves landed: `VK_FORMAT_D24_UNORM_S8_UINT`
+and `VK_FORMAT_D32_SFLOAT_S8_UINT` now carry
+`VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` (`driver/ps5vk_image.c`), the stencil
+plane is proved on the console (`v0-stencil-clear`), and `tools/format_audit.py` reads
+the footnote's clauses whole and fails `--check` on an unmet one (`required_clauses`;
+`../PS5_Vulkan/docs/BLOCKERS.md`, row 11). The body below is the report as it was made
+and is kept unedited — what it asked for is done, so it is a record rather than a
+request.
 
 **Reported against.** `../PS5_Vulkan` local `main` at `23bcea1`, which is **one
 commit ahead of the published `PS5Vulkan/main` (`2b494d2`)** and is not pushed;
@@ -240,3 +248,100 @@ crash or a validation failure, if that is useful.
 - Not a claim that the row was missed. It is documented and classified; the
   request is that the classification stop hiding the clause, and that the clause
   get a closing measurement.
+
+---
+
+## R2 — three core 1.0 descriptor types are advertised and absent from the table
+
+**Status.** **Read** from vkQuake's source and the driver's table, not yet measured on
+the console. One prediction follows from it, and a single console run of this port
+settles it — see "what would prove it".
+
+**Reported against.** `../PS5_Vulkan` `ad500a0`.
+
+### The short version
+
+`ps5vk_descriptor_stride` (`driver/ps5vk_descriptor_set_layout.c`) answers
+`UNIFORM_BUFFER`, `UNIFORM_BUFFER_DYNAMIC`, `COMBINED_IMAGE_SAMPLER`, `STORAGE_BUFFER`,
+`UNIFORM_TEXEL_BUFFER`, `STORAGE_TEXEL_BUFFER` and `STORAGE_IMAGE`, and **0 for
+everything else**. `ps5vk_descriptor_options` (`driver/ps5vk_pipeline.c:195-220`)
+refuses a layout binding whose stride is 0:
+
+```
+set %u binding %u: descriptor type %d has no proven table entry
+```
+
+so a pipeline layout naming a type without a table entry cannot be used by any pipeline
+at all. The device meanwhile reports `maxPerStageDescriptorSamplers = 16`,
+`maxPerStageDescriptorSampledImages = 16` and `maxPerStageDescriptorInputAttachments = 4`
+(`driver/ps5vk_physical_device.c:86-91`), and those three families have no entry. This
+is R1's kind of gap — a limit advertised and not honoured — and all three are core
+Vulkan 1.0, not extensions.
+
+### Why it is a class rather than an instance
+
+The demo programme that produced R1–R9 uses only combined image samplers, uniform and
+storage buffers and texel buffers — the forms the table does have — so **nothing has
+ever exercised any of the three**. The separated form (`SAMPLER` + `SAMPLED_IMAGE`) is
+what the Vulkan guidance recommends and what a renderer reaching for one independent
+sampler will use; a pipeline whose layout declares it is the case that was missing.
+
+### What vkQuake declares, and what each one blocks
+
+Read from `vendor/vkQuake/Quake/gl_rmisc.c` and the shader source, not run:
+
+| vkQuake layout | binding | type | stage | what it blocks |
+| --- | --- | --- | --- | --- |
+| `basic_pipeline_layout`, set 1 = `mboit_input_attachment_set_layout` | 0-2 | `INPUT_ATTACHMENT` | `FRAGMENT` | **the first pipeline the engine creates** — `basic_alphatest`, every render-pass variant |
+| `gui_pipeline_layout`, set 1 = `gui_sampler_set_layout` | 0 | `SAMPLER` | `FRAGMENT` | the menu and every 2D draw: `draw_pic.frag` reads a separate `texture2D` and `sampler` |
+| `lightmap_compute_layout` | 1, 2 | `SAMPLED_IMAGE` | `COMPUTE` | the lightmap update compute pass |
+| `world`, `alias`, `md5` layouts | — | `INPUT_ATTACHMENT` at set 3 or 4 | `FRAGMENT` | OIT (WBOIT/MBOIT) only, once the first row is handled |
+
+### Why the first row lands where it does
+
+It is not visible from either tree alone, so it is worth stating: the check walks the
+**pipeline layout**, not the shader's used bindings. `basic_pipeline_layout` is
+`{single_texture, mboit_input_attachment}` and the plain opaque pipelines use it too —
+the input attachment is what the MBOIT *composite* variant reads, but every pipeline
+built against that layout is refused, including one whose SPIR-V never mentions it. An
+application therefore pays for a descriptor type it does not use, and this port cannot
+get past `R_CreatePipelines` by leaving OIT switched off.
+
+### What the port is doing meanwhile, so none of this is urgent for its sake
+
+- OIT is dropped as a **registered accommodation**, with this request's
+  `INPUT_ATTACHMENT` item as its retirement trigger: `r_oit` off, the OIT/MBOIT pipeline
+  variants not created, the input-attachment set dropped from every layout that
+  survives, and the bmodel set renumbered from 4 to 3 so the world layout fits inside
+  the advertised four sets.
+- That leaves `SAMPLER` (the menu) and `SAMPLED_IMAGE` (the lightmap) as the two this
+  port would otherwise re-express as combined image samplers in upstream's shaders. It
+  can do that; it would rather report the type than patch around it, and the type is
+  what every application after it will want.
+
+### What would prove it, and in what order
+
+1. **`SAMPLER` and `SAMPLED_IMAGE` first, together** — one mechanism, the separated
+   form. The probe shape this port's GUI pipeline has: set 0 binding 0 `SAMPLED_IMAGE`,
+   set 1 binding 0 `SAMPLER`, fragment stage, one texture through a nearest sampler,
+   read back. **Acceptance: the frame is texel-for-texel the frame the same texture
+   draws through one `COMBINED_IMAGE_SAMPLER`** — the separated form must not be a
+   different picture, which is exactly what a "it drew something" check would miss.
+2. **`INPUT_ATTACHMENT` second**, and it is a design conversation rather than a table
+   entry, as the driver's own response says: it needs a subpass to read from. This
+   port's shape when it arrives: three input attachments in one set, `FRAGMENT` stage,
+   holding what a previous subpass wrote.
+3. **MRT (`colorAttachmentCount > 1`) is not on this port's critical path**, so it needs
+   no re-prioritising for this port's sake: with OIT off and `vid_fsaa 0`, vkQuake's
+   plain main render pass is one colour attachment plus depth. MRT is what restores OIT
+   later, and the template's `MRT` demo is its own reproduction.
+
+### What is not being asked
+
+- No change to `maxBoundDescriptorSets = 4`. This port renumbers to fit inside it; the
+  advertised limit is not the driver's to widen.
+- No request to check a shader's *used* bindings instead of the layout's. That check is
+  defensible and its refusal names the type; the request is the missing table entry,
+  not a weaker check.
+- Nothing about `VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR`, which vkQuake declares
+  behind a ray-query check this device does not advertise.

@@ -290,3 +290,49 @@ them readable.
 **Boundary.** The listener capture `klog/vkquake-listen-113523.log` (not
 committed; `klog/` is ignored), build identity `440199d7`, console clock
 2026-01-14.
+
+## The driver refuses a *layout*'s bindings, not a shader's — read 2026-09-22
+
+`ps5vk_descriptor_options` (`../PS5_Vulkan/driver/ps5vk_pipeline.c:195-220`) iterates
+the pipeline **layout** — `layout->set_layouts[set]`, every binding in each set — and
+refuses one whose `stride` is 0, where the stride comes from
+`ps5vk_descriptor_stride`'s switch over descriptor types. It never consults the shader's
+used bindings. It is called from `ps5vk_CreateGraphicsPipelines` for the vertex stage
+(`:1263`) and the fragment stage (`:1265`).
+
+**What that forces.** A pipeline is refused for a descriptor type its *layout* names,
+whether or not its SPIR-V mentions it. vkQuake's `basic_pipeline_layout` is
+`{single_texture, mboit_input_attachment}` (`vendor/vkQuake/Quake/gl_rmisc.c`), and the
+input-attachment layout is three `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage — so
+**every** pipeline built against it is refused, including the plain opaque
+`basic_alphatest` that never reads one. The first `vkCreateGraphicsPipelines` vkQuake
+makes (`R_CreateBasicPipelines`, the main-pass variant) is therefore refused, and the
+driver's descriptor table has no entry for `INPUT_ATTACHMENT` (10), `SAMPLER` (0) or
+`SAMPLED_IMAGE` (2) — the last two reachable only through this port's GUI and lightmap
+compute layouts. Reported as R2 in `docs/PS5_VULKAN_REQUESTS.md`, with the predicted
+refusal sentence in `docs/PHASE_LOG.md`.
+
+**How it was found, so it is not re-derived:** by reading the driver's refusal path and
+vkQuake's layout definitions together. No console run has produced the sentence yet; the
+prediction is what the next run is for.
+
+## `attachmentCount` is not a colour-attachment count — read 2026-09-22
+
+`render_pass_create_info.attachmentCount = use_mboit ? … : use_wboit ? … : (resolve ? 3 : 2)`
+(`vendor/vkQuake/Quake/gl_vidsdl.c`) counts **all** of a render pass's attachments, and
+for the plain main pass those are one colour attachment plus one depth attachment:
+`attachmentCount = 2` while `subpass_descriptions[0].colorAttachmentCount = 1`.
+
+`resolve` is `sample_count != VK_SAMPLE_COUNT_1_BIT`, and `vid_fsaa` — the cvar that
+raises the sample count (`:2150-2169`) — defaults to `"0"`. So with defaults the plain
+pass has exactly one colour attachment. The two-colour shapes are the OIT variants,
+selected at runtime by `r_oit`, which defaults to `"1"` = `OIT_MODE_WBOIT`: subpass 1
+writes `accum` + `reveal` (`WBOIT_COLOR_ATTACHMENT_COUNT = 2`) and subpass 2 reads two
+input attachments.
+
+**What it forced.** A reading of the port's next gate that said `colorAttachmentCount > 1`
+(MRT) was next. It is not: the refusal the port meets first is the descriptor one above,
+and MRT restores OIT rather than unblocking the world draw — which is why OIT is being
+dropped as a registered accommodation, with the driver's MRT item and input attachments
+as its retirement trigger. A resolve attachment would make the plain pass two colour
+attachments too, so MSAA keeps MRT on the list; it is off by default.
