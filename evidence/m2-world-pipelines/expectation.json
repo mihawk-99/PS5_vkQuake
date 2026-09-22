@@ -1,0 +1,12 @@
+{
+  "step": "m2-world-pipelines",
+  "note": "The debug-pipeline guards worked - the refusal moved past showtris entirely - and 276 pipelines compiled before the run stopped in the world family: vkCreateGraphicsPipelines failed (world 0). The cause is read rather than heard, because this port cannot see the driver's refusal sentences: the world family's fragment stage carries a five-entry VkSpecializationInfo (gl_rmisc.c:3618-3625) and the deployed driver refuses specialization constants outright (ps5vk_pipeline.c:621); no family called before the world family attaches one (basic, warp, particles, ray-debug, anim, FTE particles, sprites, sky and showtris attach none), and the two that do are the world family and one later. So world 0 is the first pipeline in the engine to meet it.",
+  "must_contain": [
+    "build identity: 1bd8b91f",
+    "QUAKE ERROR: vkCreateGraphicsPipelines failed (world 0) with code -13"
+  ],
+  "must_not_contain": [
+    "failed (md5_debug)"
+  ],
+  "human_check": "This is the first run to reach the world family, and it stops on a capability rather than a bug: the driver refuses specialization constants, and vkQuake builds its world pipelines from five of them (fullbright, alpha test, alpha blend, quantize lightmap, 10-bit lightmap). The inference is from code, not from a sentence - this port has no debug messenger and the driver has no stderr fallback for refusals - but it is tight: one refusal in the deployed creation path fits a pipeline whose states are otherwise ordinary, and exactly the families from world onward attach specialization info. That makes it R9, and it is the widest gap the port has met: the world, alias, md5 and postprocess families all use specialization constants, so without it the port cannot draw a world at all. It is core 1.0 and general, so it is the driver's to implement - reworking upstream's shader permutation scheme into compile-time variants is the application-side change this port declines."
+}

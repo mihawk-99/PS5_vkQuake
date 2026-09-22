@@ -1,43 +1,41 @@
 ## Where the port is
 
-**Start-up is one debug pipeline from done: 275 pipelines compiled, one refusal left.**
-`evidence/m2-debug-lines/` (identity `c899d93e`) — the run in order:
+**The world family is the wall, and it is a capability rather than a bug.** `evidence/m2-world-pipelines/`
+(identity `1bd8b91f`) — the run in order:
 
 ```
-vkCreateInstance -> 0 … vkCreateDevice -> 0 / VK_KHR_swapchain
-Using D32_S8 depth buffer format
+vkCreateInstance -> 0 … vkCreateDevice -> 0 / VK_KHR_swapchain / D32_S8 depth buffer
 staging, descriptor set layouts, samplers, pipeline layouts, world buffers, sound, swapchain
 Creating pipelines
-[ps5vk] compile start: nir=0 … [ps5vk] compile done: result=0      (275 times)
+[ps5vk] compile start: nir=0 … [ps5vk] compile done: result=0      (276 times)
 vkCreateGraphicsPipelines -> -13
-QUAKE ERROR: vkCreateGraphicsPipelines failed (debug_lines) with code -13
+QUAKE ERROR: vkCreateGraphicsPipelines failed (world 0) with code -13
 ```
 
-Every gate this port has met is passed and measured: the depth-stencil format, `R_InitSamplers`, the
-pipeline layouts, the palette octree's whole-buffer view (R3), the colour buffer (R5), the swapchain
-(its first edit to upstream), the three descriptor types (R2), the compute path's shared tables
-(R7 — the kernels that stopped two runs now compile), and **the fragment-less pipelines**:
-vkQuake's `sky_stencil` marking pass, `stageCount = 1` with colour mask 0, is created.
+Everything the port has met so far is closed and measured: the depth-stencil format,
+`R_InitSamplers`, the pipeline layouts, the palette octree (R3), the colour buffer (R5), the
+swapchain (its own edit), the descriptor types (R2), the dispatch path (R7), the fragment-less
+pipelines (the `sky_stencil` marking pass creates), the two line-topology debug pipelines (the
+port's own guards), and the world *family* is reached for the first time.
 
-The last refusal is `md5_debug`, the skeleton debug draw, for
-`VK_PRIMITIVE_TOPOLOGY_LINE_LIST` — and it is the *second* pipeline to meet it: both it and
-`debug_lines` (the bounding-box draw) are built from `R_CreateShowTrisPipelines`'s base, whose
-topology is a line list, while the showtris family's own pipelines are gated on `non_solid_fill`,
-which this device does not claim. That is **R8**, and the port is not waiting for it: each of the
-two is created only when the feature that draws with it is asked for (`r_showbboxes`/`r_showfields`
-for the boxes, `r_showskel` for the skeletons — all off by default, and each already the condition
-upstream guards the draw with), mirroring the FTE particle family's own conditional creation. The
-eleventh and twelfth edits, both retiring with R8.
+**The refusal is R9: specialization constants.** The world family's fragment stage carries a
+five-entry `VkSpecializationInfo` (`gl_rmisc.c:3618-3625`), the driver refuses specialization
+constants outright (`ps5vk_pipeline.c:621`), and no family called before it attaches one — so
+`world 0` is the first pipeline in the engine to meet it. The port cannot dodge it: vkQuake's
+sixteen world permutations *are* specialization constants, and the alias, md5 and postprocess
+families use them too, so without R9 no world can be drawn.
+
+**A correction to this file's earlier entry.** It said the world and alias families created in the
+`m2-md5-debug` run. They did not: `md5_debug` is created inside `R_CreateShowTrisPipelines`, which
+is called *before* the world family, so that run never reached it. `docs/PHASE_LOG.md` carries the
+correction as its own entry, and the run above is the first to reach the world family.
 
 ## Next
 
-**One more run.** With that edit, nothing known stands in front of the remaining families — world,
-alias, md5, postprocess, screen effects, update-lightmap, indirect and the animation kernels all
-compiled in this run's stretch — and then the first frame, whose postprocess pass binds an input
-attachment: the one thing R2 implemented and has not driven.
-
-If it stops, the trace names it and it becomes the next request. If it reaches a frame, the
-artifact is that frame's readback or the trace line that says one was presented.
+**Waiting on `../PS5_Vulkan` for R9**, and on the driver's rebuild: the archive this port links
+(`libps5vk.ps5.a`, 13:35) predates the five commits the last round landed (R8, the `DI_PT`
+strip/fan correction, the fragment-less case, R4), so when the rebuilt archive arrives the port
+relinks once and picks all of them up — and retires its two line guards at the same time.
 
 ## Open questions
 
