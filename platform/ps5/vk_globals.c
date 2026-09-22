@@ -15,6 +15,7 @@
  */
 
 #include <stdio.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <vulkan/vulkan_core.h>
 
@@ -561,7 +562,9 @@ VKAPI_ATTR VkResult VKAPI_CALL vkEndCommandBuffer(VkCommandBuffer commandBuffer)
 {
     if (!ps5_pfn_vkEndCommandBuffer)
         ps5_pfn_vkEndCommandBuffer = (PFN_vkEndCommandBuffer)ps5_resolve("vkEndCommandBuffer");
-    return traced_result("vkEndCommandBuffer", ps5_pfn_vkEndCommandBuffer(commandBuffer), 0);
+    static atomic_flag reported = ATOMIC_FLAG_INIT;
+    const VkResult result = ps5_pfn_vkEndCommandBuffer(commandBuffer);
+    return traced_result("vkEndCommandBuffer", result, !atomic_flag_test_and_set(&reported));
 }
 
 static PFN_vkEnumerateDeviceExtensionProperties ps5_pfn_vkEnumerateDeviceExtensionProperties;
@@ -713,7 +716,9 @@ VKAPI_ATTR VkResult VKAPI_CALL vkQueueSubmit(VkQueue queue, uint32_t submitCount
 {
     if (!ps5_pfn_vkQueueSubmit)
         ps5_pfn_vkQueueSubmit = (PFN_vkQueueSubmit)ps5_resolve("vkQueueSubmit");
-    return traced_result("vkQueueSubmit", ps5_pfn_vkQueueSubmit(queue, submitCount, pSubmits, fence), 0);
+    static atomic_flag reported = ATOMIC_FLAG_INIT;
+    const VkResult result = ps5_pfn_vkQueueSubmit(queue, submitCount, pSubmits, fence);
+    return traced_result("vkQueueSubmit", result, !atomic_flag_test_and_set(&reported));
 }
 
 static PFN_vkResetFences ps5_pfn_vkResetFences;
