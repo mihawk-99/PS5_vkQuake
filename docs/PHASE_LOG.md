@@ -1985,3 +1985,79 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   16 capture(s) replayed, 0 failed
+
+## 2026-09-22 — R10 in the driver, the port relinked, and what the first frame should show
+
+### What the workspace said, against what was claimed
+
+R10 landed in `../PS5_Vulkan` in three commits (`f9131e5` refusal, `3ee2f96` the read through the
+input attachment's descriptor, `5f7e910` the console case), and the archive was rebuilt at 18:02
+(`libps5vk.ps5.a`, 14,415,958 bytes, `sha256 6e12550b…`, driver head `60041d8`). The port's own
+artifacts, however, were from **16:47** — engine archive, `eboot.bin` and `build/title_build_identity.h`
+all — which is *before* R10's first commit at 17:05. So the standing build linked the **R9** archive
+`f3d749d6…`, and the claim that it had been rebuilt against the latest driver did not match the
+workspace. This entry records the relink rather than the claim.
+
+### The relink, and proving it by content
+
+`bash tools/build-vkquake-engine.sh` and `tools/build-title.sh` were run against the 18:02 archive:
+
+```
+port build identity         71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a
+dist/PPSA99010/eboot.bin    23,870,146 bytes, sha256 52b28b1a12c473b2…
+```
+
+The identity moved, but the identity is not proof on its own (see below), so the build was checked by
+content: `strings -a dist/PPSA99010/eboot.bin` finds **three** of the sentences R10 added, including
+`AddressingModelPhysicalStorageBuffer64 not supported` and the compute-compiler sentence that replaces
+the abort. A binary carrying sentences that did not exist before 17:05 is a binary linked after it.
+
+`python3 tools/deploy-title.py` then published it and verified it the way that tool does: the console
+reads this build's identity marker back out of the deployed image and reports it.
+
+### What the next run should show, and why
+
+The driver's own audit refuses six of the port's deployed shaders — three declaring
+`PhysicalStorageBufferAddresses` (5347, the addressing model) and three `PhysicalStorageBufferAddresses`
+(EXT, 4472, the bindless store). Read against vkQuake's own source, **all six are ray-tracing paths**:
+`R_CreateUpdateLightmapPipelines` creates its `_rt_comp` variant only `if (vulkan_globals.ray_query)`,
+and `R_CreateRayDebugPipelines` and `R_CreateAnimComputePipelines` return early when it is false.
+`gl_vidsdl.c:1071` starts it false and only a driver advertising the ray-query extension and the
+acceleration-structure features turns it on; this driver advertises neither. So none of the six is
+created, pipeline creation should finish, and the engine should present.
+
+The one thing that will look wrong is a defect the driver's own active file names: the subpass read
+returns band 0 past `x = 960` on the 3840-wide display, because the row-stored attachment's width word
+is `(extent.width - 1) >> 2`. The first frame is therefore expected to be a picture whose right three
+quarters are wrong. That is a driver item; the port has nothing to change for it.
+
+### Two corrections, written down rather than edited away
+
+- **The capability scanner's names were wrong for four numbers.** `tools/check-shader-capabilities.py`
+  labelled 35 `ImageGatherExtended`, 46 `StorageImageWriteWithoutFormat`, 49 `GroupNonUniform` and 61
+  `GroupNonUniformBallot`. The driver's own capability table (`f9131e5`) has them as 25
+  `ImageGatherExtended`, 35 `SampleRateShading`, 46 `SampledBuffer`, 49 `StorageImageExtendedFormats`
+  and 61 `GroupNonUniform`. The numbers were read out of the SPIR-V and were right; the names were
+  written from memory and four were wrong. The table is corrected and says where the correction came
+  from.
+- **A scan read during a build is not a scan.** A run of the scanner while `tools/verify.sh` was
+  rebuilding reported "58 deployed shaders, 12 declaring more than Shader". The shader generator
+  `rm -rf`s its output directory and refills it, so that reading was a partial directory rather than a
+  finding; the settled set is **67 shaders, 20 declaring more than `Shader`**, which agrees with the
+  driver's audit. The number was checked against `ls` before it was used for anything.
+
+### An unexplained number, kept as one
+
+Two builds of identical inputs — the same sources, the same driver archive, the same
+`memory-diagnostics=0` — produced different identities, `31a85d8b…` and `71b09891…`, and the identity
+hashes the *bytes* of the engine archive it links. That archive is made with `llvm-ar rcs`, whose
+members already carry the epoch timestamp, so its headers at least are deterministic. Either a real
+input moved between those builds or something in the build is not reproducible; it is unmeasured, and
+it is named in `docs/ACTIVE.md` rather than assumed away, because this identity is the only thing that
+ties a console run to the sources that produced it.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  16 capture(s) replayed, 0 failed

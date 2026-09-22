@@ -34,18 +34,23 @@ import os
 import re
 import sys
 
-# Only the ones seen in vkQuake's shaders, so the table reads.
+# Only the ones seen in vkQuake's shaders, so the table reads. The numbers are
+# SPIR-V's own; the *names* were first written from memory and four of them were
+# wrong -- 35, 46, 49, 61 -- which ../PS5_Vulkan's own capability table
+# (`f9131e5`, R10) corrected: 25 is ImageGatherExtended, 35 SampleRateShading,
+# 46 SampledBuffer, 49 StorageImageExtendedFormats, 61 GroupNonUniform.
 NAMES = {
     1: "Shader",
-    35: "ImageGatherExtended",
+    25: "ImageGatherExtended",
+    35: "SampleRateShading",
     40: "InputAttachment",
-    46: "StorageImageWriteWithoutFormat",
-    49: "GroupNonUniform",
+    46: "SampledBuffer",
+    49: "StorageImageExtendedFormats",
     50: "ImageQuery",
-    61: "GroupNonUniformBallot",
+    61: "GroupNonUniform",
     65: "GroupNonUniformShuffle",
-    4472: "PhysicalStorageBufferAddresses (EXT)",
-    5347: "PhysicalStorageBufferAddresses",
+    4472: "PhysicalStorageBufferAddresses (EXT, bindless store)",
+    5347: "PhysicalStorageBufferAddresses (addressing model)",
 }
 
 HEADER = 5  # magic, version, generator, bound, schema

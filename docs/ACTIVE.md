@@ -1,61 +1,62 @@
 ## Where the port is
 
-**Start-up now compiles everything up to the postprocess pass, and the postprocess pass is where it
-dies.** `evidence/m2-subpass-input/` (identity `b41844d2`) — the run in order:
+**R10 landed in the driver, and the port is relinked against it.** Driver `60041d8`, three commits:
+`f9131e5` (a shader the compiler cannot lower is refused, not fatal), `3ee2f96` (the subpass read
+through the input attachment's descriptor), `5f7e910` (the console case and its own measurements).
+The archive this port now links is `build/driver/ps5/libps5vk.ps5.a`, 14,415,958 bytes,
+`sha256 6e12550b…`, built 18:02 — and the relink is proved by content, not by clock: the deployed
+`eboot.bin` carries the new refusal sentences (`strings` finds three of them, including
+`AddressingModelPhysicalStorageBuffer64 not supported`).
 
 ```
-… Creating pipelines
-[ps5vk] compile done: result=0      (528 times — 267 pipelines, six of them the fragment-less
-                                     sky marking passes: basic, warp, particles, FTE particles,
-                                     sprites, sky, showtris, the whole world family, alias and
-                                     md5 — no refusal anywhere)
-SpvCapabilityInputAttachment (40)   28 bytes into the SPIR-V binary
-ACO ERROR: aco_select_nir_intrinsics.cpp:5132: Unimplemented intrinsic instr:
-           @load_input_attachment_coord
+port build identity   71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a
+dist/PPSA99010/eboot.bin   23,870,146 bytes   sha256 52b28b1a12c473b2…
+deployed                   verified: the console reads this build's identity marker back
 ```
 
-**R9 is answered and proven on the console.** The world family — sixteen permutations of one shader
-built from five specialization constants — creates, and so do alias, md5 and every family before
-them: 267 pipelines, 528 compiles, zero refusals, minutes of compiling at roughly one shader a
-second. The run the port was waiting on (`docs/PS5_VULKAN_REQUESTS.md`, R9) is closed.
+**What was wrong before this step.** The tree's artifacts were from 16:47 — the engine archive, the
+eboot and the identity header all — while R10's first commit landed at 17:05 and the archive it
+produced at 18:02. So the build that was standing had been relinked against the *R9* archive
+`f3d749d6…`, not against R10. The claim "rebuilt against the latest driver" did not match the
+workspace; the relink is this step's work.
 
-**The wall is now a subpass input read, and it is a different shape: it is an abort.** The shader is
-`postprocess_frag` (`tools/check-shader-capabilities.py`; the five deployed shaders declaring
-`OpCapability InputAttachment` are the three `R_CreatePostprocessPipelines` creates plus two MSAA
-twins, and it creates `postprocess` first). The driver warns the capability away, hands the module to
-ACO, and ACO has no instruction selection for the read, so the process dies instead of the pipeline
-being refused. That is R10, and the port cannot dodge it: vkQuake's UI pass is two subpasses over two
-colour attachments, subpass 1 reads subpass 0's colour buffer, and that one draw is the only thing
-that ever writes the swapchain image.
+**The next run should reach the first frame.** Of the port's 67 deployed shaders, 20 declare
+capabilities beyond `Shader`; the driver's audit compiles 15 and refuses 6, and **all six belong to
+vkQuake's ray-tracing paths**: `update_lightmap_{8,10}bit_rt_comp` and `ray_debug_comp` are created
+only `if (vulkan_globals.ray_query)`, and `mesh_interpolate_comp`, `skinning_comp` and
+`skinning_8_comp` return early when it is false. This driver advertises no ray query, so
+`vulkan_globals.ray_query` is false and none of the six is ever created — pipeline creation should
+now finish, start-up should complete, and the engine should present.
+
+**The driver's own open defect is what to look for on the screen.** The subpass read works but is
+correct only for `x < 960` of the 3840-wide display: past that the fetch returns band 0, because the
+row-stored attachment's width word is `(extent.width - 1) >> 2`. So the first frame is expected to be
+a picture whose right three quarters are wrong, and that is a driver item, not a port one
+(`docs/PS5_VULKAN_REQUESTS.md`, R10's status note).
 
 ## Next
 
-**Waiting on `../PS5_Vulkan` for R10** — the read, and the abort turned into a refusal. Nothing for
-the port to relink meanwhile; R1–R9 are closed on both sides.
-
-If the driver publishes the read as permanently absent, the port's alternative is a UI pass with one
-subpass drawing straight into the swapchain image. Not started: it deletes gamma and contrast over
-the whole frame, so it is worth doing only against a published limit.
+**One run: `bash tools/run-title.sh --no-build --no-deploy --watch 600`** (or a longer window — the
+engine spends eight to ten minutes compiling shaders before it draws). What it must show: no refusal
+line, no `ACO ERROR`, and a presented frame. Then `evidence/m2-first-frame/` with the trace's tail and
+the console owner's word for what is on the screen.
 
 ## Open questions
 
+- **The identity is not reproducible across rebuilds of identical inputs.** Two builds of the same
+  sources and the same driver archive produced `31a85d8b…` and `71b09891…`, and the identity hashes
+  the engine archive's own bytes. Either an input really moved or the build is not deterministic;
+  unmeasured, and it matters because the identity is the only tie between a run and its sources.
 - **The title takes SIGSYS on its exit path, every run.** This port's bug, unchanged
-  (`evidence/exit-sigsys/`). Its frames waited on a title and a map from the same build; every build
-  since 2026-09-22 is deployed with its map beside it, so symbolising them is a matter of reading
-  `build/title.map` against the run's frames.
-- **The line guards stay until `v0-lines` passes.** They cost two pipelines that start-up does not
-  create (`debug_lines`, `md5_debug`), and they retire on the driver's probe, not on a run here.
-- **`OpImageQuerySize` in the menu upscaler.** `draw_pic_xbr_frag` and its alphatest twin declare
-  `SpvCapabilityImageQuery`; the fork warns and compiles them anyway, fourteen times a run. If the
-  lowering is missing the menu's scaling is wrong rather than absent — unmeasured, because no run has
-  yet reached a menu.
-- **The compute kernels are the next unknown.** `screen_effects_*`, `update_lightmap_*`, `skinning_*`,
-  `mesh_interpolate`, `ray_debug` are created after the postprocess pass and declare capabilities
-  (46, 49, 61, 65, 4472, 5347) this port has never asked the driver for. Named in
-  `evidence/m2-shader-capabilities/` so the next stop is read rather than discovered.
+  (`evidence/exit-sigsys/`); `tools/symbolize-crash.py` needs `build/title.map` from the same build.
+- **The line guards stay until `v0-lines` passes** — the driver's own open item; they cost two
+  pipelines start-up does not create.
+- **`OpImageQuerySize` in the menu upscaler** — `draw_pic_xbr_frag` and its alphatest twin declare
+  `ImageQuery`; the fork warns and compiles them anyway, fourteen times a run. If the lowering is
+  missing, the menu's scaling is wrong rather than absent — unmeasured, because no run has reached a
+  menu yet.
 
 ## Blockers
 
-**R10 blocks the frame.** The swapchain image is written by the subpass that reads an input
-attachment, so until that read compiles there is no picture to present — black and alive, then dead,
-is what this build does.
+**None on the port's side.** R10's read is in, the refusal is in, and the remaining driver defect
+(the read past `x = 960`) degrades the picture rather than stopping the frame.
