@@ -132,6 +132,25 @@ while IFS=$'\t' read -r source name defines; do
     [[ -n $source ]] || continue
     spv="$outdir/spv/$name.spv"
 
+    # The oit and mboit variants are compiled as their base shader. Their composite
+    # forms declare an input-attachment set, and no layout this port creates holds one
+    # any more -- the world and md5 layouts gave theirs up to fit the four sets the
+    # driver binds (platform/ps5/vkquake-edits.py names the accommodation and what
+    # retires it). A shader that declares a set its pipeline layout does not hold is a
+    # mismatch rather than a warning, and the symbols must still exist because
+    # Shaders/shaders.h declares them and the renderer's pipeline tables refer to them.
+    # ALIAS_ALPHA_TEST and MSAA are not OIT defines and stay.
+    if [[ $name == *oit* ]]; then
+        without_oit=""
+        for define in $defines; do
+            case "$define" in
+                -DWBOIT=1|-DMBOIT=1|-DMBOIT_COMPOSITE=1|-DMBOIT_INPUT_SET=*) ;;
+                *) without_oit+=" $define" ;;
+            esac
+        done
+        defines=${without_oit# }
+    fi
+
     # shellcheck disable=SC2086 # defines is a list of flags, split on purpose.
     if ! glslangValidator -V --quiet --target-env vulkan1.0 $defines \
             -o "$outdir/spv/$name.raw.spv" "$upstream/$source" >"$outdir/spv/$name.log" 2>&1; then
