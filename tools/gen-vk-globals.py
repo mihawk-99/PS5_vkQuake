@@ -182,6 +182,7 @@ def main() -> int:
         ' */',
         '',
         '#include <stdio.h>',
+        '#include <stdatomic.h>',
         '#include <string.h>',
         '#include <vulkan/vulkan_core.h>',
         '',
@@ -303,6 +304,10 @@ def main() -> int:
                 body.append('    if (device_result == VK_SUCCESS && pDevice != NULL)')
                 body.append('        ps5_resolved_device = *pDevice;')
                 body.append('    return device_result;')
+            elif command in {'vkEndCommandBuffer', 'vkQueueSubmit'}:
+                body.append('    static atomic_flag reported = ATOMIC_FLAG_INIT;')
+                body.append(f'    const VkResult result = ps5_pfn_{command}({arguments});')
+                body.append(f'    return traced_result("{command}", result, !atomic_flag_test_and_set(&reported));')
             else:
                 body.append(f'    return traced_result("{command}", ps5_pfn_{command}({arguments}), {always});')
         else:

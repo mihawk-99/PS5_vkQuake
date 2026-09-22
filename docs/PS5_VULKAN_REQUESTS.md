@@ -1004,3 +1004,20 @@ probe does not; that is a candidate list, not a claim.
 - No claim about which command it is. The port has no way to see it and will not guess.
 - No new probe unless the runner cannot reproduce a two-subpass UI recording; if that is the gap,
   saying so is itself the answer.
+
+
+## 2026-09-22 — R11 measured response and R12: padded texture pitch
+
+Driver `0e33761` removed the optional secondary inheritance framebuffer
+requirement and prints recording errors unconditionally. The port boot with
+identity `6b437103…`, PPSA99010 PID 195, reached 540 successful shader compiles,
+then refused `ps5vk_sampled_image`: set 0 binding 0, 32 texels wide, rows padded
+to 256 bytes. The negative R11 trace criterion is met; the positive presentation
+criterion is still open. Evidence: `evidence/m2-texture-row-pitch/`.
+
+**R12 request and acceptance:** encode the actual padded row pitch for sampled
+images in the driver; prove the 32-wide case with exact nearest readback and
+filtered readback under the existing tolerance, and preserve the tight-row
+case. Keep unmeasured array/mip layouts guarded. Then relink and run the port.
+The local OpenGL driver's single-level 2D descriptor is the source witness;
+a port-side padded texture workaround is not requested.

@@ -1,0 +1,21 @@
+{
+  "step": "m2-texture-row-pitch",
+  "recorded": "2026-09-22T23:22:37Z",
+  "console_run": "PPSA99010 pid 195; build 6b437103",
+  "revision": "",
+  "command": "bash tools/run-title.sh --no-build --watch 900; python3 tools/fetch-trace.py; python3 tools/fetch-trace.py",
+  "raw_capture": "klog/r11-row-pitch.txt",
+  "raw_lines": 9,
+  "raw_bytes": 700,
+  "lines": [
+    "build identity: 6b437103029f1702f911ecb5ea75785133a2880388ea3ec74804cf354ef4d705",
+    "vkEndCommandBuffer -> 0",
+    "vkQueueSubmit -> 0",
+    "[ps5vk] recording refusal in ps5vk_sampled_image: set 0 binding 0 samples a 32-texel-wide image whose rows are padded to 256 bytes; the descriptor's row pitch needs a runner probe (docs/M5_REFERENCE.md, C4)",
+    "vkEndCommandBuffer -> -13",
+    "QUAKE ERROR: vkEndCommandBuffer failed with code -13",
+    "[computed from latest boot: 540 successful shader compiles; no vkQueuePresentKHR result]",
+    "[two full FTP reads identical, SHA-256 d3677743b1087467d2db7f349b78c6c8fc43209e288f21976665d7328a6f9b9e]",
+    "<195> EXEC /app0/eboot.bin [user], vm#1, dmem#1 abi=native category=native_game <43354910 msec>"
+  ]
+}

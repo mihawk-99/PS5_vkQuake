@@ -1,0 +1,14 @@
+{
+  "step": "m2-texture-row-pitch",
+  "note": "R11 inheritance refusal removed; real first frame now reaches the named padded texture-row refusal. No presentation or M2 acceptance.",
+  "must_contain": [
+    "recording refusal in ps5vk_sampled_image",
+    "32-texel-wide image",
+    "vkEndCommandBuffer -> -13"
+  ],
+  "must_not_contain": [
+    "vkQueuePresentKHR -> 0",
+    "RENDER_PASS_CONTINUE needs the framebuffer"
+  ],
+  "human_check": "Not requested: no frame presented."
+}

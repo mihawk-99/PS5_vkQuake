@@ -36,6 +36,7 @@
 #include "vk_loader.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 /* The console's mode, matching ../PS5_Vulkan's driver/ps5vk_wsi.c. Named here as
@@ -324,10 +325,48 @@ void SDL_StopTextInput(void)
  * engine asks for the core spelling of a promoted extension's entry point and
  * expects the loader's alias (platform/ps5/vk_loader.c, and the console run that
  * made the difference visible). */
+extern void ps5_trace(const char *line);
+static PFN_vkGetDeviceProcAddr device_proc_addr;
+static PFN_vkQueuePresentKHR queue_present;
+
+static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPresentInfoKHR *info)
+{
+    /* Queue presentation is externally synchronized. One witness per boot,
+     * plus every failure, keeps the trace useful without per-frame writes. */
+    static int reported;
+    const VkResult result = queue_present(queue, info);
+    if (!reported || result != VK_SUCCESS)
+    {
+        char line[80];
+        snprintf(line, sizeof line, "vkQueuePresentKHR -> %d", (int)result);
+        ps5_trace(line);
+        reported = 1;
+    }
+    return result;
+}
+
+static VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL traced_device_proc(VkDevice device,
+                                                                   const char *name)
+{
+    PFN_vkVoidFunction proc = device_proc_addr(device, name);
+    if (proc && strcmp(name, "vkQueuePresentKHR") == 0)
+    {
+        queue_present = (PFN_vkQueuePresentKHR)proc;
+        return (PFN_vkVoidFunction)traced_present;
+    }
+    return proc;
+}
+
 static void *ps5_window_proc_addr(void *instance, const char *name)
 {
-    return ps5_vk_loader_proc_addr((ps5_vk_proc_lookup)(void *)vkGetInstanceProcAddr, instance,
-                                   name);
+    void *proc =
+        ps5_vk_loader_proc_addr((ps5_vk_proc_lookup)(void *)vkGetInstanceProcAddr, instance, name);
+    if (proc && strcmp(name, "vkGetDeviceProcAddr") == 0)
+    {
+        device_proc_addr = (PFN_vkGetDeviceProcAddr)proc;
+        return (void *)traced_device_proc;
+    }
+    return proc;
 }
 
 void *SDL_Vulkan_GetVkGetInstanceProcAddr(void)
