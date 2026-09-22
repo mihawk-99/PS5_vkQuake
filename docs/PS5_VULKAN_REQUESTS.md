@@ -629,3 +629,66 @@ also show the strip's alternating winding is being honoured.
   `primitiveRestartEnable` stay refused if they are not proved — this port uses none of them, and
   a claim per topology is the driver's own rule.
 - No change to the refusal's wording or to `META_RECT_LIST_MESA`, which Mesa's own meta draws use.
+
+---
+
+## R7 — the compute path binds one storage buffer, and a real kernel needs a texture and a storage image
+
+**Status.** **Measured** on the console: the texture-warp kernel's pipeline is refused,
+`QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13`
+(`evidence/m2-compute-bindings/`, build identity `900d2d14`), after its compile succeeded.
+
+**Reported against.** `../PS5_Vulkan` working tree of 2026-09-22 12:32 (`ps5vk_compute.c`).
+
+### The refusal
+
+`ps5vk_compute.c`, after the compile:
+
+```c
+if (metadata.user_sgpr_count > PS5VK_COMPUTE_MAX_USER_DATA ||
+    metadata.descriptor_binding_count != 1)
+   return vk_errorf(device, VK_ERROR_UNKNOWN,
+                    "a dispatch needs one declared binding and at most %u user-data dwords; the "
+                    "compiler reported %u binding(s) and %u dwords", …);
+const PsbcDescriptorBinding *const binding = &metadata.descriptor_bindings[0];
+if (binding->type != PSBC_DESCRIPTOR_STORAGE_BUFFER || …)
+   return vk_errorf(device, VK_ERROR_UNKNOWN,
+                    "the dispatch's binding is not a storage buffer whose table entry fits a "
+                    "chunk (type %d, offset %u, stride %u)", …);
+```
+
+So a dispatch may declare **one binding, and it must be a storage buffer**. vkQuake's
+`cs_tex_warp` declares two — a combined image sampler to read and a storage image to write
+(`Quake/gl_rmisc.c`, `tex_warp_descriptor_set_layouts`; bound at `Quake/gl_warp.c:128` as
+`{texture, storage_image}`) — and its **lightmap update** declares three (a storage image and two
+sampled images, `lightmap_compute_layout_bindings`), which is the one on this port's M6 path.
+
+### Why it matters even though this port is not asking for it now
+
+The water warp has a second implementation upstream — the raster path through the strip pipeline
+(`R_RasterWarpTexture`) — so the port is defaulting `r_waterwarpcompute` to 0 as a registered
+accommodation and does not need the compute path for its first frame. The lightmap update has no
+such alternative, and the driver's own compute path was written when the only consumer was its own
+probe. Any application that dispatches a kernel reading a texture — which is what compute is
+usually for — meets this refusal.
+
+### What would close it
+
+Generalise the dispatch path the way the graphics path already works: N declared bindings, each of
+a type the descriptor table has (the table now carries combined image samplers, storage images,
+storage buffers and the texel buffers), one table per set the shader reads, and the user-data
+budget checked against the same `PS5VK_MAX_USER_DATA` the graphics stages use. The compiler
+already reports the bindings and their offsets; what is missing is the dispatch's table writes for
+anything but a single storage buffer, and the reader in `ps5vk_compute.c` that assumes index 0.
+
+**Acceptance**, in the driver's own shape: a compute probe whose shader reads one texture and
+writes one storage image, dispatched once, with the written image read back and compared against
+the texels the kernel was told to produce — and a second probe with a single storage buffer, so the
+existing shape is not lost. The port's own test is the lightmap pass once M6 reaches it.
+
+### What is not being asked
+
+- No change to the graphics path's descriptor handling, which already takes N bindings.
+- No new descriptor types: this is about the dispatch reading the table the driver already writes.
+- No work on the port's behalf *now*: the port's water warp takes the raster path, and this is
+  recorded so the lightmap update is not a surprise when it arrives.

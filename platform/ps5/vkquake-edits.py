@@ -165,6 +165,20 @@ EDITS = (
         why="its second binding moves with the first",
     ),
     Edit(
+        path="Quake/gl_warp.c",
+        before='cvar_t r_waterwarpcompute = {"r_waterwarpcompute", "1", CVAR_ARCHIVE};\n',
+        after=(
+            '/* PS5 vkQuake: the water warp defaults to the raster path, because\n'
+            ' * ../PS5_Vulkan\'s compute path accepts exactly one declared binding and a\n'
+            ' * storage buffer at that (ps5vk_compute.c), while this kernel reads a texture\n'
+            ' * and writes a storage image in two sets. The raster path is the same effect\n'
+            ' * through the strip pipeline (R6). Retire this when the driver\'s compute path\n'
+            ' * takes the bindings the graphics path already takes. */\n'
+            'cvar_t r_waterwarpcompute = {"r_waterwarpcompute", "0", CVAR_ARCHIVE};\n'
+        ),
+        why="the water warp prefers compute, which this driver's dispatch path cannot bind yet",
+    ),
+    Edit(
         path="Quake/r_brush.c",
         before="world_pipeline_layout.handle, 4, 1, &vulkan_globals.bmodel_instances_desc_set",
         after="world_pipeline_layout.handle, 3, 1, &vulkan_globals.bmodel_instances_desc_set",

@@ -1727,3 +1727,48 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   9 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the strip works, and the water warp takes the raster path
+
+**A console run, build identity `900d2d140c5597b9`** — the one after the driver's R6 half.
+Recorded as `evidence/m2-compute-bindings/`:
+
+```
+Creating pipelines
+[ps5vk] compile start: nir=0 … [ps5vk] compile done: result=0
+vkCreateComputePipelines -> -13
+QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13
+```
+
+The warp **graphics** pipeline — refused for `TRIANGLE_STRIP` in the run before — is created, so
+R6's driver half is confirmed from this side even though the driver's own strip case is still red
+on its harness's inability to express a non-indexed draw. The stop moved to the compute pipeline of
+the same effect.
+
+### The stop, and why the port does not wait for it
+
+`ps5vk_compute.c` accepts **exactly one declared binding, and requires it to be a storage buffer**:
+"a dispatch needs one declared binding …", then "the dispatch's binding is not a storage buffer
+whose table entry fits a chunk". vkQuake's `cs_tex_warp` declares two — a combined image sampler
+and a storage image (`Quake/gl_rmisc.c`; bound as `{texture, storage_image}` at
+`Quake/gl_warp.c:128`) — and vkQuake *prefers* that path: `r_waterwarpcompute` defaults to 1.
+
+The same effect has a raster implementation upstream, through the strip pipeline the driver just
+learned, so `r_waterwarpcompute` **defaults to 0** now — the eleventh edit in
+`platform/ps5/vkquake-edits.py`, a registered accommodation whose retirement trigger is the
+driver's compute path taking the bindings its graphics path already takes. That is not a
+workaround for R6; the raster path is upstream's own code, and R6 was still needed for it.
+
+### The item recorded rather than requested now
+
+The **lightmap update** compute pass has no raster alternative: three bindings, a storage image and
+two sampled images. It is **R7** in `docs/PS5_VULKAN_REQUESTS.md`, on the M6 path rather than in
+front of the first frame, and it is written up now so it is not a surprise when M6 arrives.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  10 capture(s) replayed, 0 failed
