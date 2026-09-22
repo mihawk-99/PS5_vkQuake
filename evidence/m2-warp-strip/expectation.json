@@ -1,0 +1,14 @@
+{
+  "step": "m2-warp-strip",
+  "note": "The run after the mmap threshold fix, and the fix is what the compile lines say: every pipeline compile reports result=0 where the run before died inside the first one, so the internal heap was the whole of that failure. The stop is one pipeline further on and it is a driver limitation, not a resource: the 'warp' pipeline (the texture-warp pass's tessellated mesh) is refused because ../PS5_Vulkan maps only VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST (ps5vk_pipeline.c:1213-1216) and vkQuake's warp pipeline asks for TRIANGLE_STRIP (gl_rmisc.c:3094). The strip is load-bearing: gl_warp.c builds a warp-tessellated strip mesh (two vertices per row, num_verts growing with the tesselation), so it is not a three-vertex full-screen triangle that could be re-expressed as a list. Two SPIR-V warnings appear among the successful compiles (SpvCapabilityImageQuery unsupported) and are noted rather than explained: the pipelines that declare it still compile (result=0).",
+  "must_contain": [
+    "build identity: 4dc9c645",
+    "Creating pipelines",
+    "compile done: result=0",
+    "QUAKE ERROR: vkCreateGraphicsPipelines failed (warp) with code -13"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out"
+  ],
+  "human_check": "This record is the end of the pipeline-creation wall and the start of a different kind: everything the engine creates compiles now, and what stops the run is one topology the driver has never mapped. That matters for the ask: TRIANGLE_STRIP is core Vulkan 1.0 with no feature bit gating it, the hardware's own primitive enumerations include strips, and the port cannot dodge it equivalently because the mesh is tessellated (rows of two vertices drawn as one strip) - re-expressing it as a list would mean changing how the warp mesh is generated. So it is R6 in docs/PS5_VULKAN_REQUESTS.md, with the acceptance being the driver's own style: a strip probe whose pixels are identical to the equivalent triangle list's. The must_not_contain needle is the previous stop, so a regression to the internal-heap failure is visible."
+}

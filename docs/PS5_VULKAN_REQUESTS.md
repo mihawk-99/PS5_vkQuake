@@ -572,3 +572,60 @@ claim the bit once it exists.
   ask first, which is the R1-class gap — advertised support that is not honoured.
 - No change to the other six mappings, and none to the format table's feature bits.
 - No subpass rendering, and no `VK_KHR_create_renderpass2`-shaped work.
+
+---
+
+## R6 — `VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP` is refused, and it is core 1.0
+
+**Status.** **Measured** on the console: the run that compiles every pipeline stops at
+`QUAKE ERROR: vkCreateGraphicsPipelines failed (warp) with code -13`
+(`evidence/m2-warp-strip/`, build identity `4dc9c645c017f8e9`).
+
+**Reported against.** `../PS5_Vulkan` `d23eebb` and the archives built 2026-09-22 12:01.
+
+### The refusal
+
+`ps5vk_pipeline.c:1213-1216`:
+
+```c
+if (!info->pInputAssemblyState ||
+    (info->pInputAssemblyState->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST &&
+     info->pInputAssemblyState->topology != VK_PRIMITIVE_TOPOLOGY_META_RECT_LIST_MESA) ||
+    info->pInputAssemblyState->primitiveRestartEnable)
+   return vk_errorf(device, VK_ERROR_UNKNOWN,
+                    "only triangle lists without primitive restart are supported");
+```
+
+The refusal names itself, which is the driver's own style and is why this took one read. What it
+refuses is a **core Vulkan 1.0 topology with no feature bit gating it**: `TRIANGLE_STRIP` is in
+the specification's required set, and every AMD primitive enumeration the register database
+carries (and AGC's own) includes strips.
+
+### Why this port cannot work around it
+
+vkQuake's warp pipeline sets it (`Quake/gl_rmisc.c:3094`) for `R_RasterWarpTexture`
+(`Quake/gl_warp.c`), which builds a **warp-tessellated strip mesh**: two vertices per row, with
+`num_verts` growing as the tesselation tightens, drawn as one strip so consecutive rows share
+their edge. It is not a three-vertex full-screen triangle that could be re-expressed as a list:
+re-expressing it would mean changing how the mesh is generated, which is a change to upstream's
+renderer for a driver limitation — exactly what this port declines to do.
+
+### What would close it
+
+Map the topology where the triangle list is mapped. Nothing else about the pipeline changes: the
+draws are arrays (`vkCmdDraw`), so no index buffer is involved, and the strip's alternating
+winding for the second and later triangles is the hardware's own behaviour — the front-face and
+cull bits the driver already programs stay as they are.
+
+**Acceptance**, in the driver's own shape: a probe that draws the same geometry twice, once as a
+`TRIANGLE_STRIP` and once as the equivalent `TRIANGLE_LIST` (the strip's triangles written out),
+and reads the target back — **the frames must be identical**, which is what distinguishes a mapped
+topology from one that draws something. A second frame with the winding reversed, culled, would
+also show the strip's alternating winding is being honoured.
+
+### What is not being asked
+
+- No other topology. `TRIANGLE_FAN`, the line and point topologies and
+  `primitiveRestartEnable` stay refused if they are not proved — this port uses none of them, and
+  a claim per topology is the driver's own rule.
+- No change to the refusal's wording or to `META_RECT_LIST_MESA`, which Mesa's own meta draws use.
