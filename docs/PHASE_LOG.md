@@ -1266,3 +1266,75 @@ Verify:
   exit-sigsys: OK (raw klog/vkquake-exit-sigsys-113523.txt, 37 lines)
   m2-device: OK (raw klog/trace-20260920T155302Z.txt, 74 lines)
   2 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the two driver gates closed, and what replaced them
+
+**No console run in this entry.** It records a read of `../PS5_Vulkan` at `ad500a0`
+against this tree at `91b9e7c`, and it exists because three statements in
+`docs/ACTIVE.md` had gone false while nothing here changed: the depth gap is closed, the
+ACO abort was never an ACO fault, and the gate that replaced them is not the one the
+notes assumed.
+
+### What the driver closed
+
+- **The depth-stencil clause — `docs/PS5_VULKAN_REQUESTS.md` R1.** Both combined
+  formats now carry `VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT`
+  (`driver/ps5vk_image.c`, the audit's second `must:` clause), the stencil plane is
+  proved on the console (`v0-stencil-clear`), and `tools/format_audit.py` reads the
+  footnote's clauses whole and fails `--check` on an unmet one. R1's status is updated
+  in place; its body is kept as the report it was.
+- **Anisotropy.** `v0-sampler-anisotropy` (pid 138) draws the address probe's frame with
+  the flag off and on at the reported maximum and compares the two texel for texel:
+  **0 mismatched texels**, and a request past the reported maximum refused by name.
+  `R_InitSamplers` was the refusal this port would meet first after the depth format. It
+  is not a refusal any more.
+- **The ACO abort this tree recorded as a risk was never an ACO fault.** The driver's
+  own runner divided a sampled-format row by its zero texel size; the three console
+  attributions came from symbolizing addresses without subtracting the `0x400000` load
+  base, and the case is closed with a console run (`jobs/aco-min`, pid 287,
+  `../PS5_Vulkan/docs/BLOCKERS.md` row 9).
+
+### What that leaves as the first refusal, read rather than measured
+
+The driver checks the **pipeline layout**'s bindings, not the shader's used ones:
+`ps5vk_descriptor_options` (`../PS5_Vulkan/driver/ps5vk_pipeline.c:195-220`) walks
+`layout->set_layouts[set]` and refuses a binding whose `stride` is 0, and it is called
+for the fragment stage at `:1265`. vkQuake's first pipeline (`R_CreateBasicPipelines`,
+`basic_alphatest` on the main pass) uses `basic_pipeline_layout`, which vkQuake defines
+as `{single_texture, mboit_input_attachment}` (`vendor/vkQuake/Quake/gl_rmisc.c`), and
+that second layout is three `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage — a type
+`ps5vk_descriptor_stride` has no entry for.
+
+**Prediction, for the next run to falsify:** the first `vkCreateGraphicsPipelines` fails
+with `set 1 binding 0: descriptor type 10 has no proven table entry`, and vkQuake raises
+`QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest) with code -13`.
+
+### The reading this corrects
+
+`attachmentCount = resolve ? 3 : 2` in vkQuake's main render pass
+(`vendor/vkQuake/Quake/gl_vidsdl.c`) is the **render pass's** attachment count — colour
+plus depth — and subpass 0's `colorAttachmentCount` is 1. With `vid_fsaa` at its default
+`0` there is no resolve attachment, so the plain pass needs one colour attachment; the
+two-colour shapes belong to the OIT variants, which `r_oit`'s default of `1` (WBOIT)
+selects. **`colorAttachmentCount > 1` is therefore not this port's next gate**: MRT is
+what restores OIT, which the port is dropping as a registered accommodation.
+`docs/PS5_VULKAN_REQUESTS.md` R2 carries the driver-side request that falls out of the
+read: three core 1.0 descriptor types (`SAMPLER`, `SAMPLED_IMAGE`, `INPUT_ATTACHMENT`)
+the table lacks while the per-stage limits advertise them.
+
+### What is left
+
+One console run of the current build, no code change, turns all of the above into a
+measurement — and the same run produces the freshly built title `evidence/exit-sigsys/`
+is waiting for, since `build/title.map` came from a later build than the binary that
+crashed.
+
+Verify:
+  $ git -C ../PS5_Vulkan log --oneline -1
+  ad500a0 Step 1b's two reads: the clear is general, the consumer counts, and the offsets are the device's
+  $ sed -n '195,220p' ../PS5_Vulkan/driver/ps5vk_pipeline.c
+  (the layout walk; `binding->stride == 0` is the refusal the prediction names)
+  $ python3 tools/evidence.py compare evidence/
+  2 capture(s) replayed, 0 failed
