@@ -1,0 +1,14 @@
+{
+  "step": "m2-internal-heap",
+  "note": "The allocation report from the run whose pipeline compilation died on the console's internal memory. Numbers at the failure (ms=1119): 13,722,615 bytes in 1780 native allocations (SceLibCInternal's heap) against 55,734,368 mapped in 6, and the failing request is a 64 KiB malloc. The callers were symbolised against build/title.map: pc 0xb31c68 is NET_Init +0x108 and holds 6.53 MB in 17 allocations, 0xadee70 is VID_Init +0x20a0 with 3.67 MB in 14, 0x4082b2 is ps5vk_cmd_buffer_create with 786 KB, 0x461b8e 62 vk_object_alloc sites with 461 KB, and 0x4ff604 psbc_compile_shader with 131 KB - the compiler's own first allocation. On the mapped route, 0xacc8b0 (TexMgr_Init +0x30) holds 15.7 MB and 0x41a884 (ps5vk_compile_shader_deep +0x34) 33.5 MB, which is the driver's 32 MiB per-compile stack: it is on the mapped route, so it is not the cause of this failure.",
+  "must_contain": [
+    "session build identity: 5cdf664e",
+    "failure op=malloc ms=1119 bytes=65536 alignment=0 error=0 pc=0x4001f2",
+    "native_bytes=13722615",
+    "mapped_bytes=55734368",
+    "pc=0xb31c68 bytes=6533032 count=17",
+    "route=1 pc=0x41a884 bytes=33554432 count=1"
+  ],
+  "must_not_contain": [],
+  "human_check": "This is the artifact that turned out of memory in the compile into a number and an owner. The console's internal heap is small - the port wraps malloc at 1 MiB precisely because SceLibCInternal's heap cannot hold large allocations - and the report shows the engine's start-up filling 13.7 MB of it before any pipeline compiled: the network layer's buffers (6.5 MB, allocated even though this port's UDP is disabled), the video init's staging (3.7 MB), and the driver's own objects. The compiler's first request for 64 KiB then failed. The fix is the port's and it is one constant: the mmap threshold goes from 1 MiB to 32 KiB, so the engine's medium allocations leave the internal heap and the compiler has room. 32 KiB rather than lower because a mapping is page-rounded - routing an 8-byte allocation through it would cost 16 KiB."
+}

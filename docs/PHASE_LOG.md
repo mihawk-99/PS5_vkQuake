@@ -1625,3 +1625,64 @@ Verify:
   7 capture(s) replayed, 0 failed
   $ python3 platform/ps5/vkquake-edits.py --root vendor/vkQuake --check
   ==> [edits] 10 edit(s) present in vendor/vkQuake
+
+---
+
+## 2026-09-22: the internal heap, measured rather than argued
+
+**Two console runs.** The first (identity `5cdf664e`, `evidence/m2-internal-heap/`) followed R2
+and reached the first pipeline compile, where it died:
+
+```
+Creating pipelines
+[ps5vk] compile start: nir=0 words=880bd4d48
+[ScePthread/System] Internal Memory is running out.
+```
+
+The driver's line is its own diagnostic (`ps5vk_pipeline.c:547`) and `nir=0` plus a pointer is
+the normal SPIR-V-words path, so the failure was *inside* the compile — and the console named
+the pool: the small internal heap SceLibCInternal keeps, which is why this port wraps `malloc`
+at all.
+
+### The measurement
+
+The port already recorded every allocation and failure by route, but nothing ever opened its
+report file — a two-line gap, now closed (`src/trace.cpp` calls `ps5::memory::init` before main
+and `finish` at exit). With `PS5_MEMORY_DIAGNOSTICS=1` built in (the flag was already part of
+the build identity, so a diagnostics run is distinguishable), the run left `/app0/memory.txt`:
+
+```
+failure op=malloc ms=1119 bytes=65536 alignment=0 error=0 pc=0x4001f2
+failure-summary seq=2 ms=1120 native_bytes=13722615 native_count=1780
+                              mapped_bytes=55734368 mapped_count=6 … failures=1
+```
+
+**13.7 MB of the internal heap in 1,780 allocations, and a 64 KiB request failing.** Symbolised
+against `build/title.map`, the internal route's callers are the engine's own start-up:
+
+| caller | bytes | count |
+| --- | --- | --- |
+| `NET_Init +0x108` | 6.53 MB | 17 |
+| `VID_Init +0x20a0` | 3.67 MB | 14 |
+| `ps5vk_cmd_buffer_create +0x32` | 786 KB | 1 |
+| `vk_object_alloc +0x2e` | 461 KB | 62 |
+| `psbc_compile_shader +0x44` | 131 KB | 1 |
+
+and the mapped route holds `TexMgr_Init` 15.7 MB and `ps5vk_compile_shader_deep` 33.5 MB — the
+driver's 32 MiB per-compile stack, which is therefore **not** the cause of this failure, though
+its justification (the `aco::schedule_program` SIGFPE) was refuted by the driver's own record
+(`docs/BLOCKERS.md` row 9), and that is reported to it.
+
+### The fix, one constant
+
+`src/memory_ps5.cpp`'s `threshold` decides what goes to `mmap` instead of SceLibCInternal's
+heap, and it was 1 MiB — so the engine's 384 KB and 262 KB allocations stayed in a heap the
+compiler then could not use. It is **32 KiB** now: that moves the traffic above out and leaves
+small allocations where they are cheap, because a mapping is page-rounded and routing an 8-byte
+request through one would cost 16 KiB.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  8 capture(s) replayed, 0 failed

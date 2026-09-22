@@ -7,74 +7,29 @@ the code map — is in `docs/PORT.md` and does not belong here. The runs are in
 
 ## Where the port is
 
-**The engine reaches its first pipeline.** Build identity `56074ab0e0a278f5`, recorded as
-`evidence/m2-pipelines/` — the run in order:
+**The engine reaches its first pipeline, and the compile inside it runs out of the console's
+internal memory.** The last two runs, in order — `evidence/m2-pipelines/` (identity
+`56074ab0`) and `evidence/m2-internal-heap/` (identity `5cdf664e`, the allocation report):
 
 ```
 vkCreateInstance -> 0 … vkCreateDevice -> 0 / VK_KHR_swapchain
 Using D32_S8 depth buffer format
-Creating command buffers / Initializing staging / Creating descriptor set layouts
-Reallocating dynamic vertex, index and uniform buffers / Initializing samplers
-Texture lod bias: 0.000000 / Creating pipeline layouts
-Allocating lightstyles buffer (0 KB) / lights (12 KB) / submodel transforms (768 KB)
-Allocating bmodel instances buffer (1024 KB)
-Sound Initialization
-Using FIFO present mode
-Creating color buffer / AA disabled / Creating depth buffer
-Creating render passes / Creating frame buffers / Creating pipelines
-QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest) with code -13
+Creating command buffers / staging / descriptor set layouts / samplers / pipeline layouts
+Allocating lightstyles, lights, submodel transforms, bmodel instances buffers
+Sound Initialization / Using FIFO present mode
+Creating color buffer / Creating depth buffer / Creating render passes / frame buffers
+Creating pipelines
+[ps5vk] compile start: nir=0 words=880bd4d48
+[ScePthread/System] Internal Memory is running out.
 ```
 
-- **Every gate that stood in front of this is passed, measured**: the depth-stencil format
-  (D32_S8), `R_InitSamplers` (the anisotropy no-op), the pipeline layouts (five sets, because
-  the driver's set limit is a draw-time check), the palette octree's whole-buffer view (R3,
-  end to end), the world buffers, sound, and now the **swapchain** — the intersection with
-  `supportedUsageFlags` in `platform/ps5/vkquake-edits.py` was what it needed.
-- The colour buffer creates (R5), the depth buffer, the render passes and the framebuffers
-  all follow, and the stop is **the prediction this file carried for three driver rounds**:
-  the first `vkCreateGraphicsPipelines` refused, naming `basic_alphatest`. The driver walks
-  the *pipeline layout*'s bindings rather than the shader's used ones, `basic_pipeline_layout`
-  is `{single_texture, mboit_input_attachment}`, and the second set is three
-  `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage — a type `ps5vk_descriptor_stride` has no
-  entry for. That is **R2**, and it is now the only thing between this port and its first
-  frame: the basic pipelines need `INPUT_ATTACHMENT`, the GUI pipelines need the bare
-  `SAMPLER`, and the lightmap compute layout needs `SAMPLED_IMAGE`.
-- The port's own half of that is **built, gated and deliberately not deployed**: see the
-  four-set accommodation below, which a run without R2 would spend a console cycle failing to
-  notice.
-
-**The one feature the intersection costs** is the screenshot: vkQuake copies from the
-presented image and needs `TRANSFER_SRC`. It comes back by itself if the driver ever proves
-and advertises that use for swapchain images — the intersection picks it up with no change —
-so it is a named limitation rather than a workaround to retire.
-
-The three earlier runs are still in the record and still replay: `evidence/m2-renderer/`
-(the first run inside the renderer), `evidence/m2-loader/` (the loader aliasing this port was
-missing, fixed in `platform/ps5/vk_loader.c`) and `evidence/m2-device/` (the 2026-09-20
-depth-format stop, marked superseded).
-
-## Next
-
-**Waiting on `../PS5_Vulkan` for R2** — the three core 1.0 descriptor types vkQuake declares
-and the driver advertises per-stage limits for. Nothing in this tree gets past
-`R_CreatePipelines` without it, and the port has already done the half that is its own:
-
-**The four-set accommodation** (`platform/ps5/vkquake-edits.py`, ten edits, applied by the
-engine build and pinned by `tests/test_vkquake_edits.py`): OIT's input-attachment set leaves
-the world and md5 layouts — which is what fits them inside the four sets the driver binds —
-the bmodel instance block moves from set 4 to set 3 in the layout, in `Shaders/world.vert` and
-at all four bind sites, `r_oit` defaults to 0 so a frame never selects the dropped family, and
-`tools/build-vkquake-shaders.sh` compiles the oit/mboit *variants* as their base shader because
-a shader declaring a set its layout does not hold is a mismatch rather than a warning. The
-retirement trigger is R2 plus the driver's MRT item: with input attachments and multi-colour
-renderings, OIT comes back and these edits are reverted.
-
-Build identity `1d7bd836df05a745`, `bash tools/verify.sh` PASS. It deploys the moment R2 lands —
-and not before, because the run would stop at this same line.
-
-Behind it, in order: **R2**'s bare `SAMPLER` (the GUI pipelines, which vkQuake creates
-unconditionally at start-up and the port cannot dodge cheaply), and **R4**'s refusal shape,
-which costs nothing until an application asks for something the surface does not allow.
+Every gate before that is passed and measured: the depth-stencil format, `R_InitSamplers`, the
+pipeline layouts, the palette octree's whole-buffer view (R3), the colour buffer (R5), the
+swapchain (the port's first edit to upstream), and — with the driver's R2 — **pipeline creation
+itself**. The last stop is this tree's own: the engine's start-up had filled the console's small
+internal heap before the compiler asked for anything, and `evidence/m2-internal-heap/` has the
+numbers and the callers (see below). The threshold that decides what leaves that heap is 32 KiB
+now instead of 1 MiB; the run after this one says whether the compile fits.
 
 ## The reading behind the next stop
 
