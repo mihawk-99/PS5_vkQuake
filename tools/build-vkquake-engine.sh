@@ -186,6 +186,10 @@ fi
 }
 export PS5_CLANG
 
+# host.c embeds __DATE__/__TIME__. Keep those bytes stable across rebuilds;
+# the content identity, not the wall clock, identifies this executable.
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-0}
+
 cc="$root/tooling/prospero-clang18"
 # -DTASK_AFFINITY_NOT_AVAILABLE: the CPU pinning path needs _GNU_SOURCE and
 #   pthread_setaffinity_np, which the payload SDK's FreeBSD headers do not carry.

@@ -2124,3 +2124,26 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   17 capture(s) replayed, 0 failed
+
+## 2026-09-22 — Step 0: truthful trace capture and repeatable engine identity
+
+The mission authorizes work in both trees; the older read-only handoff remains
+historical context. Both trees were clean and no other active writer was found.
+`run-title.sh` now requires `trace.txt`, and checks its newest identity instead
+of accepting a matching identity from an earlier appended boot. The inherited
+`retroarch.log` requirement was a false harness failure.
+
+The engine's `Quake/host.c` embeds `__DATE__` and `__TIME__` at two call sites.
+The compiler's standard `SOURCE_DATE_EPOCH` environment setting defaults to 0
+now, preserving an explicit caller override. It adds no toolchain flag or
+upstream edit. The diagnostic Exe timestamp consequently describes this epoch;
+the content hash is the executable identity.
+
+Verification: `bash tools/verify.sh` PASS (all five gates), followed by
+`bash tools/build-title.sh` PASS. Saved first-build copies compared with `cmp`:
+engine archive and identity header both byte-identical. Engine SHA-256
+`62d8d4dbd6720eae31b2171beb8f4fcf2c55217f59764d8fca24c0c1cccbdba1`,
+identity `0cd0009612b609da5012023fadb7f1b0431a56b804fb17de4efdb45d41a45efb`.
+Evidence: `evidence/harness-identity/`; reproduction is two complete builds,
+saving the first archive/header and comparing them with the second. This is
+host evidence only, not M2 acceptance or a console run.

@@ -1,0 +1,20 @@
+{
+  "step": "harness-identity",
+  "recorded": "2026-09-22T22:42:24Z",
+  "console_run": "",
+  "revision": "",
+  "command": "bash tools/verify.sh; bash tools/build-title.sh; cmp build/step0-before/stable-engine.a build/vkquake/libvkquake_engine.ps5.a; cmp build/step0-before/stable-identity.h build/title_build_identity.h",
+  "raw_capture": "klog/step0-host.txt",
+  "raw_lines": 8,
+  "raw_bytes": 578,
+  "lines": [
+    "Two complete title builds: bash tools/verify.sh; bash tools/build-title.sh",
+    "verify: PASS (format unit build integration evidence)",
+    "engine archives byte-identical: PASS",
+    "build identities byte-identical: PASS",
+    "engine sha256: 62d8d4dbd6720eae31b2171beb8f4fcf2c55217f59764d8fca24c0c1cccbdba1",
+    "#define PS5_VKQUAKE_BUILD_ID \"build identity: 0cd0009612b609da5012023fadb7f1b0431a56b804fb17de4efdb45d41a45efb\"",
+    "prior engine sha256: 0e2e79aab79fb043cfb02c784c26f52112cf81561a629d6f076db9dfdd05b05a",
+    "Cause: upstream Quake/host.c embeds __DATE__ and __TIME__; SOURCE_DATE_EPOCH now defaults to 0."
+  ]
+}
