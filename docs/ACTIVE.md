@@ -7,51 +7,58 @@ the code map — is in `docs/PORT.md` and does not belong here. The runs are in
 
 ## Where the port is
 
-**Both gates this port was waiting on are closed in `../PS5_Vulkan`, and the port has
-not been run since they closed.** This tree's last commit is 2026-09-20 (build
-identity `c0677c1f`) and its last console run is `evidence/m2-device/`, which stops
-in device initialisation on the depth format. Since then the driver (now `ad500a0`)
-has:
-
-- given `VK_FORMAT_D24_UNORM_S8_UINT` and `VK_FORMAT_D32_SFLOAT_S8_UINT` their
-  `DEPTH_STENCIL_ATTACHMENT` feature — the audit's second `must:` clause, which this
-  port's R1 reported as violated — and proved the stencil plane on the console
-  (`v0-stencil-clear`). `tools/format_audit.py` now evaluates that clause instead of
-  filing it conditional, so the hole R1 named is closed at both ends;
-- accepted `anisotropyEnable` at the reported maximum as the no-op it is
-  (`v0-sampler-anisotropy`, pid 138, **0 mismatched texels**), which is what
-  `R_InitSamplers` was refused on.
-
-So two sentences this file used to carry are **false today**: that the depth gap
-blocks device initialisation, and that the `aco::schedule_program` abort may surface
-during bring-up. The second was never an ACO fault at all — the driver's own runner
-divided a sampled-format row by its zero texel size, and closed it with a console run
-(`../PS5_Vulkan/docs/BLOCKERS.md`). `docs/FINDINGS.md` carries both corrections.
-
-**The port has now been run against the driver as it stands, and it stops earlier than
-before.** Build identity `10b17473`, evidence `evidence/m2-loader/`:
+**The engine now gets into the renderer on the console, and two long-standing gates are
+measured rather than read.** Build identity `9ad1d1f36bae987c`, recorded as
+`evidence/m2-renderer/` — the run in order:
 
 ```
-Vulkan Initialization
 vkCreateInstance -> 0
-QUAKE ERROR: vkGetInstanceProcAddr failed to find vkGetPhysicalDeviceProperties2
+Instance extensions: VK_KHR_surface, VK_KHR_display, VK_KHR_get_physical_device_properties2
+Vendor: AMD / Device: PS5 AGC GPU (ps5vk) / vkCreateDevice -> 0
+Device extensions: VK_KHR_swapchain
+Using D32_S8 depth buffer format
+Creating command buffers / Initializing staging / Creating descriptor set layouts
+Reallocating dynamic vertex, index and uniform buffers / Initializing samplers
+Texture lod bias: 0.000000
+Creating pipeline layouts
+QUAKE ERROR: vkCreateBufferView failed with code -13
 ```
 
-**Cause, and it is this port's own missing-loader surface.** `../PS5_Vulkan` now honestly
-reports a Vulkan 1.0 instance (`PS5VK_INSTANCE_API_VERSION`, corrected 2026-09-21 by the
-CTS round that found the instance claiming 1.3), so its `vkGetInstanceProcAddr` answers
-the extension spelling of a promoted entry point and not the core one. vkQuake enables
-`VK_KHR_get_physical_device_properties2` and then loads the **core** names; on a desktop
-a loader aliases that pair, and this console has no loader. Fixed in
-`platform/ps5/vk_loader.c` (two named pairs, `tests/vk_loader_test.c` on the host), with
-`SDL_Vulkan_GetVkGetInstanceProcAddr` now handing the engine the aliasing lookup.
+- **The depth-stencil gate is passed.** `D32_S8` is chosen and the device comes up: the
+  driver's round-12 feature bits work for a real application, which is what R1 asked for
+  and the 2026-09-20 run could not reach.
+- **`R_InitSamplers` is passed** — the anisotropy flag is accepted as the no-op the driver
+  proved it is, so the gate that stood here since the port's first console run is gone.
+- **Pipeline layouts are created**, including the five-set world layout: the driver's
+  set-count limit is a draw-time check, not a layout-time one.
+- It stops in `R_CreatePaletteOctreeBuffers` on `vkCreateBufferView`, which is a driver
+  bug with a one-line cause: **R3** in `docs/PS5_VULKAN_REQUESTS.md`.
+
+The two earlier runs are still in the record and still replay: `evidence/m2-loader/` (the
+loader aliasing this port was missing, fixed in `platform/ps5/vk_loader.c`) and
+`evidence/m2-device/` (the 2026-09-20 depth-format stop, marked superseded).
 
 ## Next
 
-**One more console run — the fix is deployed** (build identity `9ad1d1f36bae987c`) — and
-what it reaches is genuinely open, because the depth-format check it never got to is now
-untested rather than passed. Two outcomes, both informative: past the depth formats into
-`R_InitSamplers` and the render passes, or a new stop to read.
+**Waiting on `../PS5_Vulkan` for R3** — one line in `ps5vk_CreateBufferView`, and the port
+declines to work around it, because patching upstream's `VK_WHOLE_SIZE` into an explicit
+size would hide a class that any application hits. Nothing in this tree can move the run
+past the palette octree until it lands.
+
+Work that does not wait on it, in the order it becomes useful:
+
+1. **The refusal sentences.** The driver's refusals reach an application only through a
+   `VK_EXT_debug_utils` messenger, which vkQuake enables only in its `_DEBUG` builds, so
+   every stop so far has been a bare `-13` and each one took a code read to name. The
+   port's trace captures stderr, so a messenger installed where the shim first sees the
+   instance would print the driver's own sentence into `/app0/trace.txt`. Worth doing
+   before the next run, not after.
+2. **The descriptor dodge, once the run reaches the first frame**: `r_oit` off, the
+   OIT/MBOIT pipeline variants not created, the input-attachment set dropped from every
+   surviving layout, and the bmodel set renumbered 4 to 3 — four sets, inside the
+   advertised limit, and no new driver capability needed.
+3. Then **R2**'s bare `SAMPLER`, which is what the GUI pipelines need and the port cannot
+   dodge cheaply.
 
 The stop after that is *read* rather than measured, and is unchanged from the reading
 below: the first `vkCreateGraphicsPipelines` refused by name, because the driver checks

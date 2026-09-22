@@ -345,3 +345,91 @@ get past `R_CreatePipelines` by leaving OIT switched off.
   not a weaker check.
 - Nothing about `VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR`, which vkQuake declares
   behind a ray-query check this device does not advertise.
+
+---
+
+## R3 — `vkCreateBufferView` refuses `range = VK_WHOLE_SIZE`
+
+**Status.** **Measured** on the console: the run stops with `vkCreateBufferView failed with code -13`
+(build identity `9ad1d1f36bae987c`, recorded as `evidence/m2-renderer/`). The cause below is read from both
+trees and is one line.
+
+**Reported against.** `../PS5_Vulkan` at the tree whose `libps5vk.ps5.a` was built 2026-09-22 10:45.
+
+### The call, from vkQuake's source
+
+`Quake/gl_vidsdl.c`, `R_CreatePaletteOctreeBuffers`, which runs in `VID_Init` — before the first frame:
+
+```c
+ZEROED_STRUCT (VkBufferViewCreateInfo, buffer_view_create_info);
+buffer_view_create_info.buffer = palette_colors_buffer;   /* UNIFORM_TEXEL_BUFFER | TRANSFER_DST */
+buffer_view_create_info.format = VK_FORMAT_R8G8B8A8_UNORM;
+buffer_view_create_info.range  = VK_WHOLE_SIZE;           /* offset stays 0 */
+vkCreateBufferView (vulkan_globals.device, &buffer_view_create_info, NULL, &palette_buffer_view);
+```
+
+### Why the driver refuses it
+
+`ps5vk_CreateBufferView` (`driver/ps5vk_buffer.c:189`) checks the format first and the range second:
+
+```c
+if (pCreateInfo->range == 0 || pCreateInfo->offset >= buffer->vk.size ||
+    pCreateInfo->range > buffer->vk.size - pCreateInfo->offset)
+```
+
+`VK_WHOLE_SIZE` is `~0ULL`, so the third clause is true for every buffer and the call is refused with a
+sentence naming 18446744073709551615 bytes. Vulkan defines the value as "from `offset` to the end of the
+buffer", and it is what an application writes when it wants the whole buffer — vkQuake writes it in **19**
+places.
+
+The format is not implicated: `VK_FORMAT_R8G8B8A8_UNORM` carries
+`VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT` in the driver's own table (`driver/ps5vk_image.c:72`), and
+that check passes.
+
+### It is the one site that does not resolve the value
+
+Three other places in the same driver handle the idiom, which is what makes this read as an omission
+rather than a decision:
+
+| site | what it resolves |
+| --- | --- |
+| `ps5vk_cmd_buffer.c:357` | `vkCmdUpdateBuffer`'s size |
+| `ps5vk_descriptor_set.c:352` | a descriptor's buffer range |
+| `ps5vk_draw.c:2310` | the draw's buffer read |
+
+### What would close it
+
+Resolve the value once, before the bounds check, and store the resolved range on the view:
+
+```c
+const VkDeviceSize range = pCreateInfo->range == VK_WHOLE_SIZE
+                              ? buffer->vk.size - pCreateInfo->offset
+                              : pCreateInfo->range;
+```
+
+then keep rejecting `range == 0` and `range > buffer->vk.size - offset` as before, and set
+`view->range = range` so whatever reads the view — the texel-buffer descriptor — gets a byte count rather
+than a sentinel.
+
+**Acceptance.** vkQuake's own call shape is created and works: a view of the whole of a buffer holding
+`NUM_PALETTE_OCTREE_COLORS` `uint32_t`s, format `R8G8B8A8_UNORM`, usage
+`UNIFORM_TEXEL_BUFFER | TRANSFER_DST`, with the `R32_SFLOAT`/`R32_UINT` texel-buffer probes' own shape as
+the console case. The port can then measure it end to end: the palette octree is what turns an 8-bit
+texture into colour.
+
+### What is not being asked
+
+- No change to the format check or to the "no probe has proved a texel buffer for it" refusal; that
+  reporting is right and this port depends on it.
+- No audit of the other `VK_WHOLE_SIZE` sites beyond the three named, which already handle it.
+- Nothing about the palette octree path itself. The alternative — patching upstream's `VK_WHOLE_SIZE` into
+  an explicit size — is declined: it would hide the class behind an application-specific change.
+
+### A diagnostic option, the driver's to take or leave
+
+An application receives the driver's refusal sentences only through a `VK_EXT_debug_utils` messenger.
+vkQuake enables that extension only in its own `_DEBUG` builds, and this port's traces capture stderr, so a
+console run shows `-13` and nothing else — this request took a code read to pin down, where the driver's
+own sentence (range, offset, buffer size) would have named it in the trace. If a refusal also wrote its
+sentence to stderr when no messenger is installed, every console run of every application would name its
+own cause.
