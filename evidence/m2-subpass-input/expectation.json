@@ -1,0 +1,14 @@
+{
+  "step": "m2-subpass-input",
+  "note": "267 pipelines / 528 shader compiles into start-up, then SpvCapabilityInputAttachment warned and ACO aborted the title. No named refusal: the driver's compiler reached an intrinsic it cannot select instead of refusing the pipeline. The shader is postprocess_frag (see m2-shader-capabilities), created first in R_CreatePostprocessPipelines, and it is the UI pass's second subpass - the only draw that writes the swapchain image.",
+  "must_contain": [
+    "build identity: b41844d21ffc690c9753a95f25c81184e1e34896ca3eb5d6b2d9a3dd78514f87",
+    "Unsupported SPIR-V capability: SpvCapabilityInputAttachment (40)",
+    "ACO ERROR",
+    "@load_input_attachment_coord"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR"
+  ],
+  "human_check": "This record is where start-up stops now, and the shape of the stop is the finding. Everything before it compiled - 267 pipelines, the whole world family and the three specialization-constant families after it, so R9 is answered on the console - and then the driver's compiler reached an intrinsic its instruction selection has no case for and took the title with it. The distinction matters for the ask: a shader the driver cannot lower has to come back as a VkResult naming the limit, not as a dead console. The shader is postprocess_frag (m2-shader-capabilities names the five deployed shaders that declare the capability; R_CreatePostprocessPipelines creates postprocess first), and it is the UI pass's second subpass, the only draw in the engine that writes the swapchain image - so this is R10, on the frame path, and the port cannot dodge it. The must_not_contain needle is the absence of a QUAKE ERROR: when a refusal appears here, the driver has turned the abort into a refusal and this record should be replaced by the run that follows."
+}

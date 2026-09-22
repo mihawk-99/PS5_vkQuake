@@ -1,0 +1,11 @@
+{
+  "step": "m2-shader-capabilities",
+  "note": "What the deployed shader set declares, read from build/vkquake/generated: five shaders need an input attachment (the ACO abort), two use textureSize (warned, compiled anyway), and the compute kernels created after the postprocess pass declare storage-image, subgroup and buffer-address capabilities the compiler has not been asked for yet.",
+  "must_contain": [
+    "postprocess_frag_spv.c: InputAttachment (40)",
+    "wboit_resolve_frag_spv.c: InputAttachment (40)",
+    "20 declaring more than Shader"
+  ],
+  "must_not_contain": [],
+  "human_check": "This record is an instrument rather than a console run: it reads OpCapability out of every deployed shader and names what the driver will be asked to compile. It exists because the run before it spent eight minutes and a console cycle to learn which shader declares an input attachment. Five do - postprocess_frag and the two OIT resolves with their MSAA twins - two use textureSize (ImageQuery, warned and compiled anyway, the fourteen warnings in every trace), and the compute kernels created after the postprocess pass declare capabilities this port has never asked the driver for (46, 49, 61, 65, 4472, 5347), which is where the next stop after R10 probably is. A declaration is not a failure by itself: the MSAA twins are never created at one sample. It is a list, and it is meant to be read before a run rather than after one."
+}
