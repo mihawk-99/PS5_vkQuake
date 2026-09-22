@@ -1855,3 +1855,50 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   13 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the world family is reached, and an earlier claim in this log is corrected
+
+**A console run, build identity `1bd8b91f`** — the one with both debug-pipeline guards. Recorded as
+`evidence/m2-world-pipelines/`:
+
+```
+[ps5vk] compile done: result=0      (276 times)
+vkCreateGraphicsPipelines -> -13
+QUAKE ERROR: vkCreateGraphicsPipelines failed (world 0) with code -13
+```
+
+The guards worked — the refusal moved past the whole showtris family — and the run reached the
+**world family for the first time**.
+
+### The correction
+
+The `m2-md5-debug` entry said the world and alias families created in that run's stretch. **They
+did not.** `md5_debug` is created inside `R_CreateShowTrisPipelines`
+(`Quake/gl_rmisc.c:3451`), which `R_CreatePipelines` calls *before* `R_CreateWorldPipelines`, so
+that run stopped short of the world family and nothing had been proven about it. The claim came
+from reading the stop's position as if the families were ordered by their definitions in the file
+rather than by the calls at `:4183-4192`; the file's own `R_CreatePipelines` is the list that
+counts.
+
+### The stop, and why it is a capability rather than a bug
+
+`world 0` is refused, and the cause is read rather than heard — this port installs no debug
+messenger and the driver writes refusals nowhere else. `R_CreateWorldPipelines` attaches a
+five-entry `VkSpecializationInfo` to its fragment stage (`:3618-3625`) and the driver refuses
+specialization constants (`ps5vk_pipeline.c:621`); no family called before the world family
+attaches one, and every other state of that pipeline is one the driver already creates, with a
+compile reporting `result=0` immediately before the refusal.
+
+That is **R9**, and it is the widest gap this port has met: vkQuake's sixteen world permutations
+are specialization constants, and the alias, md5 and postprocess families use them too, so no
+world can be drawn until they work. It is core Vulkan 1.0 and general — the fix is to apply the
+`VkSpecializationInfo` to the module before compiling, which every Mesa driver already does — so
+it is the driver's to implement and not this port's to work around.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  14 capture(s) replayed, 0 failed

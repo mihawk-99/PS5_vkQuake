@@ -760,3 +760,70 @@ can see.
 - No `wideLines`: the feature stays unclaimed and the width stays refused by name.
 - No `LINE_STRIP`, no point topologies, no `polygonMode` beyond `FILL`. One topology, proved.
 - No change to the R6 strip path or to `META_RECT_LIST_MESA`.
+
+---
+
+## R9 — specialization constants are refused, and four pipeline families are built from them
+
+**Status.** **Measured** on the console as a refusal, **read** as to its cause: the run stops at
+`QUAKE ERROR: vkCreateGraphicsPipelines failed (world 0) with code -13`
+(`evidence/m2-world-pipelines/`, build identity `1bd8b91f`), after 276 pipelines compiled.
+
+**Reported against.** `../PS5_Vulkan` `a6f43d7` (the archive this port links) — the refusal is in
+that tree's `driver/ps5vk_pipeline.c:621`.
+
+### The refusal, and why it is read rather than heard
+
+`ps5vk_pipeline.c` refuses a pipeline whose stage carries specialization info:
+
+```c
+return vk_errorf(device, VK_ERROR_UNKNOWN, "specialization constants are not supported");
+```
+
+This port cannot quote the sentence from its own run — it installs no `VK_EXT_debug_utils`
+messenger (vkQuake enables that extension only in its `_DEBUG` builds) and the driver writes
+refusals nowhere else — so the identification is by exclusion and by the shape of the family:
+
+- `R_CreateWorldPipelines` (`Quake/gl_rmisc.c:3580`) attaches a five-entry `VkSpecializationInfo`
+  to its fragment stage (`:3618-3625`): fullbright, alpha test, alpha blend, quantize lightmap and
+  10-bit lightmap.
+- No family called before it attaches one — basic, warp, particles, ray-debug, animation, FTE
+  particles, sprites, sky and showtris do not — and the two that do are the world family and one
+  later one. `world 0` is therefore the **first** pipeline in the engine to meet this refusal.
+- Every other state of that pipeline is one the driver already creates: triangle list, one sample,
+  the world layout's four sets (the port's own accommodation), a colour attachment with a blend
+  state, and a compile that reports `result=0` immediately before the refusal.
+
+### Why the port cannot work around it
+
+vkQuake's variant explosion *is* specialization constants: sixteen world permutations from one
+shader, and the same mechanism in the alias, md5 and postprocess families. Re-expressing them as
+compile-time variants would replace upstream's shader permutation scheme — a rewrite of the
+renderer, for a core Vulkan 1.0 feature. `VK_EXT_spec_constant`-style extensions are not involved;
+this is `VkSpecializationInfo` and `layout(constant_id = …)`, which every driver implements.
+
+### What would close it
+
+Apply the specialization info to the shader before it is compiled: the values arrive as a
+`VkSpecializationInfo` on the stage (`pMapEntries` of `constantID`/`offset`/`size` and a data
+blob), and what the compiler needs is a module whose `OpSpecConstant` values are those, with
+`OpSpecConstantOp` folded. Every Mesa driver does this — radv and radeonsi rewrite the SPIR-V (or
+the NIR) for the pipeline's spec values before translation — so the shape is a copy of an existing
+mechanism rather than a new one, and it belongs in this driver's shader-module path, beside the
+`PS5VK_PIPELINE_DUMP` machinery that already reads a module.
+
+**Acceptance**, in the driver's own shape: one shader with a `constant_id` that chooses between two
+behaviours, compiled twice through `vkCreateGraphicsPipelines` with different
+`VkSpecializationInfo` values, drawn and read back — the two frames must differ *in the way the
+constant says* (the identity is the constant's, not merely "two frames differ"). Plus the negative
+that already exists: the refusal is gone from the path, and a pipeline whose spec data is malformed
+(or names a `constantID` the shader does not declare) is refused by name rather than compiled with
+defaults. The port's own test is `world 0` creating, and then a world frame.
+
+### What is not being asked
+
+- No change to the compile and link path otherwise: the module's SPIR-V arrives at the driver
+  through `vkCreateShaderModule` and the pipeline compiles it, exactly as today.
+- No claim about `OpSpecConstantOp` beyond folding what the pipeline's values decide — a driver
+  that refuses an operation it cannot fold, by name, is doing the right thing.
+- No `VK_KHR_maintenance*`-shaped extras, no workgroup or subgroup constants.
