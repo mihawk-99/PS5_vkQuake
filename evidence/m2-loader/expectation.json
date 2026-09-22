@@ -1,0 +1,14 @@
+{
+  "step": "m2-loader",
+  "note": "The run that followed the driver's depth-stencil and anisotropy fixes, and it stops earlier than the run before it: the instance is created and then the engine dies looking up a core-1.1 entry point. ../PS5_Vulkan now honestly reports a Vulkan 1.0 instance (its version claim was corrected on 2026-09-21), so vkGetInstanceProcAddr no longer answers the core spelling of a promoted extension's entry point - the alias a Vulkan loader keeps and this console has none of. Fixed in platform/ps5/vk_loader.c; the depth-stencil gate this run never reached is therefore still unmeasured.",
+  "must_contain": [
+    "build identity: 10b174731bf50195",
+    "SDL Video Driver: PS5 VideoOut",
+    "vkCreateInstance -> 0",
+    "QUAKE ERROR: vkGetInstanceProcAddr failed to find vkGetPhysicalDeviceProperties2"
+  ],
+  "must_not_contain": [
+    "Cannot find VK_FORMAT_D24_UNORM_S8_UINT or VK_FORMAT_D32_SFLOAT_S8_UINT"
+  ],
+  "human_check": "This is the run that replaced m2-device's assertion. m2-device asserted that the run stopped on the depth-stencil format gap and said it must be replaced when ../PS5_Vulkan reported a combined depth-stencil format - which it now does. This run never reached that check: it stops at the instance, on vkGetInstanceProcAddr failing to find vkGetPhysicalDeviceProperties2, because the driver became honest about its API version and this console has no loader to alias the core spelling of a promoted extension's entry point. The must_not_contain needle is the guard on that: this record goes red if the depth-format stop comes back, which would mean a regression rather than progress. Both the depth formats and the render-pass pipeline are still unmeasured on the console."
+}
