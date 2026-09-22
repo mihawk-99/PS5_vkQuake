@@ -1819,3 +1819,39 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   11 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the same line topology, one pipeline later — R8's scope is now exact
+
+**A console run, build identity `a07c13acea3164a6`** — the one with the debug-lines edit. Recorded
+as `evidence/m2-md5-debug/`:
+
+```
+[ps5vk] compile done: result=0      (275 times)
+vkCreateGraphicsPipelines -> -13
+QUAKE ERROR: vkCreateGraphicsPipelines failed (md5_debug) with code -13
+```
+
+The edit worked — the refusal moved past `debug_lines` — and the *same driver gap* surfaced one
+pipeline later. Both pipelines are built from one base: `R_CreateShowTrisPipelines` sets
+`base.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST`, and the two debug
+pipelines that inherit it are the bounding-box draw and the skeleton draw. The showtris family's
+own pipelines are gated on `vulkan_globals.non_solid_fill`, which this device does not claim, so
+nothing else in the engine asks for a line.
+
+So **R8's scope is two pipelines**, and both are debug draws whose use upstream already gates on a
+cvar that defaults to off: `r_showbboxes`/`r_showfields` for the boxes, `r_showskel` for the
+skeletons. The port now creates each only when its feature is asked for — the twelfth edit,
+mirroring the FTE particle family's own conditional creation — and both retire when the driver
+maps `LINE_LIST`.
+
+The run also confirms the world and alias families create: 275 pipelines compiled with `result=0`
+again, so what remains after the showtris family is postprocess, screen effects, update-lightmap,
+indirect, ray-debug and the animation kernels.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  13 capture(s) replayed, 0 failed
