@@ -830,7 +830,28 @@ defaults. The port's own test is `world 0` creating, and then a world frame.
 
 ## R10 — a subpass input read aborts the title, and vkQuake's UI pass is built on one
 
-**Status.** **Measured** on the console as an *abort*, not a refusal. The run dies at
+**Answer, 2026-09-22, driver `60041d8`.** Two of the three asks landed, one defect named, and the port
+is relinked against the archive that carries them (`libps5vk.ps5.a`, 14,415,958 bytes,
+`sha256 6e12550b…`). The driver's own record is `../PS5_Vulkan/docs/REQUESTS_RESPONSE.md`,
+`docs/M5_PHASE_C.md` and its active file; what follows is what this port can act on.
+
+- **The abort is a refusal** (`f9131e5`): a shader the compiler cannot lower now comes back as a
+  named refusal before the module reaches ACO, and it is console-seen (`v0_capability`, 14 of 14).
+  The port's run that died with no sentence would now end with one.
+- **The read compiles and works, with one open defect** (`3ee2f96`, `5f7e910`): `postprocess_frag`
+  compiles, subpass 0's attachment is correct in its own memory (16 of 16), and subpass 1's fetch
+  returns the writer's texels for the **first quarter-width** (4 of 16) — past `x = 960` of the
+  3840-wide display the read returns band 0, which the driver reads as the row-stored attachment's
+  width word (`SQ_RSRC_IMG_WORD2`'s `(extent.width - 1) >> 2`) and can measure on the host. So the
+  read is not a permanent limit; the open item is that descriptor. Until it closes, a presented frame
+  is expected to be right on the left quarter and wrong across the rest.
+- **What the port does with it**: it relinks, deploys, and runs — the six shaders the driver refuses
+  (`5347` addressing model ×3, `4472` bindless store ×3) are all ray-query paths, created only when
+  `vulkan_globals.ray_query` is true, which this driver never makes true. No port-side change is
+  needed or wanted for either half.
+
+**Status.** **Measured** on the console as an *abort*, not a refusal — this was the state before the
+driver's answer above; it is kept because it is what the request was written from. The run dies at
 
 ```
 Unsupported SPIR-V capability: SpvCapabilityInputAttachment (40)
