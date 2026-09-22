@@ -503,3 +503,72 @@ unchanged, which the port's own next run is the check for.
   — but it is a capability claim that needs its own probe, so it belongs in a request of its
   own if it is wanted at all, not folded into this one.
 - No change to the assertion's *conditions*, which are the valid-usage rule.
+
+---
+
+## R5 — `VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT` is refused although the format must support it
+
+**Status.** **Measured** on the console: the run stops with `vkCreateImage failed with code -11`
+(`VK_ERROR_FORMAT_NOT_SUPPORTED`), immediately after creating the swapchain
+(`evidence/m2-color-buffer/`, build identity `055c10f384f02852`).
+
+**Reported against.** `../PS5_Vulkan` `dda292c` and the archives built 2026-09-22 11:06.
+
+### The call
+
+vkQuake's `GL_CreateColorBuffer` (`Quake/gl_vidsdl.c`), the offscreen target the main render
+pass renders into — 2D, `VK_FORMAT_R8G8B8A8_UNORM`, 3840x2160, 1 mip level, 1 array layer, one
+sample, optimal tiling, and:
+
+```c
+image_create_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+                          VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+```
+
+### Why the driver refuses it
+
+`ps5vk_format_usage` (`driver/ps5vk_image.c:693-713`) maps a format's features to usages —
+`TRANSFER_SRC`, `TRANSFER_DST`, `SAMPLED`, `COLOR_ATTACHMENT`, `DEPTH_STENCIL_ATTACHMENT`,
+`STORAGE` — and `ps5vk_image_supported` (`:735`) refuses any usage bit the mapping does not
+carry. There is no `INPUT_ATTACHMENT` clause, so an image whose usage names it is refused, and
+`vkGetPhysicalDeviceImageFormatProperties2` answers `VK_ERROR_FORMAT_NOT_SUPPORTED` for the same
+combination.
+
+**That combination is one the driver has to support.** The specification's Format Feature
+Dependent Image Usage Flags table (`formats-v1.4.354.adoc:4242`, the copy vendored in
+`../PS5_Vulkan/.deps/native/vulkan-docs/`) requires:
+
+| image usage flag | required format feature flag |
+| --- | --- |
+| `VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT` | `VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT` **or** `VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT` |
+
+`VK_FORMAT_R8G8B8A8_UNORM` carries `COLOR_ATTACHMENT` in the driver's own table
+(`driver/ps5vk_image.c:68`), so the usage is mandatory for it. This is the last gap of its kind
+here: vkQuake writes exactly seven image usage flags and the mapping covers the other six.
+
+### What would close it
+
+One clause beside the others in `ps5vk_format_usage`:
+
+```c
+/* The specification requires this usage for any format carrying either of the two
+ * attachment features (formats.adoc, Format Feature Dependent Image Usage Flags). */
+if (features & (VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
+   usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+```
+
+**Acceptance.** vkQuake's colour-buffer combination is created —
+`R8G8B8A8_UNORM`, 2D, optimal, one sample, `COLOR_ATTACHMENT | INPUT_ATTACHMENT | SAMPLED |
+STORAGE` — and `vkGetPhysicalDeviceImageFormatProperties2` returns success for it. The B3 image
+test's format/usage matrix is where that belongs, and the format audit's row for the usage can
+claim the bit once it exists.
+
+### What is not being asked, and this matters
+
+- **Not input attachments.** The descriptor type, its stride, its write path and subpass reads
+  are R2 and stay there. This request is about *image creation*: the driver currently refuses
+  an image the specification says it must allow, and reports that refusal to applications that
+  ask first, which is the R1-class gap — advertised support that is not honoured.
+- No change to the other six mappings, and none to the format table's feature bits.
+- No subpass rendering, and no `VK_KHR_create_renderpass2`-shaped work.
