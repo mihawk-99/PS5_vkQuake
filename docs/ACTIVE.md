@@ -7,8 +7,9 @@ the code map — is in `docs/PORT.md` and does not belong here. The runs are in
 
 ## Where the port is
 
-**The engine walks the whole of start-up and reaches the swapchain.** Build identity
-`f11c4ca7d0db5680`, recorded as `evidence/m2-swapchain/` — the run in order:
+**The engine walks the whole of start-up, creates its swapchain and dies on the colour
+buffer.** Build identity `055c10f384f02852`, recorded as `evidence/m2-color-buffer/` — the run
+in order:
 
 ```
 vkCreateInstance -> 0 … vkCreateDevice -> 0 / VK_KHR_swapchain
@@ -20,21 +21,22 @@ Allocating lightstyles buffer (0 KB) / lights (12 KB) / submodel transforms (768
 Allocating bmodel instances buffer (1024 KB)
 Sound Initialization
 Using FIFO present mode
-assertion failed: … (driver/ps5vk_wsi.c:444, ps5vk_CreateSwapchainKHR)
+Creating color buffer
+QUAKE ERROR: vkCreateImage failed with code -11
 ```
 
 - **Every gate that stood in front of this is passed, measured**: the depth-stencil format
   (D32_S8), `R_InitSamplers` (the anisotropy no-op), the pipeline layouts (five sets, because
-  the driver's set limit is a draw-time check), the palette octree's whole-buffer view —
-  the driver's R3 fix, end to end — and the engine's world buffers and sound initialisation.
-- The stop is the swapchain, and it splits in two. The driver advertises
-  `supportedUsageFlags = COLOR_ATTACHMENT` and honours exactly that; vkQuake hardcodes
-  `COLOR_ATTACHMENT | TRANSFER_SRC` and never consults the capabilities, which is a
-  valid-usage violation (`VUID-VkSwapchainCreateInfoKHR-imageUsage-01276`). **The port's half
-  is fixed** (`platform/ps5/vkquake-edits.py`, the first use of the PLAN's second shape: an
-  edit applied to a copy), by intersecting the request with what the surface reports. The
-  driver's half is **R4**: an assert on application input aborts a title with nothing the
-  application can act on, where its own style is a refusal that names the field.
+  the driver's set limit is a draw-time check), the palette octree's whole-buffer view (R3,
+  end to end), the world buffers, sound, and now the **swapchain** — the intersection with
+  `supportedUsageFlags` in `platform/ps5/vkquake-edits.py` was what it needed.
+- The stop is `vkCreateImage` returning `VK_ERROR_FORMAT_NOT_SUPPORTED` for the colour buffer,
+  and it is the driver under-reporting a *mandatory* capability: the specification requires
+  `VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT` for any format carrying `COLOR_ATTACHMENT` or
+  `DEPTH_STENCIL_ATTACHMENT` (`formats-v1.4.354.adoc:4242`), and `ps5vk_format_usage` has no
+  clause for it. **R5**, one line, and the last gap of its kind — vkQuake writes seven image
+  usages and the mapping covers the other six. R4 (the assert's shape) is still open and
+  costs nothing until an application asks for something the surface does not allow.
 
 **The one feature the intersection costs** is the screenshot: vkQuake copies from the
 presented image and needs `TRANSFER_SRC`. It comes back by itself if the driver ever proves
@@ -48,13 +50,15 @@ depth-format stop, marked superseded).
 
 ## Next
 
-**One more console run — the swapchain fix is deployed.** Past the swapchain the first frame
-begins, and the next stop is *read* rather than measured: the first
+**Waiting on `../PS5_Vulkan` for R5** — one clause in `ps5vk_format_usage` — and the port is
+not patching around it: dropping the bit from the colour buffer would hide a conformance gap
+every application meets, and this port's own dodge is about pipelines and descriptors, not
+about this image.
+
+The run's own next stop is unchanged, and it is this tree's: the first
 `vkCreateGraphicsPipelines` refused because the driver checks the pipeline layout's bindings
 rather than the shader's used ones, and vkQuake's `basic_pipeline_layout` names the
-three-input-attachment set. That one is this tree's own work — `r_oit` off, the OIT/MBOIT
-pipeline variants not created, the input-attachment set dropped, the bmodel set renumbered
-4 to 3 — and it needs nothing from `../PS5_Vulkan`.
+three-input-attachment set — the dodge below, which needs nothing from the driver.
 
 Behind it, in order: **R2**'s bare `SAMPLER` (the GUI pipelines, which vkQuake creates
 unconditionally at start-up and the port cannot dodge cheaply), and **R4**'s refusal shape,

@@ -1523,3 +1523,52 @@ Verify:
   $ python3 tools/evidence.py compare evidence/
   m2-swapchain: OK (raw klog/trace-20260922T152200Z.txt, 263 lines)
   5 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the swapchain is created, and the last usage-mapping gap
+
+**A console run, build identity `055c10f384f02852`** — the one after the swapchain edit.
+Recorded as `evidence/m2-color-buffer/`:
+
+```
+Sound Initialization
+Using FIFO present mode
+Creating color buffer
+QUAKE ERROR: vkCreateImage failed with code -11
+```
+
+The swapchain edit is what the valid-usage rule asked for: `Using FIFO present mode` is now
+followed by `Creating color buffer` rather than the driver's assertion, so the intersection
+with `supportedUsageFlags` works and the driver's own create path accepted the request.
+
+### The stop, and why it is the driver's rather than a port accommodation
+
+`GL_CreateColorBuffer` (`Quake/gl_vidsdl.c`) creates the offscreen target with
+
+```c
+usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+```
+
+on `R8G8B8A8_UNORM`, and `ps5vk_image_supported` refuses it because `ps5vk_format_usage`
+(`driver/ps5vk_image.c:693-713`) has no `INPUT_ATTACHMENT` clause. The specification requires
+that usage for any format carrying `COLOR_ATTACHMENT` **or** `DEPTH_STENCIL_ATTACHMENT`
+(`formats-v1.4.354.adoc:4242`, "Format Feature Dependent Image Usage Flags"), and
+`R8G8B8A8_UNORM` carries `COLOR_ATTACHMENT` in the driver's own table — so the driver is
+refusing an image it must allow, through both `vkCreateImage` and
+`vkGetPhysicalDeviceImageFormatProperties2`.
+
+It is also the last gap of its kind: vkQuake writes exactly **seven** image usage flags
+(`COLOR_ATTACHMENT`, `DEPTH_STENCIL_ATTACHMENT`, `INPUT_ATTACHMENT`, `SAMPLED`, `STORAGE`,
+`TRANSFER_DST`, `TRANSFER_SRC`) and the mapping covers the other six.
+
+Written up as **R5** in `docs/PS5_VULKAN_REQUESTS.md`, with the spec row quoted, the one-clause
+fix, the acceptance and a scope note that keeps it separate from R2 — mapping the usage does
+not implement input attachments, and the port's own OIT dodge is about pipelines and
+descriptors, not about this image.
+
+Verify:
+  $ python3 tools/evidence.py compare evidence/
+  m2-color-buffer: OK (raw klog/trace-20260922T152722Z.txt, 328 lines)
+  6 capture(s) replayed, 0 failed
