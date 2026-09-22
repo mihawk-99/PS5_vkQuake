@@ -205,6 +205,26 @@ EDITS = (
         ),
         why="the debug-lines pipeline asks for a line topology the driver has not mapped; it is a debug draw, off by default",
     ),
+    Edit(
+        path="Quake/gl_rmisc.c",
+        before=(
+            "\t\tR_CreateGraphicsPipeline (\n"
+            "\t\t\t&vulkan_globals.md5_debug_pipeline[variant], &infos, vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout,\n"
+            "\t\t\tva (\"md5_debug%s\", pass_suffix));\n"
+        ),
+        after=(
+            "\t\t/* PS5 vkQuake: the skeleton debug draw's pipeline. It is built with the\n"
+            "\t\t * showtris family's base and therefore asks for a line topology, which\n"
+            "\t\t * ../PS5_Vulkan does not map. r_showskel is off by default and is what\n"
+            "\t\t * guards the draw (gl_rmain.c, R_ShowSkeletons), so the pipeline exists\n"
+            "\t\t * only when the feature is asked for. Retire it with R8. */\n"
+            "\t\tif (r_showskel.value != 0.0f)\n"
+            "\t\t\tR_CreateGraphicsPipeline (\n"
+            "\t\t\t\t&vulkan_globals.md5_debug_pipeline[variant], &infos, vulkan_globals.md5_pipelines[MAIN_RENDER_PASS_STANDARD][0].layout,\n"
+            "\t\t\t\tva (\"md5_debug%s\", pass_suffix));\n"
+        ),
+        why="the skeleton debug pipeline shares the showtris base's line topology; its draw is r_showskel-gated",
+    ),
 )
 
 

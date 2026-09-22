@@ -1,0 +1,12 @@
+{
+  "step": "m2-md5-debug",
+  "note": "The debug-lines edit worked - the refusal moved past it - and the run compiled 275 pipelines again before stopping one pipeline later, inside the same family: vkCreateGraphicsPipelines failed (md5_debug). Both pipelines are built from R_CreateShowTrisPipelines's base, whose topology is VK_PRIMITIVE_TOPOLOGY_LINE_LIST, so both meet the same driver gap (R8): the showtris family's own pipelines are gated on non_solid_fill, which this device does not claim, and the two debug pipelines sharing its base are the ones refused. md5_debug is the skeleton debug draw, guarded at its use by r_showskel (default 0, gl_rmain.c R_ShowSkeletons), so the port now creates it only when the feature is asked for - the same shape as the debug-lines edit.",
+  "must_contain": [
+    "build identity: a07c13ac",
+    "QUAKE ERROR: vkCreateGraphicsPipelines failed (md5_debug) with code -13"
+  ],
+  "must_not_contain": [
+    "failed (debug_lines)"
+  ],
+  "human_check": "This run shows the debug-lines edit working and the same gap surfacing one pipeline later, which makes R8's scope exact: two debug pipelines, both inheriting the showtris base's line topology, both gated at their use by a cvar that defaults to off (r_showbboxes/r_showfields for the bounding boxes, r_showskel for the skeletons). The port guards both with the same condition upstream uses for the draw, so a normal run creates neither and the driver item - map LINE_LIST the way R6 mapped the strip - retires both edits at once. 275 pipelines compiled with result=0 again, and the world and alias families created in this stretch, so what remains is postprocess, screen effects, update-lightmap, indirect, ray-debug and the animation kernels."
+}

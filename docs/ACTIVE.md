@@ -19,12 +19,15 @@ pipeline layouts, the palette octree's whole-buffer view (R3), the colour buffer
 (R7 — the kernels that stopped two runs now compile), and **the fragment-less pipelines**:
 vkQuake's `sky_stencil` marking pass, `stageCount = 1` with colour mask 0, is created.
 
-The last refusal is `debug_lines`, the bounding-box debug draw, for
-`VK_PRIMITIVE_TOPOLOGY_LINE_LIST` — the only line topology vkQuake asks for, since the FTE particle
-family's line variants are gated on `non_solid_fill`, which this device does not claim. That is
-**R8**, and the port is not waiting for it: the pipeline is created only when
-`r_showbboxes`/`r_showfields` asks for the feature, mirroring upstream's own conditional creation in
-the FTE family (the eleventh edit, retiring with R8).
+The last refusal is `md5_debug`, the skeleton debug draw, for
+`VK_PRIMITIVE_TOPOLOGY_LINE_LIST` — and it is the *second* pipeline to meet it: both it and
+`debug_lines` (the bounding-box draw) are built from `R_CreateShowTrisPipelines`'s base, whose
+topology is a line list, while the showtris family's own pipelines are gated on `non_solid_fill`,
+which this device does not claim. That is **R8**, and the port is not waiting for it: each of the
+two is created only when the feature that draws with it is asked for (`r_showbboxes`/`r_showfields`
+for the boxes, `r_showskel` for the skeletons — all off by default, and each already the condition
+upstream guards the draw with), mirroring the FTE particle family's own conditional creation. The
+eleventh and twelfth edits, both retiring with R8.
 
 ## Next
 

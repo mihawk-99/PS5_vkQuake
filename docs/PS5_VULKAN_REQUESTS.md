@@ -719,11 +719,14 @@ compiles is `QUAKE ERROR: vkCreateGraphicsPipelines failed (debug_lines) with co
 ### The refusal, and the one pipeline that meets it
 
 The topology check that R6 widened to triangle lists *and* strips does not map lines. In vkQuake
-exactly one pipeline asks for one: `Quake/gl_rmisc.c`, `R_CreateShowTrisPipelines` →
-`debug_lines_pipeline[variant]`, with `VK_PRIMITIVE_TOPOLOGY_LINE_LIST` (`:3460`) — the
-bounding-box debug draw. The FTE particle family also names `LINE_LIST`, but only inside a loop
-gated on `vulkan_globals.non_solid_fill`, which this device does not claim, so its line variants
-are never built.
+exactly **two** pipelines ask for one, and both inherit it from one base: `Quake/gl_rmisc.c`,
+`R_CreateShowTrisPipelines` sets `base.input_assembly_state.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST`
+(`:3460`), and the two debug pipelines built from that base are `debug_lines_pipeline[variant]`
+(the bounding-box draw, `:3474`) and `md5_debug_pipeline[variant]` (the skeleton draw, `:3492`).
+The showtris family's own pipelines are gated on `vulkan_globals.non_solid_fill`, which this
+device does not claim, so they are never built; the FTE particle family's line variants are gated
+the same way. Both refusals were measured, one run apart: `evidence/m2-debug-lines/` and
+`evidence/m2-md5-debug/`.
 
 `VK_PRIMITIVE_TOPOLOGY_LINE_LIST` is core Vulkan 1.0 with no feature bit gating it, exactly like
 the strip R6 mapped, and the same class of application meets it: anything drawing a debug
@@ -731,10 +734,12 @@ renderer, an editor grid, or a wire overlay.
 
 ### What the port is doing meanwhile
 
-The pipeline is created only when the feature that draws with it is asked for
-(`r_showbboxes`/`r_showfields`, both off by default) — mirroring the FTE particle family's own
-conditional creation. That is the eleventh edit in `platform/ps5/vkquake-edits.py`, and it retires
-when this request lands: vkQuake's own creation is unconditional again.
+Both pipelines are created only when the feature that draws with them is asked for — the
+bounding boxes on `r_showbboxes`/`r_showfields`, the skeletons on `r_showskel`, all three off by
+default and each already the condition upstream guards the *draw* with — mirroring the FTE particle
+family's own conditional creation. Those are the eleventh and twelfth edits in
+`platform/ps5/vkquake-edits.py`, and both retire when this request lands: vkQuake's own creation is
+unconditional again.
 
 ### What would close it
 
