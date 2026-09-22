@@ -1,0 +1,18 @@
+{
+  "step": "m2-renderer",
+  "note": "The run after the loader aliasing landed, and it is the first that gets into the renderer. Measured, in order: the three instance extensions including VK_KHR_get_physical_device_properties2 (the alias was the previous run's stop), the device (Vendor AMD, Device 'PS5 AGC GPU (ps5vk)', vkCreateDevice -> 0, VK_KHR_swapchain), 'Using D32_S8 depth buffer format' - the depth-stencil gate this port reported as R1 and waited on since 2026-09-20, now passed on the console - then command buffers, staging, descriptor set layouts, the dynamic vertex/index/uniform buffers, 'Initializing samplers' with the LOD bias line (R_InitSamplers, the anisotropy gate the driver closed on 2026-09-21), and 'Creating pipeline layouts' (the five-set world layout is created, which the driver's runtime accepts because the set-count limit is a draw-time check). It stops at vkCreateBufferView -> -13 in R_CreatePaletteOctreeBuffers.",
+  "must_contain": [
+    "build identity: 9ad1d1f36bae987c",
+    "vkCreateInstance -> 0",
+    "VK_KHR_get_physical_device_properties2",
+    "vkCreateDevice -> 0",
+    "Using D32_S8 depth buffer format",
+    "Texture lod bias: 0.000000",
+    "Creating pipeline layouts",
+    "QUAKE ERROR: vkCreateBufferView failed with code -13"
+  ],
+  "must_not_contain": [
+    "failed to find vkGetPhysicalDeviceProperties2"
+  ],
+  "human_check": "Two gates this port has been waiting on are now measured rather than read: the combined depth-stencil format (D32_S8 is chosen, so ../PS5_Vulkan's round-12 feature bits work for a real application) and R_InitSamplers (the anisotropy flag is accepted as the no-op it is). The stop is a driver bug with a one-line cause and it is written up as R3 in docs/PS5_VULKAN_REQUESTS.md: vkQuake passes VkBufferViewCreateInfo::range = VK_WHOLE_SIZE, which Vulkan defines as 'to the end of the buffer', and ps5vk_CreateBufferView's bounds check compares it literally, so it refuses a whole-buffer view. Three other places in that driver resolve VK_WHOLE_SIZE (ps5vk_cmd_buffer.c:357, ps5vk_descriptor_set.c:352, ps5vk_draw.c:2310); this is the fourth. The format is not the problem: R8G8B8A8_UNORM carries VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT in the driver's own table. The must_not_contain needle is the previous run's stop, so a regression to it is visible."
+}

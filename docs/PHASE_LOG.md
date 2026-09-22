@@ -1399,3 +1399,59 @@ Verify:
 (now behind the loader gate), and the pipeline-creation refusal the reading in
 `docs/ACTIVE.md` predicts. The title is deployed with the fix as build identity
 `9ad1d1f36bae987c`, so the next run answers both.
+
+---
+
+## 2026-09-22: the first run inside the renderer, and the driver bug it found
+
+**A console run, build identity `9ad1d1f36bae987c`** — the one that followed the loader
+aliasing — and it is the first run of this port that reaches the renderer. Recorded as
+`evidence/m2-renderer/`, in order:
+
+```
+vkCreateInstance -> 0
+Instance extensions: VK_KHR_surface, VK_KHR_display, VK_KHR_get_physical_device_properties2
+Vendor: AMD / Device: PS5 AGC GPU (ps5vk) / vkCreateDevice -> 0
+Device extensions: VK_KHR_swapchain
+Using D32_S8 depth buffer format
+Creating command buffers / Initializing staging / Creating descriptor set layouts
+Reallocating dynamic vertex, index and uniform buffers / Initializing samplers
+Texture lod bias: 0.000000
+Creating pipeline layouts
+QUAKE ERROR: vkCreateBufferView failed with code -13
+```
+
+### Two gates measured, not read
+
+- **The depth-stencil gate.** `Using D32_S8 depth buffer format` and the device comes up.
+  This is the check the 2026-09-20 run stopped on, and the thing `docs/PS5_VULKAN_REQUESTS.md`
+  R1 was written about: `VK_FORMAT_D32_SFLOAT_S8_UINT`'s `DEPTH_STENCIL_ATTACHMENT` feature,
+  working for a real application rather than for a probe.
+- **`R_InitSamplers`.** `Initializing samplers` prints and the run continues past it, so the
+  anisotropy flag the driver closed on 2026-09-21 is accepted as the no-op it proved it is.
+  This was the predicted next gate from the moment the depth format was reported; it is now
+  a measurement.
+- `Creating pipeline layouts` also passes: the five-set world layout is created, because the
+  driver's `maxBoundDescriptorSets` is enforced when a set is bound at a draw, not when a
+  layout is made.
+
+### The stop, and why it is the driver's
+
+`R_CreatePaletteOctreeBuffers` (`Quake/gl_vidsdl.c`) creates a buffer view of the whole palette
+buffer — `format = VK_FORMAT_R8G8B8A8_UNORM`, `range = VK_WHOLE_SIZE`, `offset = 0` — and
+`ps5vk_CreateBufferView` (`driver/ps5vk_buffer.c:189`) compares `range` literally against the
+buffer's size, so `~0ULL` is out of bounds and the call is refused. The format is not
+implicated: that format carries `VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT` in the driver's
+own table (`driver/ps5vk_image.c:72`). Three other sites in the same driver resolve
+`VK_WHOLE_SIZE` (`ps5vk_cmd_buffer.c:357`, `ps5vk_descriptor_set.c:352`, `ps5vk_draw.c:2310`),
+which is what makes this read as an omission.
+
+Written up as **R3** in `docs/PS5_VULKAN_REQUESTS.md`, with the fix, the acceptance shape and
+what is not being asked. The port declines the workaround: patching upstream's
+`VK_WHOLE_SIZE` into an explicit size would hide a class that every application using a
+whole-buffer view meets.
+
+Verify:
+  $ python3 tools/evidence.py compare evidence/
+  m2-renderer: OK (raw klog/trace-20260922T150057Z.txt, 210 lines)
+  4 capture(s) replayed, 0 failed
