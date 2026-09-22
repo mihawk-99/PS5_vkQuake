@@ -41,19 +41,17 @@ finds three of R10's new sentences in it, including
 
 ## Next
 
-**Waiting on `../PS5_Vulkan` for R11** — name the command the first frame's recording refuses. The
+**R11 is now owned in both trees under the mission authorization** — name the command the first frame's recording refuses. The
 cheap route is the driver's own host runner replaying a recording; the console is not needed to find
 it. Nothing for the port to change meanwhile.
 
 ## Open questions
 
-- **The identity is not reproducible across rebuilds of identical inputs.** Two builds of the same
-  sources and the same driver archive produced `31a85d8b…` and `71b09891…`, and the identity hashes
-  the engine archive's own bytes. Unmeasured; it matters because the identity is the only tie between
-  a run and its sources.
-- **`tools/run-title.sh` cannot finish cleanly for this title**: it requires `retroarch.log`, which
-  this port does not write (it writes `trace.txt`), so a good run still exits 1 with "Required
-  development log retroarch.log was not captured". Inherited from the RetroArch tree; worth one edit.
+- **Step 0 closed on host (2026-09-22).** The harness now captures `trace.txt` and
+  checks its newest build identity. `SOURCE_DATE_EPOCH=0` by default removes
+  upstream `host.c`'s wall-clock macros; two complete builds have identical engine
+  archives and identities (`0cd00096…`). All port gates pass. Evidence:
+  `evidence/harness-identity/`. No new console run yet.
 - **The title takes SIGSYS on its exit path, every run** (`evidence/exit-sigsys/`);
   `tools/symbolize-crash.py` needs `build/title.map` from the same build.
 - **The line guards stay until `v0-lines` passes** — the driver's own open item.

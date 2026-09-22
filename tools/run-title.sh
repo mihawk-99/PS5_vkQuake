@@ -255,7 +255,7 @@ with connect(**dt.load_settings()) as ftp:
     remove_if_present(ftp, f"/data/homebrew/{sys.argv[1]}/gpu-profile.txt")
     remove_if_present(ftp, f"/data/homebrew/{sys.argv[1]}/audio-test.txt")
     remove_if_present(ftp, f"/data/homebrew/{sys.argv[1]}/core-loader-test.txt")
-    names = ["retroarch.log"]
+    names = ["trace.txt"]
     if sys.argv[6] != "none":
         names.extend(["core-loader-test.json", "core-recovery-test.json"])
     if int(sys.argv[4]):
@@ -268,9 +268,10 @@ with connect(**dt.load_settings()) as ftp:
             with target.open("wb") as out:
                 ftp.retrbinary(f"RETR /data/homebrew/{sys.argv[1]}/{name}", out.write)
             expected = sys.argv[5]
-            if name == "retroarch.log":
-                if f"build identity: {expected}" not in target.read_text(errors="replace"):
-                    raise SystemExit("RetroArch log is stale or logging failed: current build identity absent")
+            if name == "trace.txt":
+                latest = target.read_text(errors="replace").rsplit("build identity: ", 1)[-1]
+                if latest.splitlines()[0].strip() != expected:
+                    raise SystemExit("vkQuake trace is stale or logging failed: latest build identity differs")
             if name in ("core-loader-test.json", "core-recovery-test.json"):
                 report = json.loads(target.read_text())
                 if report.get("build_identity") != f"build identity: {expected}" or report.get("core") != sys.argv[6] or not report.get("passed"):

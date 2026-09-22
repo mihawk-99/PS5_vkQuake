@@ -1,0 +1,10 @@
+{
+  "step": "harness-identity",
+  "note": "Host-only Step 0; no console or milestone acceptance claimed.",
+  "must_contain": [
+    "engine archives byte-identical: PASS",
+    "build identities byte-identical: PASS"
+  ],
+  "must_not_contain": [],
+  "human_check": "None: byte comparison on host."
+}
