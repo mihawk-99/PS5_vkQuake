@@ -1,0 +1,17 @@
+{
+  "step": "m2-swapchain",
+  "note": "The run after the driver's R3 fix, and it walks past everything that stopped the runs before it: the palette octree's buffer view is created (the world buffers print next: lightstyles 0 KB, lights 12 KB, submodel transforms 768 KB, bmodel instances 1024 KB), sound initialisation runs, and the swapchain is attempted - 'Using FIFO present mode' - where ../PS5_Vulkan's own assertion refuses. The assertion is in ps5vk_CreateSwapchainKHR and its conjuncts are all satisfied except imageUsage: vkQuake hardcodes COLOR_ATTACHMENT | TRANSFER_SRC and the driver reports supportedUsageFlags = COLOR_ATTACHMENT alone, so the application asked for a use the surface does not advertise (VUID-VkSwapchainCreateInfoKHR-imageUsage-01276). Every other conjunct was checked against both trees before this was written: the surface reports exactly one format (B8G8R8A8_UNORM, SRGB_NONLINEAR), the extent is the port's one display mode, arrayLayers is 1, the present mode prints FIFO, and minImageCount is max(2, caps.minImageCount) against a maximum of 2.",
+  "must_contain": [
+    "build identity: f11c4ca7",
+    "Using D32_S8 depth buffer format",
+    "Creating pipeline layouts",
+    "Allocating bmodel instances buffer (1024 KB)",
+    "Sound Initialization",
+    "Using FIFO present mode",
+    "assertion failed: info->imageFormat == VK_FORMAT_B8G8R8A8_UNORM"
+  ],
+  "must_not_contain": [
+    "vkCreateBufferView failed"
+  ],
+  "human_check": "This record is the swapchain, and the two sides of it are worth separating. The driver is consistent: it advertises COLOR_ATTACHMENT and honours exactly that, and its refusal is a valid-usage rule it is entitled to enforce. The application is wrong by the specification: vkQuake never consults supportedUsageFlags, which works on desktop drivers because they advertise nearly everything. The port fixed its own side in platform/ps5/vkquake-edits.py - the first use of the PLAN's second mechanism, an edit applied to a copy - by intersecting the request with what the surface reports, which is what the valid-usage rule requires and needs no retirement. The consequence is named in docs/ACTIVE.md: vkQuake's screenshot copies from the presented image and needs TRANSFER_SRC, so screenshots are the one feature without a source until the driver proves that use for its swapchain images. The driver's side is R4: an assert on application input is the wrong form for a shipped driver, because it aborts the title with a message the application cannot act on - the check is right, the shape should be a refusal that names the field."
+}

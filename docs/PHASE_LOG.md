@@ -1455,3 +1455,71 @@ Verify:
   $ python3 tools/evidence.py compare evidence/
   m2-renderer: OK (raw klog/trace-20260922T150057Z.txt, 210 lines)
   4 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the swapchain, and the port's first edit to upstream
+
+**A console run, build identity `f11c4ca7d0db5680`** — the one after the driver's R3 fix — and it
+walks the whole of start-up. Recorded as `evidence/m2-swapchain/`:
+
+```
+Using D32_S8 depth buffer format
+Creating command buffers / Initializing staging / Creating descriptor set layouts
+Reallocating dynamic vertex, index and uniform buffers / Initializing samplers
+Texture lod bias: 0.000000 / Creating pipeline layouts
+Allocating lightstyles buffer (0 KB) / lights (12 KB) / submodel transforms (768 KB)
+Allocating bmodel instances buffer (1024 KB)
+Sound Initialization
+Using FIFO present mode
+assertion failed: … (driver/ps5vk_wsi.c:444, ps5vk_CreateSwapchainKHR)
+```
+
+R3's fix is proved end to end: the palette octree's whole-buffer view is created and the world
+buffers that follow it are allocated. Sound initialisation runs, and the swapchain is where it
+stops.
+
+### The stop has two sides, and they are not the same side
+
+The driver advertises `supportedUsageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT`
+(`driver/ps5vk_wsi.c:262`, "Rendering is the only use swapchain images have been proven for")
+and its assertion enforces exactly that. vkQuake sets
+
+```c
+swapchain_create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+```
+
+and never consults the capabilities, which the specification requires
+(`VUID-VkSwapchainCreateInfoKHR-imageUsage-01276`). Every other conjunct of that assertion was
+checked against both trees before anything was written: the surface reports one format
+(`B8G8R8A8_UNORM`, `SRGB_NONLINEAR`), the extent is this port's single display mode, array
+layers is 1, the present mode prints FIFO, and `minImageCount` is `max(2, caps.minImageCount)`
+against a maximum of 2.
+
+So the application is wrong and the driver is consistent — and it is still the driver that
+aborts a title rather than refusing, which is R4 in `docs/PS5_VULKAN_REQUESTS.md`.
+
+### The port's first edit to upstream
+
+`docs/PLAN.md`'s invariant allows upstream's behaviour to change in two shapes: a file under
+`platform/` compiled instead of an upstream one, or **an edit applied to a copy by a file under
+`platform/`**. This is the first edit that needed the second: `platform/ps5/vkquake-edits.py`
+replaces that line with the surface's own advertisement intersected with vkQuake's wish.
+
+It is an intersection rather than a removal, which is why nothing here needs retiring: asking
+for what the surface reports is the valid-usage rule itself, and a driver that proves and
+advertises `TRANSFER_SRC` for swapchain images turns vkQuake's screenshot copy back on with no
+change. Until then the screenshot is the one feature without a source — `gl_vidsdl.c` copies
+from the presented image — and `docs/ACTIVE.md` names that.
+
+The script is applied by `tools/build-vkquake-engine.sh` before anything is compiled, because
+`vendor/` is re-fetched: an edit made by hand would vanish. Every edit is an exact-match
+replacement with a required occurrence count, so a revision that moves the text stops the build
+instead of compiling something nobody has read. `tests/test_vkquake_edits.py` holds the three
+properties that matter: it applies, it is idempotent, and it refuses a tree whose text has
+moved.
+
+Verify:
+  $ python3 tools/evidence.py compare evidence/
+  m2-swapchain: OK (raw klog/trace-20260922T152200Z.txt, 263 lines)
+  5 capture(s) replayed, 0 failed

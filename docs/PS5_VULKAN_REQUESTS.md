@@ -433,3 +433,73 @@ console run shows `-13` and nothing else — this request took a code read to pi
 own sentence (range, offset, buffer size) would have named it in the trace. If a refusal also wrote its
 sentence to stderr when no messenger is installed, every console run of every application would name its
 own cause.
+
+---
+
+## R4 — `vkCreateSwapchainKHR` asserts on application input instead of refusing
+
+**Status.** **Measured** on the console: the run that reached a swapchain ends in the driver's
+own assertion, verbatim in the title's trace (`evidence/m2-swapchain/`, build identity
+`f11c4ca7d0db5680`):
+
+```
+Using FIFO present mode
+assertion failed: info->imageFormat == VK_FORMAT_B8G8R8A8_UNORM && info->imageColorSpace ==
+VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && info->imageExtent.width == PS5VK_DISPLAY_WIDTH && … &&
+(info->imageUsage & ~VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) == 0 && … &&
+info->minImageCount <= PS5VK_SWAPCHAIN_IMAGES
+(driver/ps5vk_wsi.c:444, ps5vk_CreateSwapchainKHR)
+```
+
+**Reported against.** `../PS5_Vulkan` `dda292c` and the archives built 2026-09-22 11:06.
+
+### The check is right; the form is not
+
+The assertion enforces the valid-usage rule the comment above it names — the surface's
+capabilities, formats and present modes must allow the parameters. That is the driver's job
+and this port is not asking for it to be dropped. What is wrong is that it is an `assert`: a
+shipped driver aborts the title, with no `VkResult` the application can see and no field it
+can act on, instead of refusing.
+
+Any application that asks for something the surface does not report meets it, and they are
+ordinary requests: another present mode, three images, a 1280x720 swapchain, or — the case
+here — a usage the surface does not advertise.
+
+### What this port's application asked, and what it has done about it
+
+vkQuake sets `imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT`
+and never consults `VkSurfaceCapabilitiesKHR::supportedUsageFlags`, while this driver reports
+`COLOR_ATTACHMENT` alone (`driver/ps5vk_wsi.c:262`, "Rendering is the only use swapchain
+images have been proven for"). So the assertion is firing on a real violation by the
+application, and the driver is consistent: it advertises exactly what it honours.
+
+**That half is fixed on this side and is not part of the request.** The port now intersects
+the request with what the surface reports (`platform/ps5/vkquake-edits.py`), which is what
+the valid-usage rule requires, and it is an intersection rather than a removal — when this
+driver proves `TRANSFER_SRC` for swapchain images and advertises it, the application picks it
+up with no change.
+
+### What is being asked
+
+Return an error with a sentence that names the field which is out of range, in the driver's
+own style — the same file already does it for the one other create-time rule it enforces
+(`"VideoOut belongs to another swapchain"`, `VK_ERROR_NATIVE_WINDOW_IN_USE_KHR`). One
+sentence per field, or one sentence naming the first field that disagrees, either is fine;
+`VK_ERROR_UNKNOWN` is what the rest of this driver uses for a refusal the API cannot express.
+
+**Acceptance.** A `VkSwapchainCreateInfoKHR` the surface does not allow — `imageUsage` with a
+bit outside `supportedUsageFlags` is the measured one — returns an error rather than
+aborting the title, and the sentence names `imageUsage` (or `imageExtent`, or `presentMode`,
+matching whichever field was changed). The existing correct requests must keep succeeding
+unchanged, which the port's own next run is the check for.
+
+### What is not being asked
+
+- No change to `supportedUsageFlags`. `COLOR_ATTACHMENT` alone is honest and the port now
+  asks for exactly that; advertising a use nothing has proved would be the R1-class gap this
+  project keeps reporting.
+- No `TRANSFER_SRC` support. It is the one thing that would turn vkQuake's screenshots back
+  on — its screenshot path copies from the presented image (`gl_vidsdl.c`, `vkCmdCopyImageToBuffer`)
+  — but it is a capability claim that needs its own probe, so it belongs in a request of its
+  own if it is wanted at all, not folded into this one.
+- No change to the assertion's *conditions*, which are the valid-usage rule.

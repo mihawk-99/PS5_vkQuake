@@ -119,6 +119,15 @@ while IFS= read -r source; do
     port_sources+=("$source")
 done < <(find platform/ps5 -maxdepth 1 -name '*.c' -printf '%p\n' 2>/dev/null | sort)
 
+# This port's edits to its copy of upstream, applied before anything is compiled. The
+# second of the two shapes docs/PLAN.md allows, and the reason it is a script and not a
+# hand-made change: vendor/ is re-fetched, so the edit has to be reproducible and has to
+# fail loudly when the text it matches is gone. It runs only when compiling, and before
+# the generators, so a build either has every edit or stops.
+if [[ $mode != --list ]]; then
+    python3 "$root/platform/ps5/vkquake-edits.py" --root "$upstream" >&2 || exit 2
+fi
+
 # The generated C: vkQuake ships GLSL and a build description, not shaders, so the
 # SPIR-V arrays and the embedded pak are made here. Both are symbols the renderer
 # and the filesystem layer reference by name, so they are not optional and the
