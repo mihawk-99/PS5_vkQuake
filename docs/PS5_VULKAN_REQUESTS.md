@@ -942,3 +942,65 @@ The port's own test is `postprocess` creating, and then a UI frame presenting th
 - No renderings into more than the UI pass needs — two colour attachments, two subpasses, one read.
 - No change to how vkQuake builds pipelines: the read arrives in SPIR-V through a shader module,
   exactly as today.
+
+## R11 — the first frame's recording is refused, and the refusal names nothing
+
+**Status.** **Measured** on the console. Build identity
+`71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a` (`evidence/m2-end-command-buffer/`),
+one run of `tools/run-title.sh --no-build --no-deploy --watch 900`:
+
+```
+Creating pipelines
+[ps5vk] compile done: result=0        538 times — no refusal, no ACO abort in the whole stretch
+vkEndCommandBuffer -> -13
+
+ERROR-OUT BEGIN
+                                       <- two blank lines: no sentence at all
+QUAKE ERROR: vkEndCommandBuffer failed with code -13
+```
+
+**Pipeline creation finished and start-up completed.** This is the run where R9, R10 and the compute
+path all hold at once: 269 pipelines exist where the previous best run died at 138, the
+input-attachment shaders R10 unblocked compile (their `SpvCapabilityInputAttachment` warnings now end
+in `result=0`), and the compute kernels created last — screen effects, lightmaps, indirect — create
+too. The engine then acquired a swapchain image and recorded its **first frame**, which is where it
+stops. No frame was presented: the refusal is in recording, before the submit.
+
+### Why this is the driver's, and why it cannot be read
+
+The refusal block is empty. `ERROR-OUT BEGIN` is followed by two blank lines and then the
+application's own `QUAKE ERROR`, so nothing anywhere says which command the driver refused or which
+rule it applied. The driver's recording refusals do carry sentences —
+`ps5vk_cmd_buffer_refuse(cmd_buffer, result, "…")` takes one and is used throughout
+`ps5vk_cmd_buffer.c` — so either an unnamed path set this error, or the message is written somewhere
+the title's own trace does not see. Both are the driver's to settle.
+
+The port cannot work around it: an application cannot dodge a refusal it cannot read, and inventing a
+"try each command and see which one upsets the driver" harness would be a guess dressed as a fix.
+This is R4's rule again — a refusal has to name its field — and the reason R4 was asked for was
+exactly this: a run that ends with no sentence is a run that has to be repeated.
+
+### What would close it
+
+Name it. The cheapest route needs no console: the driver's own host runner can replay a command
+stream, and this frame is ordinary — a swapchain acquire, a UI render pass of two subpasses (its
+second subpass reading subpass 0's colour, which is the read R10 just landed), the GUI's picture
+draws, a present. The driver's console case for R10 recorded and drew the same shape of read
+successfully, so the refusal is probably not the read alone but something this frame does that the
+probe does not; that is a candidate list, not a claim.
+
+**Acceptance.** Two cases, the second being the one that keeps this from happening again:
+
+1. *Positive*: the same build records the first frame, `vkEndCommandBuffer` returns `VK_SUCCESS`, the
+   submission presents, and the port's own run reports a frame — with the R10 quarter-width defect
+   still visible, which is the next thing after this one.
+2. *Negative*: with a recording that must be refused, the trace carries the driver's sentence naming
+   the command and the rule — no empty `ERROR-OUT` block.
+
+### What is not being asked
+
+- No change to the read, to specialization constants, or to the pipeline path: those are all working
+  in this run.
+- No claim about which command it is. The port has no way to see it and will not guess.
+- No new probe unless the runner cannot reproduce a two-subpass UI recording; if that is the gap,
+  saying so is itself the answer.

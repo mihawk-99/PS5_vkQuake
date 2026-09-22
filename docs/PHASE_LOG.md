@@ -2061,3 +2061,66 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   16 capture(s) replayed, 0 failed
+
+## 2026-09-22 — the first frame: start-up completes, and a recording refusal names nothing
+
+### The run
+
+`bash tools/run-title.sh --no-build --no-deploy --watch 900` — the port's own tool, which checks the
+console is idle, starts the kernel-log listener *before* the launch, launches through the resident
+control payload (`ok launched PPSA99010 result=0x00008018 … foreground`) and closes the title when the
+window ends. Build identity
+`71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a`.
+
+### What it did
+
+**Pipeline creation finished and start-up completed, for the first time.**
+
+```
+Creating pipelines
+[ps5vk] compile done: result=0        538 times
+vkEndCommandBuffer -> -13
+
+ERROR-OUT BEGIN
+                                      <- empty
+QUAKE ERROR: vkEndCommandBuffer failed with code -13
+```
+
+- **538 compiles, no refusal, no ACO abort in that stretch.** The input-attachment shaders R10
+  unblocked are among them: `SpvCapabilityInputAttachment (40)` warns and then
+  `compile done: result=0`, three times. The compute kernels created last — screen effects, lightmaps,
+  indirect — create too, and the six the driver's audit refuses (three `5347`, three `4472`) never
+  appear, because they are ray-query paths and `vulkan_globals.ray_query` stays false here.
+- 269 pipelines exist where the previous best run died at 138, and the run got past every wall this
+  port has recorded: R3, R4, R5, R6, R7, R8's guards, R9 and R10.
+- Then the engine acquired a swapchain image and **recorded its first frame**, which is where it
+  stopped. **No frame was presented**: the refusal is in recording, before the submit.
+
+### The stop is a refusal with no sentence
+
+`ERROR-OUT BEGIN` is followed by two blank lines and then the application's own error, so nothing says
+which command was refused or which rule applied. That is the failure mode R4 was written about, and it
+is why this is **R11** in `docs/PS5_VULKAN_REQUESTS.md` and not a port bug: an application cannot dodge
+a refusal it cannot read. The driver's recording refusals normally carry sentences —
+`ps5vk_cmd_buffer_refuse(cmd_buffer, result, "…")` takes one and `ps5vk_cmd_buffer.c` uses it — so
+either an unnamed path set this error or the sentence goes where the title's trace cannot see it. The
+driver's host runner can replay a recording without a console, which is the cheap way to name it.
+
+### Evidence, and two notes from the tooling
+
+`evidence/m2-end-command-buffer/` — the boot's identity, the compile count, and the refusal as it
+appeared. Its `must_not_contain` needles are the two previous stops (`vkCreateGraphicsPipelines
+failed`, `ACO ERROR`), so a regression to either is visible, and the count line is computed from the
+capture rather than typed.
+
+- `tools/run-title.sh` exited 1 on a *good* run: it requires `retroarch.log`, which this port does not
+  write — it writes `trace.txt`. Inherited from the RetroArch tree and worth one edit.
+- The title's trace is append-only across every boot (twenty of them now), so a run's section is found
+  by its own identity line; a whole-file count is meaningless, and this entry's numbers are the
+  section's.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  17 capture(s) replayed, 0 failed

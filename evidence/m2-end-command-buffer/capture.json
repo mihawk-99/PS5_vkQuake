@@ -1,0 +1,28 @@
+{
+  "step": "m2-end-command-buffer",
+  "recorded": "2026-09-22T22:34:47Z",
+  "console_run": "identity 71b09891, launched by the port's own run tool",
+  "revision": "",
+  "command": "bash tools/run-title.sh --no-build --no-deploy --watch 900",
+  "raw_capture": "klog/slice-endcb.txt",
+  "raw_lines": 16,
+  "raw_bytes": 414,
+  "lines": [
+    "build identity: 71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a",
+    "...",
+    "[538 shader compiles between 'Creating pipelines' and the stop; 0 refusals in that stretch; 0 ACO aborts]",
+    "Creating pipelines",
+    "vkEndCommandBuffer -> -13",
+    "",
+    "ERROR-OUT BEGIN",
+    "",
+    "",
+    "QUAKE ERROR: vkEndCommandBuffer failed with code -13",
+    "STACK TRACE:",
+    "(null)",
+    "",
+    "messagebox: Quake Error: vkEndCommandBuffer failed with code -13",
+    "STACK TRACE:",
+    "(null)"
+  ]
+}
