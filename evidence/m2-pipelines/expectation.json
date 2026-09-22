@@ -1,0 +1,19 @@
+{
+  "step": "m2-pipelines",
+  "note": "The run after R5, and the prediction written into docs/ACTIVE.md before R3 and R5 landed is now a measurement: 'Creating pipelines' is followed by vkCreateGraphicsPipelines returning VK_ERROR_UNKNOWN for basic_alphatest, the engine's first pipeline. Everything between the colour buffer and it passes on the console: the depth buffer, the render passes (all variants, including the OIT ones, which are only created), the framebuffers, and the shader modules. The refusal is the driver's ps5vk_descriptor_options walking the pipeline layout's bindings: basic_pipeline_layout is {single_texture, mboit_input_attachment}, the second set is three INPUT_ATTACHMENT bindings at FRAGMENT stage, and ps5vk_descriptor_stride has no entry for that type - which is R2.",
+  "must_contain": [
+    "build identity: 56074ab0",
+    "Using D32_S8 depth buffer format",
+    "Creating color buffer",
+    "Creating depth buffer",
+    "Creating render passes",
+    "Creating frame buffers",
+    "Creating pipelines",
+    "QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest) with code -13"
+  ],
+  "must_not_contain": [
+    "vkCreateImage failed",
+    "assertion failed"
+  ],
+  "human_check": "This is the artifact the port's own reading earned: the stop was named three driver rounds before it was reached, and reaching it is what turns a read into a measurement. Two things follow. The driver's R2 (the three descriptor types: INPUT_ATTACHMENT, SAMPLER, SAMPLED_IMAGE) is now the only thing between this port and its first frame - basic_alphatest needs the first, the GUI pipelines need the second and the lightmap compute pass the third, so no amount of port-side dodging gets through this point without it. And the port's own half - the four-set accommodation in platform/ps5/vkquake-edits.py, which drops OIT's input-attachment set from the world and md5 layouts, moves the bmodel block from set 4 to 3 in the layout, the shader and all four bind sites, defaults r_oit to 0 and compiles the oit/mboit variants as their base shader - is built and gated but deliberately not deployed, because a run without R2 would stop at this same line and spend a console cycle for nothing."
+}

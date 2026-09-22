@@ -7,9 +7,8 @@ the code map — is in `docs/PORT.md` and does not belong here. The runs are in
 
 ## Where the port is
 
-**The engine walks the whole of start-up, creates its swapchain and dies on the colour
-buffer.** Build identity `055c10f384f02852`, recorded as `evidence/m2-color-buffer/` — the run
-in order:
+**The engine reaches its first pipeline.** Build identity `56074ab0e0a278f5`, recorded as
+`evidence/m2-pipelines/` — the run in order:
 
 ```
 vkCreateInstance -> 0 … vkCreateDevice -> 0 / VK_KHR_swapchain
@@ -21,8 +20,9 @@ Allocating lightstyles buffer (0 KB) / lights (12 KB) / submodel transforms (768
 Allocating bmodel instances buffer (1024 KB)
 Sound Initialization
 Using FIFO present mode
-Creating color buffer
-QUAKE ERROR: vkCreateImage failed with code -11
+Creating color buffer / AA disabled / Creating depth buffer
+Creating render passes / Creating frame buffers / Creating pipelines
+QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest) with code -13
 ```
 
 - **Every gate that stood in front of this is passed, measured**: the depth-stencil format
@@ -30,13 +30,18 @@ QUAKE ERROR: vkCreateImage failed with code -11
   the driver's set limit is a draw-time check), the palette octree's whole-buffer view (R3,
   end to end), the world buffers, sound, and now the **swapchain** — the intersection with
   `supportedUsageFlags` in `platform/ps5/vkquake-edits.py` was what it needed.
-- The stop is `vkCreateImage` returning `VK_ERROR_FORMAT_NOT_SUPPORTED` for the colour buffer,
-  and it is the driver under-reporting a *mandatory* capability: the specification requires
-  `VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT` for any format carrying `COLOR_ATTACHMENT` or
-  `DEPTH_STENCIL_ATTACHMENT` (`formats-v1.4.354.adoc:4242`), and `ps5vk_format_usage` has no
-  clause for it. **R5**, one line, and the last gap of its kind — vkQuake writes seven image
-  usages and the mapping covers the other six. R4 (the assert's shape) is still open and
-  costs nothing until an application asks for something the surface does not allow.
+- The colour buffer creates (R5), the depth buffer, the render passes and the framebuffers
+  all follow, and the stop is **the prediction this file carried for three driver rounds**:
+  the first `vkCreateGraphicsPipelines` refused, naming `basic_alphatest`. The driver walks
+  the *pipeline layout*'s bindings rather than the shader's used ones, `basic_pipeline_layout`
+  is `{single_texture, mboit_input_attachment}`, and the second set is three
+  `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage — a type `ps5vk_descriptor_stride` has no
+  entry for. That is **R2**, and it is now the only thing between this port and its first
+  frame: the basic pipelines need `INPUT_ATTACHMENT`, the GUI pipelines need the bare
+  `SAMPLER`, and the lightmap compute layout needs `SAMPLED_IMAGE`.
+- The port's own half of that is **built, gated and deliberately not deployed**: see the
+  four-set accommodation below, which a run without R2 would spend a console cycle failing to
+  notice.
 
 **The one feature the intersection costs** is the screenshot: vkQuake copies from the
 presented image and needs `TRANSFER_SRC`. It comes back by itself if the driver ever proves
@@ -50,15 +55,22 @@ depth-format stop, marked superseded).
 
 ## Next
 
-**Waiting on `../PS5_Vulkan` for R5** — one clause in `ps5vk_format_usage` — and the port is
-not patching around it: dropping the bit from the colour buffer would hide a conformance gap
-every application meets, and this port's own dodge is about pipelines and descriptors, not
-about this image.
+**Waiting on `../PS5_Vulkan` for R2** — the three core 1.0 descriptor types vkQuake declares
+and the driver advertises per-stage limits for. Nothing in this tree gets past
+`R_CreatePipelines` without it, and the port has already done the half that is its own:
 
-The run's own next stop is unchanged, and it is this tree's: the first
-`vkCreateGraphicsPipelines` refused because the driver checks the pipeline layout's bindings
-rather than the shader's used ones, and vkQuake's `basic_pipeline_layout` names the
-three-input-attachment set — the dodge below, which needs nothing from the driver.
+**The four-set accommodation** (`platform/ps5/vkquake-edits.py`, ten edits, applied by the
+engine build and pinned by `tests/test_vkquake_edits.py`): OIT's input-attachment set leaves
+the world and md5 layouts — which is what fits them inside the four sets the driver binds —
+the bmodel instance block moves from set 4 to set 3 in the layout, in `Shaders/world.vert` and
+at all four bind sites, `r_oit` defaults to 0 so a frame never selects the dropped family, and
+`tools/build-vkquake-shaders.sh` compiles the oit/mboit *variants* as their base shader because
+a shader declaring a set its layout does not hold is a mismatch rather than a warning. The
+retirement trigger is R2 plus the driver's MRT item: with input attachments and multi-colour
+renderings, OIT comes back and these edits are reverted.
+
+Build identity `1d7bd836df05a745`, `bash tools/verify.sh` PASS. It deploys the moment R2 lands —
+and not before, because the run would stop at this same line.
 
 Behind it, in order: **R2**'s bare `SAMPLER` (the GUI pipelines, which vkQuake creates
 unconditionally at start-up and the port cannot dodge cheaply), and **R4**'s refusal shape,
@@ -96,21 +108,14 @@ open item with that scope.
   (`evidence/exit-sigsys/`). Its frames are unsymbolized because `build/title.map`
   came from a later build than the binary that crashed, so it waits on the same thing
   the next step is: a freshly built title and a run of it.
-- **The descriptor shapes are the port's own work after that run.** vkQuake declares
-  five sets for the world pipeline where the driver advertises four, and three of its
-  layouts name types the driver has no entry for. The cheap route: do not create the
-  OIT pipeline variants, drop the input-attachment set, renumber the bmodel set from 4
-  to 3 — four sets, no merge of the three texture sets, and nothing asked of the
-  driver for the world. The menu path is the harder one: vkQuake's GUI shader takes a
-  separate `texture2D` and `sampler`, which is R2's second and third type.
-- **The lightmap compute path was recorded as blocked on storage images.** The driver
-  has since shipped compute dispatch, storage-image descriptors and storage-image
-  format bits (`d2-compute`, `v0-storage-image`), but its table still has no
-  `SAMPLED_IMAGE` entry, which vkQuake's `lightmap_compute` layout uses twice. Re-check
-  this before treating M6's lightmap step as blocked.
+- **Whether the menu needs its own accommodation.** vkQuake's GUI shader reads a separate
+  `texture2D` and `sampler` in two sets; R2 gives it the types, and if a run still refuses
+  there the choice is a second edit (a combined sampler in the GUI path) or waiting for the
+  driver. Not decided until a run says which.
 
 ## Blockers
 
-**None on the driver's side for this port's next steps.** The driver advertises
-`maxBoundDescriptorSets = 4` and honours it, which the shapes above fit inside; the two
-gates this port was waiting on are closed. What is left is in this tree.
+**R2 is the one thing in the way of the first frame** — the input-attachment type for the
+basic pipelines, the bare sampler for the GUI ones, the sampled image for the lightmap
+compute pass. Everything else that stopped a run so far is closed, and the port's own half of
+this one is built and waiting on a gate that is not its own.

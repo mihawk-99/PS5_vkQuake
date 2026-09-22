@@ -44,9 +44,12 @@ class VkQuakeEdits(unittest.TestCase):
         """A copy of vkQuake holding exactly the text the edits match."""
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
-        source = root / vkquake_edits.EDITS[0].path
-        source.parent.mkdir(parents=True)
-        source.write_text('before\n' + vkquake_edits.EDITS[0].before + 'after\n', encoding='utf-8')
+        for edit in vkquake_edits.EDITS:
+            source = root / edit.path
+            source.parent.mkdir(parents=True, exist_ok=True)
+            existing = source.read_text(encoding='utf-8') if source.is_file() else ''
+            source.write_text(existing + 'before\n' + edit.before * edit.count + 'after\n',
+                              encoding='utf-8')
         return root
 
     def test_applies_once_and_is_idempotent(self):
@@ -55,25 +58,28 @@ class VkQuakeEdits(unittest.TestCase):
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertIn('applied', first.stdout)
 
-        text = (root / vkquake_edits.EDITS[0].path).read_text(encoding='utf-8')
-        self.assertIn(vkquake_edits.EDITS[0].after, text)
-        self.assertNotIn(vkquake_edits.EDITS[0].before, text)
-        # The wish survives inside the intersection, so the edit is the specification's
-        # requirement rather than a removal of vkQuake's own intent.
-        self.assertIn('VK_IMAGE_USAGE_TRANSFER_SRC_BIT', text)
+        for edit in vkquake_edits.EDITS:
+            text = (root / edit.path).read_text(encoding='utf-8')
+            self.assertIn(edit.after, text)
+            self.assertNotIn(edit.before, text)
+        # The swapchain's wish survives inside the intersection, so that edit is the
+        # specification's requirement rather than a removal of vkQuake's own intent.
+        vidsdl = (root / vkquake_edits.EDITS[0].path).read_text(encoding='utf-8')
+        self.assertIn('VK_IMAGE_USAGE_TRANSFER_SRC_BIT', vidsdl)
 
         second = run(root)
         self.assertEqual(second.returncode, 0, second.stderr)
         self.assertIn('already applied', second.stdout)
-        self.assertEqual(text, (root / vkquake_edits.EDITS[0].path).read_text(encoding='utf-8'))
+        for edit in vkquake_edits.EDITS:
+            self.assertIn(edit.after, (root / edit.path).read_text(encoding='utf-8'))
 
     def test_check_writes_nothing(self):
         root = self.fake_tree()
         result = run(root, '--check')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('would apply', result.stdout)
-        self.assertIn(vkquake_edits.EDITS[0].before,
-                      (root / vkquake_edits.EDITS[0].path).read_text(encoding='utf-8'))
+        for edit in vkquake_edits.EDITS:
+            self.assertIn(edit.before, (root / edit.path).read_text(encoding='utf-8'))
 
     def test_missing_text_fails_the_build(self):
         """A revision that moves the text must stop the build, not compile past it."""

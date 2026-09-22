@@ -1572,3 +1572,56 @@ Verify:
   $ python3 tools/evidence.py compare evidence/
   m2-color-buffer: OK (raw klog/trace-20260922T152722Z.txt, 328 lines)
   6 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the first pipeline, which is where the port said it would be
+
+**A console run, build identity `56074ab0e0a278f5`** — the one after R5. Recorded as
+`evidence/m2-pipelines/`:
+
+```
+Creating color buffer / AA disabled / Creating depth buffer
+Creating render passes / Creating frame buffers / Creating pipelines
+QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest) with code -13
+```
+
+**This is a prediction that became a measurement**, and it was written into `docs/ACTIVE.md`
+three driver rounds before the run reached it: the driver checks the **pipeline layout**'s
+bindings rather than the shader's used ones (`ps5vk_descriptor_options`), vkQuake's
+`basic_pipeline_layout` is `{single_texture, mboit_input_attachment}`, and the second set is
+three `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage — a type `ps5vk_descriptor_stride` has
+no entry for. No engine patch moves it: the basic pipelines need that type, the GUI pipelines
+need a bare `SAMPLER` and the lightmap compute layout needs `SAMPLED_IMAGE`. All three are R2,
+and R2 is now the only thing between this port and its first frame.
+
+### The port's own half, built and gated but not deployed
+
+The four-set accommodation, in `platform/ps5/vkquake-edits.py` — ten exact-match edits, applied
+by `tools/build-vkquake-engine.sh` before anything compiles, plus one rule in the port's own
+shader script:
+
+- the world and md5 layouts give up OIT's input-attachment set, which is what fits them inside
+  the four sets this driver binds;
+- the bmodel instance block moves from set 4 to set 3 — the layout, `Shaders/world.vert`'s two
+  declarations, and all four bind sites (`r_brush.c` twice, `r_world.c` twice). This is the
+  part R2 does *not* fix: a set index at the limit is refused whatever its type;
+- `r_oit` defaults to 0, so a frame never selects the family whose subpass needs two colour
+  attachments and an input-attachment read;
+- `tools/build-vkquake-shaders.sh` compiles the `oit`/`mboit` variants as their base shader,
+  because their composite forms declare a set the layouts no longer hold — and a shader that
+  declares a set its layout does not is a mismatch rather than a warning. The symbols stay, so
+  `Shaders/shaders.h`'s own set is unchanged.
+
+**Retirement**: R2 plus the driver's MRT item. With input-attachment descriptors and renderings
+into more than one colour attachment, OIT is a capability rather than a gap, and this edit list
+is reverted.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  m2-pipelines: OK (raw klog/trace-20260922T155056Z.txt, 398 lines)
+  7 capture(s) replayed, 0 failed
+  $ python3 platform/ps5/vkquake-edits.py --root vendor/vkQuake --check
+  ==> [edits] 10 edit(s) present in vendor/vkQuake
