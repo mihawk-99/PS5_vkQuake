@@ -1686,3 +1686,44 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   8 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: every compile fits, and the stop becomes a topology
+
+**A console run, build identity `4dc9c645c017f8e9`** — the one after the mmap-threshold fix.
+Recorded as `evidence/m2-warp-strip/`:
+
+```
+Creating pipelines
+[ps5vk] compile start: nir=0 … [ps5vk] compile done: result=0     (for every pipeline created)
+vkCreateGraphicsPipelines -> -13
+QUAKE ERROR: vkCreateGraphicsPipelines failed (warp) with code -13
+```
+
+The threshold fix is confirmed by the compile lines themselves: the run before died inside the
+*first* compile, and this one reports `result=0` for every one of them — the internal heap was
+the whole of that failure. Two `SPIR-V WARNING: Unsupported SPIR-V capability: SpvCapabilityImageQuery`
+lines appear among them and are recorded rather than explained; the pipelines declaring it still
+compile.
+
+### The stop, and why it is the driver's
+
+The `warp` pipeline is the texture-warp pass's mesh and it asks for
+`VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP` (`Quake/gl_rmisc.c:3094`), while `../PS5_Vulkan` maps only
+`TRIANGLE_LIST` and `META_RECT_LIST_MESA` (`ps5vk_pipeline.c:1213-1216`, with a refusal that
+names the limit). `TRIANGLE_STRIP` is core Vulkan 1.0 with no feature bit gating it, and the
+port cannot dodge it equivalently: `Quake/gl_warp.c` builds a warp-tessellated strip mesh — two
+vertices per row, `num_verts` growing as the tesselation tightens, consecutive rows sharing an
+edge — so writing it as a list would change how upstream generates the mesh rather than how the
+driver interprets it.
+
+Written up as **R6** in `docs/PS5_VULKAN_REQUESTS.md`: map the topology where the list is mapped,
+accept it with a probe that draws the same geometry both ways and compares the frames, and leave
+the other topologies refused.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  9 capture(s) replayed, 0 failed
