@@ -1902,3 +1902,86 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   14 capture(s) replayed, 0 failed
+
+## 2026-09-22 — start-up reaches the postprocess pass, and the driver aborts on a subpass read
+
+### What was run
+
+Build identity `b41844d2` (the memory-diagnostics build, relinked against `libps5vk.ps5.a` of 16:11,
+`sha256 f3d749d6…`), launched on the console and left running for several minutes; the trace was read
+twice per observation and cross-checked against a live klog listener, because this console's FTP has
+been measured serving another title's bytes.
+
+### What it did
+
+`R_CreatePipelines`, for roughly eight minutes, compiling shaders at about one a second:
+
+```
+Creating pipelines
+[ps5vk] compile start: nir=0 words=… / [ps5vk] compile done: result=0    528 times
+```
+
+**528 compiles is 267 pipelines** (six of them the fragment-less sky marking passes, which
+compile one stage each), and no refusal interrupts any of them: basic (seven render-pass
+variants of `draw_pic` and its xBR twin), warp, particles, FTE particles, sprites, sky, showtris, the
+whole world family — sixteen permutations carrying five specialization constants, which is R9's
+question — then alias and md5. The previous best run stopped at 276 compiles with
+`vkCreateGraphicsPipelines failed (world 0) with code -13`; this one passes that point, passes the
+entire world family, and keeps going.
+
+Then it dies at the next pipeline:
+
+```
+[ps5vk] compile start: nir=0 words=88013e768
+SPIR-V WARNING: src/compiler/spirv/spirv_to_nir.c:5651
+    Unsupported SPIR-V capability: SpvCapabilityInputAttachment (40)
+ACO ERROR: src/amd/compiler/instruction_selection/aco_select_nir_intrinsics.cpp:5132:
+    Unimplemented intrinsic instr: div 32x3  %1 = @load_input_attachment_coord (%0 (0x0))
+```
+
+The console reports no `QUAKE ERROR`, no exit line and no sentence naming a limit: the title is gone
+because the driver's compiler reached an intrinsic it cannot select. The screen was black for the
+whole run, which is now explained rather than mysterious — the engine was inside pipeline creation,
+which prints nothing per pipeline.
+
+### Which shader, and why it is the one that matters
+
+`tools/check-shader-capabilities.py` reads `OpCapability` out of every deployed shader in
+`build/vkquake/generated` (`evidence/m2-shader-capabilities/`): five declare `InputAttachment` —
+`postprocess_frag`, `wboit_resolve_frag`, `mboit_resolve_frag` and two MSAA twins — and one
+function, `R_CreatePostprocessPipelines`, creates the three non-MSAA ones in that order. Nothing
+among the pipelines before it declares the capability, so the stop is at `postprocess`, and that
+is the expensive one: vkQuake's UI pass is two subpasses over two colour attachments, subpass 1 is
+`Shaders/postprocess.frag` reading subpass 0's colour buffer through `subpassLoad` and writing the
+swapchain image, and that single `vkCmdDraw (3, 1, 0, 0)` is the only draw that ever writes a
+swapchain image. Without the read there is nothing to present, which makes this a capability on the
+frame path rather than a bug beside it.
+
+### What it means
+
+- **R9 is closed on the console**, by the strongest evidence available to this port: 267 pipelines
+  created where a specialization-constant refusal used to stop the engine at 138.
+- **R10 is opened** (`docs/PS5_VULKAN_REQUESTS.md`): the subpass read, and — separately, and worth
+  doing whatever the read's schedule — the abort turned into a refusal that names the limit.
+- The port's alternative, if the read is published as permanently absent, is a UI pass of one
+  subpass drawing into the swapchain image. It is recorded and not started, because it deletes the
+  engine's gamma and contrast pass.
+- The next stop after this one is probably a compute kernel: the shaders declaring capabilities 46,
+  49, 61, 65, 4472 and 5347 are all created *after* the postprocess pass, so none has been compiled
+  yet.
+
+### Evidence
+
+`evidence/m2-subpass-input/` (the run's tail, distilled with the build identity and the abort) and
+`evidence/m2-shader-capabilities/` (the capability scan of the deployed set). The scan is
+reproducible with:
+
+```
+  $ python3 tools/check-shader-capabilities.py
+```
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  16 capture(s) replayed, 0 failed

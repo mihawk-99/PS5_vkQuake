@@ -827,3 +827,97 @@ defaults. The port's own test is `world 0` creating, and then a world frame.
 - No claim about `OpSpecConstantOp` beyond folding what the pipeline's values decide — a driver
   that refuses an operation it cannot fold, by name, is doing the right thing.
 - No `VK_KHR_maintenance*`-shaped extras, no workgroup or subgroup constants.
+
+## R10 — a subpass input read aborts the title, and vkQuake's UI pass is built on one
+
+**Status.** **Measured** on the console as an *abort*, not a refusal. The run dies at
+
+```
+Unsupported SPIR-V capability: SpvCapabilityInputAttachment (40)
+    28 bytes into the SPIR-V binary
+ACO ERROR: src/amd/compiler/instruction_selection/aco_select_nir_intrinsics.cpp:5132:
+    Unimplemented intrinsic instr: div 32x3  %1 = @load_input_attachment_coord (%0 (0x0))
+```
+
+after **528 shader compiles** into `R_CreatePipelines` — 267 pipelines by the stage arithmetic, six
+of them the fragment-less sky marking passes — with no refusal anywhere (`evidence/m2-subpass-input/`,
+build identity `b41844d2`). No `QUAKE ERROR`, no `VkResult`, no sentence naming a limit: the driver's
+compiler reached an intrinsic its instruction selection has no case for and took the title with it,
+minutes into start-up. R9 is closed by this run: everything before this pipeline compiled, the whole
+world family included.
+
+**Reported against.** `../PS5_Vulkan` `47fb2a2` — the archive this port links,
+`build/driver/ps5/libps5vk.ps5.a`, 14,374,298 bytes, `sha256 f3d749d6…`, built 2026-09-22 16:11 on
+this host.
+
+### The shader, and why it is the postprocess one
+
+`tools/check-shader-capabilities.py` reads the deployed set out of `build/vkquake/generated`
+(`evidence/m2-shader-capabilities/`): five shaders declare `OpCapability InputAttachment` —
+`postprocess_frag`, `wboit_resolve_frag`, `mboit_resolve_frag` and the MSAA twins of the last two.
+All five are created by one function, `R_CreatePostprocessPipelines`, in this order: `postprocess`,
+`wboit_resolve`, `mboit_resolve`. The stop is at the first of them, because nothing among the
+pipelines created before it declares the capability — the world, alias and md5 families compiled
+their own fragments, OIT variants included, as base shaders.
+
+### Why the port cannot work around it
+
+vkQuake's UI render pass is **two subpasses over two colour attachments**: subpass 0 draws the menu
+and the HUD into the offscreen colour buffer, and subpass 1 is the postprocess pass —
+`Shaders/postprocess.frag` reads that buffer through `subpassLoad (color_input)` and writes the
+swapchain image with gamma and contrast applied. `GL_RecordPostProcess` (`gl_vidsdl.c:4005`) runs
+whenever a swapchain image was acquired, and that one `vkCmdDraw (3, 1, 0, 0)` is the *only* draw
+into the swapchain attachment. Skip the pass and the acquired image is never written: a black screen
+by construction, not a workaround.
+
+The port's own shader accommodation does not reach it either — the OIT variants are compiled as base
+copies, and `postprocess.frag` is upstream's file, used unmodified. The port *can* restructure the UI
+pass to one subpass drawing straight into the swapchain image, and will do that only if this driver
+publishes the limit as permanent: it deletes an engine feature (gamma and contrast over the whole
+frame) rather than routing around a bug.
+
+### What would close it
+
+The read itself: `VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT` reaching a fragment stage, and the fork's
+compiler selecting instructions for it — either by giving ACO a case for `@load_input_attachment_coord`
+and the load behind it, or by lowering the read to an image-load form ACO already selects for, before
+ACO sees it. R5 already maps the *usage* bit and R2's family already maps the descriptor types this
+port binds; what is missing is the read, on a render pass whose subpass 1 names subpass 0's colour
+attachment as an input.
+
+**And the abort is worth fixing on its own**, whatever the read's schedule: a shader the compiler
+cannot lower has to reach the application as a `VkResult` and a sentence naming the limit, not as a
+dead console title. Same shape as R4 — the check is right, the form is wrong.
+
+**Acceptance**, in the driver's own shape, two probe cases:
+
+1. *Positive*: a two-subpass render pass over two colour attachments. Subpass 0 writes a known colour
+   that differs from the clear colour; subpass 1 reads it as an input attachment and writes it to the
+   second attachment. Read back, the second attachment holds the first's colour.
+2. *Negative*, and runnable today on an archive that cannot lower the read:
+   `vkCreateGraphicsPipelines` with a fragment shader declaring `InputAttachment` returns a
+   `VkResult` and refuses by name — no `ACO ERROR`, no abort.
+
+The port's own test is `postprocess` creating, and then a UI frame presenting the swapchain image.
+
+### Also seen, off this crash path
+
+- `draw_pic_xbr_frag` and `draw_pic_xbr_alphatest_frag` — the menu's upscaler — declare
+  `SpvCapabilityImageQuery (50)`. The fork warns and compiles them anyway (`result=0`), seven
+  render-pass variants each, which is the fourteen warnings in every run's trace. If there is no
+  lowering for `OpImageQuerySize`, the upscaler scales wrongly rather than not at all; worth a line
+  either way.
+- A forward view from the same scan: 20 of the 67 deployed shaders declare capabilities beyond
+  `Shader`, and the compute kernels created *after* `postprocess` are the ones carrying them —
+  storage-image writes (46), subgroup operations (49, 61, 65), physical storage buffer addresses
+  (4472, 5347). This port would rather be told they are absent than find out by run; the list is
+  `evidence/m2-shader-capabilities/`, and the ask is that each is either lowered or refused by name.
+
+### What is not being asked
+
+- No OIT. The port dropped it (`r_oit` defaults to 0; the moment and accumulation attachments are
+  out of the world and md5 layouts) and names the retirement in `platform/ps5/vkquake-edits.py`.
+- No MSAA input attachments: this path runs at one sample.
+- No renderings into more than the UI pass needs — two colour attachments, two subpasses, one read.
+- No change to how vkQuake builds pipelines: the read arrives in SPIR-V through a shader module,
+  exactly as today.

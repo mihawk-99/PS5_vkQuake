@@ -1,0 +1,28 @@
+{
+  "step": "m2-subpass-input",
+  "recorded": "2026-09-22T20:47:25Z",
+  "console_run": "b41844d2 port build, run left alive until the abort",
+  "revision": "",
+  "command": "tools/console-run.sh PPSA99010",
+  "raw_capture": "klog/slice-subpass.txt",
+  "raw_lines": 16,
+  "raw_bytes": 779,
+  "lines": [
+    "[build identity: b41844d21ffc690c9753a95f25c81184e1e34896ca3eb5d6b2d9a3dd78514f87",
+    "...",
+    "[ps5vk] compile start: nir=0 words=880135c48",
+    "[ps5vk] compile done: result=0",
+    "[ps5vk] compile start: nir=0 words=880139748",
+    "[ps5vk] compile done: result=0",
+    "[ps5vk] compile start: nir=0 words=880137388",
+    "[ps5vk] compile done: result=0",
+    "[ps5vk] compile start: nir=0 words=88013e408",
+    "[ps5vk] compile done: result=0",
+    "[ps5vk] compile start: nir=0 words=88013e768",
+    "SPIR-V WARNING:",
+    "    In file src/compiler/spirv/spirv_to_nir.c:5651",
+    "    Unsupported SPIR-V capability: SpvCapabilityInputAttachment (40)",
+    "    28 bytes into the SPIR-V binary",
+    "ACO ERROR: src/amd/compiler/instruction_selection/aco_select_nir_intrinsics.cpp:5132: Unimplemented intrinsic instr: div 32x3  %1 = @load_input_attachment_coord (%0 (0x0))"
+  ]
+}
