@@ -21,7 +21,21 @@ extern "C"
 
 namespace
 {
-constexpr size_t threshold = 1024 * 1024;
+/* Below this, an allocation goes to SceLibcInternal's own heap; at or above it, to
+ * mmap. It was 1 MiB, and a console run measured why that is too high: the run
+ * reached the first pipeline compile and died inside it, and the allocation report
+ * (build identity 5cdf664e, evidence/m2-internal-heap/) shows the internal heap at
+ * 13.7 MB in 1780 allocations when a 64 KiB malloc failed — the engine's own
+ * start-up filling it before the compiler asked for anything (NET_Init 6.5 MB,
+ * VID_Init 3.7 MB, the driver's objects and command buffers 1.2 MB), and the
+ * compiler then having no room. The console's own sentence confirms it:
+ * "[ScePthread/System] Internal Memory is running out."
+ *
+ * 32 KiB moves that traffic out while leaving small allocations where they are
+ * cheap: a mapping is page-rounded, so routing an 8-byte request through it would
+ * cost 16 KiB. What stays native is the engine's small churn (under 1 MB here) and
+ * the compiler's own small allocations, against a heap that is no longer full. */
+constexpr size_t threshold = 32 * 1024;
 constexpr size_t page = 0x4000;
 struct alignas(std::max_align_t) Mapping
 {

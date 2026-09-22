@@ -7,7 +7,11 @@
 
 #include "trace.hpp"
 
+#include "memory_diagnostics.hpp"
+#include "../build/title_build_identity.h"
+
 #include <cstdio>
+#include <cstdlib>
 
 namespace ps5::debug
 {
@@ -16,6 +20,14 @@ namespace
 /* Inside the title's own folder, which the console mounts at /app0 and which the
  * trace files written by an earlier build proved is writable. */
 constexpr const char *trace_path = "/app0/trace.txt";
+
+/* Where the allocation report goes when the build carries the diagnostics
+ * (PS5_MEMORY_DIAGNOSTICS=1, and the flag is part of the build identity, so a
+ * diagnostics run is distinguishable from a normal one). Its own file rather than
+ * the trace, because a failure line is written the moment an allocation fails -
+ * which is what a run that dies inside a library leaves behind. Without the define
+ * the header's other half makes all of this a no-op. */
+constexpr const char *memory_path = "/app0/memory.txt";
 
 void write(const char *line) noexcept
 {
@@ -54,6 +66,12 @@ struct ConsoleStreams
             std::setvbuf(stderr, nullptr, _IONBF, 0);
         if (std::freopen(trace_path, "a", stdout) != nullptr)
             std::setvbuf(stdout, nullptr, _IONBF, 0);
+        /* Opened here, before main, so the report covers the whole title: the
+         * engine's start-up allocations are half of what a memory question is
+         * about. finish() runs at exit when the title gets that far; when it does
+         * not, the failure lines are already on disk. */
+        ps5::memory::init(memory_path, PS5_VKQUAKE_BUILD_ID);
+        std::atexit(ps5::memory::finish);
     }
 };
 
