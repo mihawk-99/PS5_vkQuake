@@ -1,0 +1,15 @@
+{
+  "step": "m2-end-command-buffer",
+  "note": "Pipeline creation finished - 538 shader compiles, no refusal, and the input-attachment shaders R10 unblocked compiled - and then the engine recorded its first frame and vkEndCommandBuffer returned -13 with an empty refusal block. The stop is in recording, before submit, so no frame was presented.",
+  "must_contain": [
+    "build identity: 71b0989185c3a96cb69e54a3c5ffe8bb773b046260e0a8b4fb84f1ce988bc79a",
+    "538 shader compiles between 'Creating pipelines' and the stop; 0 refusals in that stretch",
+    "vkEndCommandBuffer -> -13",
+    "QUAKE ERROR: vkEndCommandBuffer failed with code -13"
+  ],
+  "must_not_contain": [
+    "vkCreateGraphicsPipelines failed",
+    "ACO ERROR"
+  ],
+  "human_check": "This record is the first time the port reached a frame. Everything before the frame is behind it: 538 shader compiles with no refusal in that stretch - including the input-attachment shaders R10 unblocked, whose SpvCapabilityInputAttachment warnings now end in compile done: result=0 - and then the engine finished start-up and began recording its first command buffer. What stops it is a recording refusal: vkEndCommandBuffer returns -13, and the blocker is that the refusal block is EMPTY. 'ERROR-OUT BEGIN' is followed by two blank lines, so nothing names the command the driver refused. That is R4's rule again - a refusal must name its field - and it is why this is R11 and not a port bug: the port cannot act on an unnamed refusal, and the driver's own recording refusals do carry messages (ps5vk_cmd_buffer_refuse takes one). No frame was presented, because the refusal is in recording, before the submit. The must_not_contain needles are the previous two stops (a refused pipeline, an ACO abort), so a regression to either is visible."
+}
