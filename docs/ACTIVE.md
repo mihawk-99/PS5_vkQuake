@@ -65,7 +65,19 @@ open item with that scope.
 
 ## Next
 
-**R6's driver half is in the tree and in the artifact this port links** — the topology now reaches
+**The strip worked and the run walked on to the compute variant of the same effect.**
+`evidence/m2-compute-bindings/` (identity `900d2d14`): the warp *graphics* pipeline — the one
+refused for `TRIANGLE_STRIP` — creates, so R6's driver half is confirmed from this side, and the
+run stops at `vkCreateComputePipelines failed (cs_tex_warp) with code -13` because
+`../PS5_Vulkan`'s dispatch path accepts exactly one declared binding and requires a storage buffer
+(`ps5vk_compute.c`), while that kernel reads a texture and writes a storage image in two sets.
+vkQuake prefers that compute path (`r_waterwarpcompute` defaults to 1) and the raster path does the
+same job through the strip pipeline the driver just learned, so **the port defaults it to 0** as a
+registered accommodation — the eleventh edit, retiring when the driver's compute path takes the
+bindings its graphics path already takes. The lightmap update has no such alternative, so it is
+**R7** in `docs/PS5_VULKAN_REQUESTS.md`, recorded now and not blocking the first frame.
+
+**Earlier, for the record:** R6's driver half is in the artifact this port links — the topology now reaches
 the hardware as `sceAgcLinkShaders`'s `primitive_type` (DI_PT 5 for a strip, 4 otherwise), and the
 refusal accepts both — so the port is testing it rather than waiting on it. Verified the way this
 project verifies driver artifacts after three rounds of the same trap: `driver/ps5vk_pipeline.c`
@@ -90,7 +102,8 @@ not driven.
 
 ## Blockers
 
-**R6 is the one thing in the way of the first frame.** Everything else that stopped a run so far
-is closed: the two driver gates this port began with, its own loader aliasing, the swapchain's
-usage, the buffer view's sentinel, the image usage, the descriptor types, and the port's own
-allocator threshold. What remains is one topology the driver has never mapped, and a request.
+**Nothing is blocking the next run.** Every stop so far is closed — the two driver gates this port
+began with, its own loader aliasing, the swapchain's usage, the buffer view's sentinel, the image
+usage, the descriptor types, the allocator threshold, and now the strip topology with the port's
+own warp default behind it. What remains is what the run finds next, and R7 for the lightmap pass
+when M6 arrives.

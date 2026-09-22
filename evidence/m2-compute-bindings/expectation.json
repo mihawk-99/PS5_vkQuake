@@ -1,0 +1,13 @@
+{
+  "step": "m2-compute-bindings",
+  "note": "The run after the driver's R6 half, and the strip mapping is what it says: the warp graphics pipeline - the one refused for TRIANGLE_STRIP before - is created, and the run walks on to the compute pipeline of the same effect, cs_tex_warp, which the driver's dispatch path refuses after its compile succeeds (compile done: result=0 followed by vkCreateComputePipelines -> -13). That path accepts exactly one declared binding and requires it to be a storage buffer (ps5vk_compute.c: 'a dispatch needs one declared binding ...'), while this kernel reads a texture and writes a storage image through two sets (gl_warp.c, R_ComputeWarpTexture binds 2). vkQuake defaults to that compute path: r_waterwarpcompute is 1.",
+  "must_contain": [
+    "build identity: 900d2d14",
+    "compile done: result=0",
+    "QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13"
+  ],
+  "must_not_contain": [
+    "vkCreateGraphicsPipelines failed"
+  ],
+  "human_check": "Two things are true here and the port acted on both. The strip fix worked: the warp graphics pipeline creates, so R6's driver half is confirmed from this side even though the driver's own case is still red on its harness. And the next stop is the compute variant of the same effect, which the port does not need: r_waterwarpcompute defaults to 1 but the raster path does the same job through the strip pipeline the driver just learned, so the port defaults it to 0 as a registered accommodation with a retirement trigger (the driver's compute path taking the bindings its graphics path already takes). That is not a workaround for R6 - the raster path is upstream's own code. The driver item that remains is R7: the lightmap update compute pass genuinely needs several bindings (a storage image and two sampled images), so the compute path has to grow regardless, just not before the first frame."
+}
