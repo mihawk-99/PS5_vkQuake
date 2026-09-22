@@ -705,3 +705,53 @@ creating, and after that the lightmap pass when M6 reaches it.
 - No change to the graphics path's descriptor handling, which already takes N bindings and sets.
 - No new descriptor types: this is the dispatch reading the table the driver already writes.
 - No schedule: the port has no run worth spending until this lands, and says so in `docs/ACTIVE.md`.
+
+---
+
+## R8 — `VK_PRIMITIVE_TOPOLOGY_LINE_LIST` is refused, and it is core 1.0
+
+**Status.** **Measured** on the console: the run's only refusal after 275 successful pipeline
+compiles is `QUAKE ERROR: vkCreateGraphicsPipelines failed (debug_lines) with code -13`
+(`evidence/m2-debug-lines/`, build identity `c899d93e`).
+
+**Reported against.** `../PS5_Vulkan` `a6f43d7`.
+
+### The refusal, and the one pipeline that meets it
+
+The topology check that R6 widened to triangle lists *and* strips does not map lines. In vkQuake
+exactly one pipeline asks for one: `Quake/gl_rmisc.c`, `R_CreateShowTrisPipelines` →
+`debug_lines_pipeline[variant]`, with `VK_PRIMITIVE_TOPOLOGY_LINE_LIST` (`:3460`) — the
+bounding-box debug draw. The FTE particle family also names `LINE_LIST`, but only inside a loop
+gated on `vulkan_globals.non_solid_fill`, which this device does not claim, so its line variants
+are never built.
+
+`VK_PRIMITIVE_TOPOLOGY_LINE_LIST` is core Vulkan 1.0 with no feature bit gating it, exactly like
+the strip R6 mapped, and the same class of application meets it: anything drawing a debug
+renderer, an editor grid, or a wire overlay.
+
+### What the port is doing meanwhile
+
+The pipeline is created only when the feature that draws with it is asked for
+(`r_showbboxes`/`r_showfields`, both off by default) — mirroring the FTE particle family's own
+conditional creation. That is the eleventh edit in `platform/ps5/vkquake-edits.py`, and it retires
+when this request lands: vkQuake's own creation is unconditional again.
+
+### What would close it
+
+Map the topology where the list and the strip are mapped. Lines bring one thing strips did not: a
+line's width and its rasterisation rules are their own state (`wideLines` stays unclaimed and
+refused — this port asks for no width), so the register pair for lines is the part to source
+rather than guess, and the acceptance has to show it.
+
+**Acceptance**, in the driver's own shape: a probe that draws the same geometry as a
+`LINE_LIST` and as the equivalent triangle pairs — or, if that equivalence is not what the
+hardware's line rasterisation gives, as a line list against a golden the probe's own readback
+defines — read back and compared, plus the same frame with culling disabled and enabled. The
+port's own test is `debug_lines` creating, and then `r_showbboxes 1` drawing something readback
+can see.
+
+### What is not being asked
+
+- No `wideLines`: the feature stays unclaimed and the width stays refused by name.
+- No `LINE_STRIP`, no point topologies, no `polygonMode` beyond `FILL`. One topology, proved.
+- No change to the R6 strip path or to `META_RECT_LIST_MESA`.

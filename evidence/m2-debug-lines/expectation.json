@@ -1,0 +1,13 @@
+{
+  "step": "m2-debug-lines",
+  "note": "The longest run yet: 275 pipeline compiles, all result=0, and a single refusal at the end. The fragment-less draft works - vkQuake's sky_stencil pipelines (stageCount = 1, stencil ALWAYS/REPLACE, colour mask 0) are created, which is the first console evidence for that work - and the run walks the pipeline families up to showtris, where debug_lines is refused for VK_PRIMITIVE_TOPOLOGY_LINE_LIST. R7's compute work is confirmed from this side too: the compute pipelines that stopped the two previous runs (cs_tex_warp, screen effects, lightmap, indirect) no longer refuse. The debug-lines pipeline is the only line-topology pipeline vkQuake creates: the FTE particle family's line variants are gated on vulkan_globals.non_solid_fill, which this device does not claim, so its line variants are never built.",
+  "must_contain": [
+    "build identity: c899d93e",
+    "Creating pipelines",
+    "QUAKE ERROR: vkCreateGraphicsPipelines failed (debug_lines) with code -13"
+  ],
+  "must_not_contain": [
+    "vkCreateComputePipelines failed"
+  ],
+  "human_check": "Two of the driver's pieces are confirmed here at once, and the third is a debug feature. The fragment-less draft creates vkQuake's sky-stencil pipelines, which is what the port needs for the sky occlusion pass; R7's shared compute tables carry the kernels that stopped the previous two runs. What remains is upstream's debug bounding-box draw - the only place vkQuake asks for a line topology - and the port does not need it for a frame, so the pipeline is created only when r_showbboxes or r_showfields asks for it, mirroring the FTE particle family's own conditional creation. The driver item is R8: map LINE_LIST the way R6 mapped the strip, which retires the edit."
+}

@@ -36,9 +36,16 @@ a shader that declares a set the layout no longer holds is a mismatch, not a war
 symbols stay, so Shaders/shaders.h's own set is unchanged.
 
 Retirement: when ../PS5_Vulkan implements the input-attachment descriptor type, subpass input
-reads and renderings into more than one colour attachment, revert this edit list, restore
-Shaders/world.vert's `set = 4`, and rebuild the shader variants with their OIT defines. The
-port then has the WBOIT/MBOIT path it was written for.
+reads and renderings into more than one colour attachment, revert the OIT half of this list,
+restore Shaders/world.vert's `set = 4`, and rebuild the shader variants with their OIT defines.
+The port then has the WBOIT/MBOIT path it was written for.
+
+**3. The debug-lines pipeline is created only when its feature is asked for.** It is the one
+place vkQuake asks for `VK_PRIMITIVE_TOPOLOGY_LINE_LIST`, which ../PS5_Vulkan does not map, and
+it belongs to the bounding-box debug draw -- off unless `r_showbboxes` or `r_showfields` is set.
+The FTE particle family already creates its line variants conditionally (on the device being
+able to fill non-solid), so this mirrors upstream's own pattern. Retire it when LINE_LIST is
+mapped, which is request R8.
 
 Every edit is an exact-match replacement with a required occurrence count, so a vkQuake
 revision that moves or rewrites the text fails this script loudly instead of compiling
@@ -177,6 +184,26 @@ EDITS = (
         after="world_pipeline_layout.handle, 3, 1, &vulkan_globals.bmodel_instances_desc_set",
         why="the same bind in the world draw (the other two sites)",
         count=2,
+    ),
+    Edit(
+        path="Quake/gl_rmisc.c",
+        before=(
+            "\t\tR_CreateGraphicsPipeline (\n"
+            "\t\t\t&vulkan_globals.debug_lines_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va (\"debug_lines%s\", pass_suffix));\n"
+        ),
+        after=(
+            "\t\t/* PS5 vkQuake: the debug bounding-box draw's pipeline, and the only place\n"
+            "\t\t * vkQuake asks for a line topology -- ../PS5_Vulkan maps triangle lists and\n"
+            "\t\t * strips. The FTE particle family creates its line variants only when the\n"
+            "\t\t * device can fill non-solid, so this is the same idea: the pipeline exists\n"
+            "\t\t * when the feature that draws with it is asked for at start-up.\n"
+            "\t\t * r_showbboxes and r_showfields are off by default, so a normal run never\n"
+            "\t\t * binds the handle this leaves null. Retire it when LINE_LIST is mapped. */\n"
+            "\t\tif (r_showbboxes.value != 0.0f || r_showfields.value != 0.0f)\n"
+            "\t\t\tR_CreateGraphicsPipeline (\n"
+            "\t\t\t\t&vulkan_globals.debug_lines_pipeline[variant], &infos, vulkan_globals.basic_pipeline_layout, va (\"debug_lines%s\", pass_suffix));\n"
+        ),
+        why="the debug-lines pipeline asks for a line topology the driver has not mapped; it is a debug draw, off by default",
     ),
 )
 
