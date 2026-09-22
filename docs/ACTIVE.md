@@ -65,17 +65,35 @@ open item with that scope.
 
 ## Next
 
-**The strip worked and the run walked on to the compute variant of the same effect.**
-`evidence/m2-compute-bindings/` (identity `900d2d14`): the warp *graphics* pipeline — the one
-refused for `TRIANGLE_STRIP` — creates, so R6's driver half is confirmed from this side, and the
-run stops at `vkCreateComputePipelines failed (cs_tex_warp) with code -13` because
-`../PS5_Vulkan`'s dispatch path accepts exactly one declared binding and requires a storage buffer
-(`ps5vk_compute.c`), while that kernel reads a texture and writes a storage image in two sets.
-vkQuake prefers that compute path (`r_waterwarpcompute` defaults to 1) and the raster path does the
-same job through the strip pipeline the driver just learned, so **the port defaults it to 0** as a
-registered accommodation — the eleventh edit, retiring when the driver's compute path takes the
-bindings its graphics path already takes. The lightmap update has no such alternative, so it is
-**R7** in `docs/PS5_VULKAN_REQUESTS.md`, recorded now and not blocking the first frame.
+**The strip worked, and the next stop is the driver's compute path — which blocks start-up, not
+just a feature.** Two runs, `evidence/m2-compute-bindings/` (identity `900d2d14`) and
+`evidence/m2-compute-creation/` (identity `2c660253`):
+
+```
+Creating pipelines
+[ps5vk] compile start: nir=0 … [ps5vk] compile done: result=0
+vkCreateComputePipelines -> -13
+QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13
+```
+
+The warp *graphics* pipeline — the one refused for `TRIANGLE_STRIP` — is created, so R6's driver
+half is confirmed from this side. The stop is the compute variant of the same effect:
+`../PS5_Vulkan`'s dispatch path binds **one declared binding, and a storage buffer at that**
+(`ps5vk_compute.c`), while `cs_tex_warp` reads a texture and writes a storage image.
+
+**The port tried the cheap route and the console showed it wrong by a step.** `r_waterwarpcompute`
+defaults to 1; the port defaulted it to 0 — and the failure is identical, because that cvar selects
+which path a *frame* draws with while `R_CreateWarpPipelines` creates both pipelines regardless
+(`gl_rmisc.c:3099-3101`). The edit stays, since the raster path is the one this driver can run and
+R6 proved it, but its comment now says what it does not do, and the diagnosis is corrected here
+rather than left standing.
+
+**Why this is R7 and not another accommodation:** reading the rest of `R_CreatePipelines` against
+the one-binding rule gives the screen-effects family (6 bindings, used by ordinary frames),
+`update_lightmap` (3), `indirect_draw` (6, the world's indirect commands) and the animation kernels
+alongside `cs_tex_warp` (2). Guarding their creation would mean a port that draws less than the
+engine asks it to; generalising the dispatch path the way the graphics path already works is the
+fix. **R7 is promoted and no console cycle is worth spending until it lands.**
 
 **Earlier, for the record:** R6's driver half is in the artifact this port links — the topology now reaches
 the hardware as `sceAgcLinkShaders`'s `primitive_type` (DI_PT 5 for a strip, 4 otherwise), and the
@@ -102,8 +120,7 @@ not driven.
 
 ## Blockers
 
-**Nothing is blocking the next run.** Every stop so far is closed — the two driver gates this port
+**R7 blocks the run.** Everything before it is closed on both sides — the two driver gates this port
 began with, its own loader aliasing, the swapchain's usage, the buffer view's sentinel, the image
-usage, the descriptor types, the allocator threshold, and now the strip topology with the port's
-own warp default behind it. What remains is what the run finds next, and R7 for the lightmap pass
-when M6 arrives.
+usage, the descriptor types, the allocator threshold, and the strip topology — and what remains is
+the dispatch path's binding rule, which start-up meets through kernels ordinary frames use.

@@ -1,0 +1,10 @@
+{
+  "step": "m2-compute-creation",
+  "note": "The run with the port's r_waterwarpcompute default set to 0, and it fails identically: the cvar chooses which warp path a frame draws with, not which pipelines are created, and R_CreateWarpPipelines creates both unconditionally (gl_rmisc.c:3099-3101). So that edit is a real accommodation - the raster path is the one this driver can run, and the port measured it working through R6 - but it is not the unblocker, and the previous record's diagnosis is incomplete by one step: the creation is the blocker. Reading the rest of R_CreatePipelines shows why this is not one kernel: the driver's dispatch path binds exactly one storage buffer (ps5vk_compute.c), and start-up creates cs_tex_warp (two bindings), the screen-effects family (six), update_lightmap (three) and indirect_draw (six) - several of which an ordinary frame needs, not just a map.",
+  "must_contain": [
+    "build identity: 2c660253",
+    "QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13"
+  ],
+  "must_not_contain": [],
+  "human_check": "This record exists because the previous one was wrong by a step, and this port's rule is that a wrong diagnosis is corrected rather than left standing under a changed line. The accommodation stays - the raster warp is the path this driver can run and R6 proved it - but the comment beside it now says what it does not do. What the two runs together establish is that the driver's compute path blocks start-up itself: one declared storage buffer is less than any of the kernels the engine creates needs, and three of those families are used by ordinary frames rather than only by a map, so no set of application-side guards could be honest here. R7 is promoted from the M6 lightmap gap to the live item, and no console cycle is worth spending until it lands."
+}

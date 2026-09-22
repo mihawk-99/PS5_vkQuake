@@ -632,11 +632,12 @@ also show the strip's alternating winding is being honoured.
 
 ---
 
-## R7 — the compute path binds one storage buffer, and a real kernel needs a texture and a storage image
+## R7 — the compute path binds one storage buffer, and start-up creates kernels that need more
 
-**Status.** **Measured** on the console: the texture-warp kernel's pipeline is refused,
-`QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13`
-(`evidence/m2-compute-bindings/`, build identity `900d2d14`), after its compile succeeded.
+**Status. Promoted: this blocks start-up, not a later milestone.** Measured twice on the console —
+`vkCreateComputePipelines failed (cs_tex_warp) with code -13` (`evidence/m2-compute-bindings/`,
+build identity `900d2d14`, and `evidence/m2-compute-creation/`, build identity `2c660253`) — and
+the second run is the one that shows a workaround is not available.
 
 **Reported against.** `../PS5_Vulkan` working tree of 2026-09-22 12:32 (`ps5vk_compute.c`).
 
@@ -657,38 +658,50 @@ if (binding->type != PSBC_DESCRIPTOR_STORAGE_BUFFER || …)
                     "chunk (type %d, offset %u, stride %u)", …);
 ```
 
-So a dispatch may declare **one binding, and it must be a storage buffer**. vkQuake's
-`cs_tex_warp` declares two — a combined image sampler to read and a storage image to write
-(`Quake/gl_rmisc.c`, `tex_warp_descriptor_set_layouts`; bound at `Quake/gl_warp.c:128` as
-`{texture, storage_image}`) — and its **lightmap update** declares three (a storage image and two
-sampled images, `lightmap_compute_layout_bindings`), which is the one on this port's M6 path.
+A dispatch may declare **one binding, and it must be a storage buffer**.
 
-### Why it matters even though this port is not asking for it now
+### Why no application-side guard is honest here
 
-The water warp has a second implementation upstream — the raster path through the strip pipeline
-(`R_RasterWarpTexture`) — so the port is defaulting `r_waterwarpcompute` to 0 as a registered
-accommodation and does not need the compute path for its first frame. The lightmap update has no
-such alternative, and the driver's own compute path was written when the only consumer was its own
-probe. Any application that dispatches a kernel reading a texture — which is what compute is
-usually for — meets this refusal.
+`R_CreatePipelines` creates the compute families unconditionally at start-up, and reading their
+layouts against that rule gives:
+
+| pipeline | declared bindings | needed by |
+| --- | --- | --- |
+| `cs_tex_warp` | 2 (a combined image sampler, a storage image) | the water warp — which has a raster alternative, so this port takes that instead |
+| `screen_effects` family (3 pipelines) | 6 | ordinary frames: the screen effects pass |
+| `update_lightmap`, `update_lightmap_rt` | 3+ (a storage image, two sampled images) | lightmap updates (this port's M6 work) |
+| `indirect_draw` | 6 (storage buffers) | the world draw's indirect commands |
+| `mesh_interpolate`, `skinning`, `skinning_8` | (MD5/MDL vertex interpolation) | animated models |
+
+The port first tried the cheap route — defaulting `r_waterwarpcompute` to 0, since the water warp
+has a raster implementation through the strip pipeline R6 added — and the console showed it fails
+identically: that cvar selects which path a *frame* draws with, while `R_CreateWarpPipelines`
+creates both pipelines regardless (`gl_rmisc.c:3099-3101`). Guarding the creations instead would mean
+disabling the screen-effects and indirect-draw compute that ordinary frames use, which is not an
+accommodation, it is a port that draws less than the engine asks it to.
 
 ### What would close it
 
-Generalise the dispatch path the way the graphics path already works: N declared bindings, each of
-a type the descriptor table has (the table now carries combined image samplers, storage images,
-storage buffers and the texel buffers), one table per set the shader reads, and the user-data
-budget checked against the same `PS5VK_MAX_USER_DATA` the graphics stages use. The compiler
-already reports the bindings and their offsets; what is missing is the dispatch's table writes for
-anything but a single storage buffer, and the reader in `ps5vk_compute.c` that assumes index 0.
+Generalise the dispatch path the way the graphics path already works — it is the same problem R7's
+earlier rounds solved for sets and bindings on the graphics side:
 
-**Acceptance**, in the driver's own shape: a compute probe whose shader reads one texture and
-writes one storage image, dispatched once, with the written image read back and compared against
-the texels the kernel was told to produce — and a second probe with a single storage buffer, so the
-existing shape is not lost. The port's own test is the lightmap pass once M6 reaches it.
+- **N declared bindings**, each of a type the descriptor table carries (combined image samplers,
+  sampled images, storage images, storage buffers, texel buffers), built into one table per set the
+  stage reads, with the same `PS5VK_MAX_USER_DATA` budget the graphics stages use;
+- **the dispatch's table writes** for those types, which the graphics path already performs
+  (`ps5vk_draw.c`) — the compute path's reader assumes index 0 and one 16-byte storage-buffer entry;
+- **the set pointers**: R7's graphics work declared one user-data dword per set, and a dispatch's
+  kernel needs the same for the sets it reads.
+
+**Acceptance**, in the driver's own shape, and it is a console case because the fetch is what the
+probe has to prove: a compute probe whose kernel **reads a texture and writes a storage image**, one
+set each, dispatched once, with the written image read back and compared against the texels the
+kernel was told to produce — plus a second probe that keeps the existing single-storage-buffer shape
+working, so the shape that exists today does not regress. The port's own test is `cs_tex_warp`
+creating, and after that the lightmap pass when M6 reaches it.
 
 ### What is not being asked
 
-- No change to the graphics path's descriptor handling, which already takes N bindings.
-- No new descriptor types: this is about the dispatch reading the table the driver already writes.
-- No work on the port's behalf *now*: the port's water warp takes the raster path, and this is
-  recorded so the lightmap update is not a surprise when it arrives.
+- No change to the graphics path's descriptor handling, which already takes N bindings and sets.
+- No new descriptor types: this is the dispatch reading the table the driver already writes.
+- No schedule: the port has no run worth spending until this lands, and says so in `docs/ACTIVE.md`.

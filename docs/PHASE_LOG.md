@@ -1772,3 +1772,50 @@ Verify:
   verify: PASS (format unit build integration evidence)
   $ python3 tools/evidence.py compare evidence/
   10 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: a wrong diagnosis by one step, corrected — the compute path blocks start-up
+
+**A console run, build identity `2c6602535e32e9`** — the one with the port's
+`r_waterwarpcompute` default set to 0. Recorded as `evidence/m2-compute-creation/`, and it fails
+*identically*:
+
+```
+QUAKE ERROR: vkCreateComputePipelines failed (cs_tex_warp) with code -13
+```
+
+**The previous entry's diagnosis was incomplete by one step.** That cvar selects which *frame*
+path the water warp uses; `R_CreateWarpPipelines` creates **both** pipelines unconditionally
+(`gl_rmisc.c:3099-3101`), so defaulting it to 0 could not have moved this failure. The edit stays —
+the raster path is the one this driver can run and R6 measured it working — but its comment says
+what it does not do, and this entry is the correction rather than a rewrite of the line.
+
+### What the two runs together establish
+
+The driver's dispatch path binds **one declared binding, and it must be a storage buffer**
+(`ps5vk_compute.c`). Read against `R_CreatePipelines`, that is not one kernel's problem:
+
+| pipeline | bindings | needed by |
+| --- | --- | --- |
+| `cs_tex_warp` | 2 | the water warp (raster alternative: taken) |
+| `screen_effects` family | 6 | ordinary frames |
+| `update_lightmap` (+ rt) | 3+ | lightmaps (this port's M6) |
+| `indirect_draw` | 6 | the world's indirect draws |
+| `mesh_interpolate`, `skinning`, `skinning_8` | — | animated models |
+
+Guarding those creations would mean a port that draws less than the engine asks it to — the
+screen-effects and indirect-draw computes are used by frames, not by one effect. So the honest fix
+is the driver's, and **R7 is promoted** from "the M6 lightmap gap" to the live item: generalise the
+dispatch path the way the graphics path already works (N bindings of the table's types, one table
+per set, the same user-data budget), accepted by a probe whose kernel reads a texture and writes a
+storage image, compared against the texels it was told to produce, with the existing
+single-storage-buffer shape kept working.
+
+**No console cycle is worth spending until R7 lands**, and `docs/ACTIVE.md` says so.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ python3 tools/evidence.py compare evidence/
+  11 capture(s) replayed, 0 failed
