@@ -33,6 +33,7 @@
  */
 
 #include "SDL_vulkan.h"
+#include "vk_loader.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -319,9 +320,19 @@ void SDL_StopTextInput(void)
  * khr_display context driver proved on this hardware.
  */
 
+/* What SDL hands the engine is a loader's lookup, not the driver's raw one: the
+ * engine asks for the core spelling of a promoted extension's entry point and
+ * expects the loader's alias (platform/ps5/vk_loader.c, and the console run that
+ * made the difference visible). */
+static void *ps5_window_proc_addr(void *instance, const char *name)
+{
+    return ps5_vk_loader_proc_addr((ps5_vk_proc_lookup)(void *)vkGetInstanceProcAddr, instance,
+                                   name);
+}
+
 void *SDL_Vulkan_GetVkGetInstanceProcAddr(void)
 {
-    return (void *)vkGetInstanceProcAddr;
+    return (void *)ps5_window_proc_addr;
 }
 
 int SDL_Vulkan_LoadLibrary(const char *path)

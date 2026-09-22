@@ -28,29 +28,38 @@ during bring-up. The second was never an ACO fault at all — the driver's own r
 divided a sampled-format row by its zero texel size, and closed it with a console run
 (`../PS5_Vulkan/docs/BLOCKERS.md`). `docs/FINDINGS.md` carries both corrections.
 
-**"vkQuake gets past renderer start-up" is a reading of the driver, not a measurement
-of this port.** Nothing has run on the console since 2026-09-20, so the record does
-not yet contain the run that would prove it.
+**The port has now been run against the driver as it stands, and it stops earlier than
+before.** Build identity `10b17473`, evidence `evidence/m2-loader/`:
+
+```
+Vulkan Initialization
+vkCreateInstance -> 0
+QUAKE ERROR: vkGetInstanceProcAddr failed to find vkGetPhysicalDeviceProperties2
+```
+
+**Cause, and it is this port's own missing-loader surface.** `../PS5_Vulkan` now honestly
+reports a Vulkan 1.0 instance (`PS5VK_INSTANCE_API_VERSION`, corrected 2026-09-21 by the
+CTS round that found the instance claiming 1.3), so its `vkGetInstanceProcAddr` answers
+the extension spelling of a promoted entry point and not the core one. vkQuake enables
+`VK_KHR_get_physical_device_properties2` and then loads the **core** names; on a desktop
+a loader aliases that pair, and this console has no loader. Fixed in
+`platform/ps5/vk_loader.c` (two named pairs, `tests/vk_loader_test.c` on the host), with
+`SDL_Vulkan_GetVkGetInstanceProcAddr` now handing the engine the aliasing lookup.
 
 ## Next
 
-**One console run, no code change, to turn that reading into a measurement** — with
-the prediction written down first, so the run can falsify it. Expected: the first
-`vkCreateGraphicsPipelines` is refused, naming `basic_alphatest` on the main pass.
+**One more console run — the fix is deployed** (build identity `9ad1d1f36bae987c`) — and
+what it reaches is genuinely open, because the depth-format check it never got to is now
+untested rather than passed. Two outcomes, both informative: past the depth formats into
+`R_InitSamplers` and the render passes, or a new stop to read.
 
-The reading behind it, from both trees:
-
-- the driver checks the **pipeline layout**'s bindings, not the shader's used ones
-  (`ps5vk_descriptor_options`, `../PS5_Vulkan/driver/ps5vk_pipeline.c:195-220`,
-  called for the fragment stage at `:1265`);
-- vkQuake's first pipeline (`R_CreateBasicPipelines`) uses `basic_pipeline_layout`,
-  which it defines as `{single_texture, mboit_input_attachment}`
-  (`vendor/vkQuake/Quake/gl_rmisc.c`);
-- that second layout is three `INPUT_ATTACHMENT` bindings at `FRAGMENT` stage, and
-  the driver's table has no `INPUT_ATTACHMENT` entry (`ps5vk_descriptor_stride`), so
-  the refusal is `set 1 binding 0: descriptor type 10 has no proven table entry` and
-  vkQuake raises `QUAKE ERROR: vkCreateGraphicsPipelines failed (basic_alphatest)
-  with code -13`.
+The stop after that is *read* rather than measured, and is unchanged from the reading
+below: the first `vkCreateGraphicsPipelines` refused by name, because the driver checks
+the **pipeline layout**'s bindings rather than the shader's used ones
+(`ps5vk_descriptor_options`, `../PS5_Vulkan/driver/ps5vk_pipeline.c:195-220`, fragment
+call at `:1265`), and vkQuake's `basic_pipeline_layout` is
+`{single_texture, mboit_input_attachment}` — three `INPUT_ATTACHMENT` bindings at
+`FRAGMENT` stage, a type `ps5vk_descriptor_stride` has no entry for.
 
 **The lazier fact underneath it: the driver owes this port nothing for a first world
 draw.** `r_oit` defaults to `1` (WBOIT), and that is the only reason two colour
@@ -62,12 +71,6 @@ what restores OIT later, not what the port waits on now.**
 What the driver's descriptor table *is* missing is three core 1.0 types vkQuake
 declares — `INPUT_ATTACHMENT`, `SAMPLER`, `SAMPLED_IMAGE` — while advertising
 per-stage limits for all three. That is `docs/PS5_VULKAN_REQUESTS.md` R2.
-
-**`evidence/m2-device/` is waiting to be replaced by that run.** Its own expectation
-says so: it asserts the depth-format failure as a stop, deliberately, so the record
-cannot keep claiming it once the driver reports a combined depth-stencil format — which
-it now does. The gate is green because it replays the 2026-09-20 capture, not because
-the expectation is still current.
 
 ## Open questions
 

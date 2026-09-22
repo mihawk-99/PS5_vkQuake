@@ -1338,3 +1338,64 @@ Verify:
   (the layout walk; `binding->stride == 0` is the refusal the prediction names)
   $ python3 tools/evidence.py compare evidence/
   2 capture(s) replayed, 0 failed
+
+---
+
+## 2026-09-22: the first run against the current driver, and the loader the console is missing
+
+**A console run, build identity `10b174731bf50195`** — the first since 2026-09-20, and the
+first against a driver that has closed both gates this port was waiting on. It stops
+earlier than the run before it, which is not a regression but a different gate: the
+driver became honest about its API version on 2026-09-21 (`PS5VK_INSTANCE_API_VERSION`,
+1.3 -> 1.0, the CTS round that found the instance claiming a version it does not
+implement), and that changed what `vkGetInstanceProcAddr` answers.
+
+```
+Vulkan Initialization
+vkCreateInstance -> 0
+
+QUAKE ERROR: vkGetInstanceProcAddr failed to find vkGetPhysicalDeviceProperties2
+STACK TRACE:
+(null)
+```
+
+Recorded as `evidence/m2-loader/` (the newest run only; that trace is append-mode and
+holds four runs), which supersedes `evidence/m2-device/` for the reason that record's
+own note named: it asserted the depth-format stop and said it must be replaced once the
+driver reports a combined depth-stencil format.
+
+### What the message means, and why the fix is this port's
+
+vkQuake enables `VK_KHR_get_physical_device_properties2` — which the driver advertises
+and its own host test exercises by the extension's spelling
+(`driver/tests/vk_b2_device_test.c:96`, `VK_FUNCTION(instance, GetPhysicalDeviceProperties2KHR)`)
+— and then loads the **core** names, `vkGetPhysicalDeviceProperties2` and
+`vkGetPhysicalDeviceFeatures2` (`Quake/gl_vidsdl.c:889-890`). Vulkan's application-facing
+names for a promoted extension are an alias pair and **the loader** keeps that pair; a
+driver is not required to. This console has no loader: the driver is linked into the
+title and `platform/ps5/vk_globals.c` supplies only what a loader's global trampolines
+would (`tools/gen-vk-globals.py` says so in its own header). So the missing piece was
+the port's, not the driver's.
+
+### The fix
+
+`platform/ps5/vk_loader.c`: the driver's lookup with the aliasing applied when it has
+none, for exactly the two promoted pairs, with `SDL_Vulkan_GetVkGetInstanceProcAddr`
+handing the engine that lookup instead of the raw symbol. The table is named rather than
+a blanket "append KHR", and the file's retirement trigger is the driver claiming Vulkan
+1.1. Checked on the host by `tests/vk_loader_test.c` (through `tests/test_vk_loader.py`)
+against a driver of the console's shape: a Vulkan 1.0 instance that answers the
+extension's spelling and not the core one — six checks, including that a name the driver
+answers is not aliased and that a name with no twin stays missing.
+
+Verify:
+  $ bash tools/verify.sh
+  verify: PASS (format unit build integration evidence)
+  $ bash tools/verify.sh --list  # evidence replay
+  m2-loader: OK (raw klog/trace-20260922T144954Z.txt, 153 lines)
+  3 capture(s) replayed, 0 failed
+
+**Still unmeasured after this run:** the depth-format check the previous run stopped on
+(now behind the loader gate), and the pipeline-creation refusal the reading in
+`docs/ACTIVE.md` predicts. The title is deployed with the fix as build identity
+`9ad1d1f36bae987c`, so the next run answers both.
