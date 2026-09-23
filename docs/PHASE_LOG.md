@@ -2413,3 +2413,28 @@ PID 210 presents and no longer refuses the descriptor array. R18 names a
 padded pitch 256 texels. This is the exact shape the next probe must measure.
 No layout fix is claimed. Port evidence/m2-r18-shape has two matching final
 reads and PID-correlated exit 1/SIGSYS; the bounded run ended count=0.
+
+## 2026-09-23 — R17/R18 accepted; map advances to 32-bit indices
+
+Driver R17 3be25f1 and R18 aafd697 are verified on PS5. R18 PID 214 has
+531 PASS, zero FAIL: every pixel in 19 mip frames matches, and 21 command
+streams replay exactly. The shared driver fixes row mip placement and pitch;
+no texture scaling or visual settings change. Archive 14,434,994 bytes, SHA-256
+cef1d81708d06d6fa68b2ac5df6b3f781c0fb59e3026e83e09ee469b112167fa.
+Driver gates and 21 targeted host arms, this port's five gates/scan and the
+template relink pass. Failed/partial driver captures are retained there.
+
+Relinked identity b3aecd67729ccd91e5ec0fdeb9330e96a9d4e4923ad859aed3a5782fbcd061f1,
+PS5 PID 215: presentation succeeds, demo1/the Necropolis reaches map recording,
+and the descriptor-array and padded-pitch refusals are absent. The next named
+refusal is ps5vk_cmd_draw: "32-bit indices need a runner probe". EndCommandBuffer
+returns -13, exit 1 takes the known SIGSYS path. M6 remains open; input/audio
+adapters are still stubs. No new visual acceptance is claimed.
+
+Two final FTP trace reads match (SHA-256 167ed71a831d2b6c4ba636f3dd17503a69fa037162d2f19dc425088a9c800de4),
+the kernel identifies PID 215, and count=0 is verified. Two deployed executable
+reads match all five PT_LOAD segments. The shader cache survives this driver
+fix: zero SPIR-V compiles/stores, 532 hits, eight internal NIR compiles. No new
+startup timing was measured. Evidence: evidence/m2-r18-map-recording; all 26
+captures replay with zero failures. Next: R19, shared 32-bit indexed draws with
+correct byte offsets, bounds and index-size packets, then a hardware probe.

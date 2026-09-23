@@ -1,0 +1,14 @@
+{
+  "pid": 215,
+  "identity": "b3aecd67729ccd91e5ec0fdeb9330e96a9d4e4923ad859aed3a5782fbcd061f1",
+  "driver": "aafd697",
+  "two_trace_reads_identical": true,
+  "trace_sha256": "167ed71a831d2b6c4ba636f3dd17503a69fa037162d2f19dc425088a9c800de4",
+  "present_returned_success": true,
+  "spirv_compiles": 0,
+  "nir_compiles": 8,
+  "cache_hits": 532,
+  "cache_stores": 0,
+  "next_refusal": "32-bit indices need a runner probe",
+  "end_command_buffer": -13
+}

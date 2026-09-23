@@ -1087,3 +1087,18 @@ First identify that shape from a host recording or add those fields to this
 existing refusal. Do not assume which condition rejected it. Then prove the
 layout/descriptor with the cheapest host oracle and full PS5 pixel readback.
 No texture scaling, format downgrade or visual-setting workaround is requested.
+
+
+R17 accepted: driver 3be25f1, PS5 PID 209; array output exact. R18 accepted:
+driver aafd697, PID 214; all 19 mip frames exact, 21 exact replays. Port PID 215
+passes both old recording stops; evidence/m2-r18-map-recording records the run.
+
+### R19 — 32-bit indexed draws
+
+PID 215 names ps5vk_cmd_draw's UINT16-only guard while recording the Necropolis
+world. Core Vulkan UINT32 indices need four-byte firstIndex stepping, bounds
+computed in index elements, and the matching index-size packet. Fix the shared
+draw path so direct, indirect and secondary recording inherit it. Cheapest
+witness: a host packet/offset/bounds check, then PS5 readback using actual
+32-bit indices (including an index above 65535 and nonzero firstIndex), with a
+16-bit regression. Do not convert the port's index buffers or reduce geometry.
