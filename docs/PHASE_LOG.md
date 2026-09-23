@@ -2741,3 +2741,23 @@ jobs/r29-tile-address/integer-filter.patch. Two screenshots/final trace read
 twice, deployment/PID verified, normal LoadExec exit, 6,891,008 audio frames/zero
 errors. Configurations/profile flag restored absent, console idle. Five gates/
 scan and 47 evidence replays pass. Evidence m6-mip-integer-benchmark.
+
+
+## 2026-09-23 — R29 address-map build ready; console network lost
+
+Driver c3e51f6 preserves the common tiled address equation while removing its
+per-texel interpretation/division. PS5 PID 267 has exact mip readback and four
+strict replays; PID 268 has 3,501 passing checks. Full driver/cache and eleven
+gates, port five gates/shader scan, template relink pass. Port is built with
+identity e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1.
+At about 09:24 UTC deployment fails before FTP connects. Control/FTP/klog return
+no route, with an available local route and failed neighbor; read-only PS5
+discovery has no response. No game binary or fixture uploaded. Last game PID
+265 exited normally and probe PID 268 completed and was closed normally; there
+is no evidence that this network loss is a game crash.
+
+The two-map benchmark with host_speeds and the movement/fire/save/load/eight-map
+fixture are prepared under ignored build/r29b-* and build/r30-*. No performance
+improvement or completed gameplay run is claimed. Continue automatically when
+the console returns. Original configurations/profile remain absent; preserve
+the existing backup and any user saves. All 47 committed captures still replay.
