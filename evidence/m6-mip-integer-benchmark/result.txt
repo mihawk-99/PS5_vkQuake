@@ -1,0 +1,18 @@
+{
+  "pid": 265,
+  "build_identity": "ecea42a1ed9bd62502068bba916b8438f0821dbd1e4f3c2b6d230a2c09abf4b4",
+  "driver_revision": "9f9f395",
+  "trace_sha256": "bf4ee101151ad90cebde57f212f515b13efef13baa039e9e4a80836f62d17653",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-051238-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-051328-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored_absent": true,
+  "audio_frames": 6891008,
+  "audio_errors": 0,
+  "visual_result": "Correct images and normal exit; first optimization has no FPS benefit and is not retained."
+}

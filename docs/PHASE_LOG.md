@@ -2729,3 +2729,15 @@ segments and final trace/PNG reads agree twice, PID matches, console idle,
 three configuration paths and profiling flag restored absent. Gates/scan pass;
 46 captures replay. Evidence m6-copy-profile. This identifies the slow work
 class and makes no optimization claim.
+
+## 2026-09-23 — R29 integer filter candidate measured, not retained
+
+PID 265, identity ecea42a1…, runs the same two-map benchmark using a driver
+candidate with integer averaging for exact 2:1 RGBA8 mip blits. Pixel probes
+pass, but start copy time only falls 24.095 to 22.657 ms and FPS remains about
+14.81. E1M1 remains about 29.58 FPS. Driver candidate is rolled back; the shared
+tile-address calculation is the next candidate. Patch retained in driver
+jobs/r29-tile-address/integer-filter.patch. Two screenshots/final trace read
+twice, deployment/PID verified, normal LoadExec exit, 6,891,008 audio frames/zero
+errors. Configurations/profile flag restored absent, console idle. Five gates/
+scan and 47 evidence replays pass. Evidence m6-mip-integer-benchmark.
