@@ -2848,3 +2848,20 @@ ce0ea9a8 after the A/B.
 - R40 (driver b4c0b2e): vkCmdExecuteCommands is 0.14 ms a frame, ruled out;
   run-to-run variation ~2 ms of work (m6-r40-execute).
 tools/verify.sh PASS; 68 captures replay.
+
+## 2026-09-23 — R41-R48: stutters attributed and fixed; startup measured; shaders shipped
+
+- R41 walk fixture: walking the start map swung ~50/34 FPS as CPU water-warp blits
+  crossed the ~20.8 ms VRR window; R42 (driver 7fd8562) resamples blits on five
+  threads: 52.4-55.4 FPS walking (m6-r41-walk, m6-r42-parallel-blit).
+- R43 hitch recorder (driver 5909253, port c78c3e5): New Game's 89/153 ms frames
+  are svc_centerprint's console log through the unbuffered stdout; buffered
+  streams with a 250 ms flusher remove them (m6-r43-newgame-svc, m6-r44-buffered).
+  An earlier 22-character print test had shown no cost (m6-r41-print-before): the
+  cost scales with the length written.
+- R45 startup phases (dac820e): warm launch presents at 0.77 s in-process.
+- R46 NIR cache landed (driver 46024cd): warm launches compile nothing.
+- R47 per-build cache directory (driver 6ff265f) and shipped cache (75ca40b):
+  a fresh base holding only the harvested entries compiled nothing.
+- R48 acceptance, unprofiled New Game (m6-r48-newgame-final).
+tools/verify.sh PASS; 77 captures replay.
