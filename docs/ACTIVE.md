@@ -32,13 +32,26 @@ R13 fixed the earlier staging upload OOM; caching does not repair rendering.
 
 ## Current work
 
-The user explicitly resumed M6: continue until the game is stable and playable.
-Driver R14 `2925ff6` fixes the valid single-draw count=1/stride=0 assertion.
-Host indexed/non-indexed checks pass; PS5 probe PID 204 passes pixel readback
-and exact stream replay (121 PASS, zero FAIL). Driver eleven gates, port five
-gates and template relink pass. No port retry yet. R15 is now being verified
-in the driver for independent dynamic uniform offsets; the named water-texture
-mip blit remains after it. Input/audio adapters still need implementation.
+M6 remains open. R14 `2925ff6` fixes single-draw count=1/stride=0;
+PS5 PID 204 passed pixels and exact replay (121 PASS, zero FAIL). R15 `b838832`
+fixes independent dynamic UBO offsets; PS5 PID 205 passed all four frames and
+four exact replays (196 PASS, zero FAIL). Both had driver eleven gates, port
+five gates and template relink PASS. No new port launch after these fixes.
+
+R16's water mip-blit probe failed on PS5 PID 206: the 64x64 level sampled zero
+in 1/16 of the frame. Earlier centre-only C7 checks had missed an additive
+mip-tail addressing error. The whole-chain AddrLib oracle now proves XOR
+addressing, and a corrected shared upload/copy/blit candidate passes fifteen
+host/link arms, all eleven gates, independent CPU texel checks, port five
+gates and template relink. It has NOT passed PS5 readback.
+
+The mission requires stopping when a run contradicts an earlier claim.
+Correction and failed evidence are preserved in the driver; the candidate is
+parked in `../PS5_Vulkan/parked/r16-mip-tail.patch`. Reproduction and remaining
+acceptance: `../PS5_Vulkan/jobs/r16-mip-blit/README.md`. Accepted R15 source and
+archive are restored and this port relinked. Console idle; no further launch.
+Next cycle: apply/rebuild the patch, pass the PS5 full-mip probe, then relink
+and launch vkQuake. Input/audio adapters still need implementation.
 
 ## Verification
 
