@@ -1,0 +1,17 @@
+{
+  "step": "m6-r36-work-metric",
+  "note": "Work per frame measured without driver profiling: E1M1 work 23.67 ms + present 5.58 ms = a constant 29.25 ms period (34.19 FPS); start map work 37.27 + present 0.21 = 37.48 ms (26.68 FPS). Neither period is a multiple of the 16.68 ms vblank, so the frame is not quantised to a 60 Hz grid; E1M1's present waits to a ~29.2 ms floor while the start map is purely work-bound.",
+  "must_contain": [
+    "build identity: 2119b544",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=34.19 work_ms=23.667",
+    "present_ms=5.584 vblanks=0/342/0/0",
+    "fps=26.68 work_ms=37.270"
+  ],
+  "must_not_contain": [
+    "[ps5vk] profile",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

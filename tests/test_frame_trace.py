@@ -17,9 +17,10 @@ class FrameTrace(unittest.TestCase):
 static int lines, calls;
 static Uint64 ticks;
 Uint64 SDL_GetTicks64(void) { return ticks; }
+Uint64 SDL_GetPerformanceCounter(void) { return ticks * 1000000ull; }
 int ps5_sdl_counts_format(char *l, size_t n, unsigned long long f) { (void)f; return snprintf(l, n, " counted"); }
 static VkResult answer;
-static char last[128];
+static char last[512];
 void ps5_trace(const char *line) { ++lines; snprintf(last, sizeof last, "%s", line); }
 static VkResult VKAPI_CALL present(VkQueue q, const VkPresentInfoKHR *p)
 { (void)q; (void)p; ++calls; return answer; }
@@ -63,7 +64,8 @@ int main(void)
     assert(draw(NULL, NULL) == VK_SUCCESS && lines == 9);
     ticks = 10000;
     assert(draw(NULL, NULL) == VK_SUCCESS && lines == 10);
-    assert(strstr(last, "frames=4 interval=10000 ms fps=0.30 counted"));
+    assert(strstr(last, "frames=4 interval=10000 ms fps=0.30 work_ms="));
+    assert(strstr(last, " vblanks=") && strstr(last, " counted"));
     assert(draw(NULL, NULL) == VK_SUCCESS && lines == 10);
     return 0;
 }

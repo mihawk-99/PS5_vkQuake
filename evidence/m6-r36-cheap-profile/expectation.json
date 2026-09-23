@@ -1,0 +1,18 @@
+{
+  "step": "m6-r36-cheap-profile",
+  "note": "The profile is now nearly free: TSC timestamps (12 ns) and one write(2) of the summary. Profiled E1M1 work 23.74 ms against 23.67 unprofiled; the summary write 1.05 ms against 1.6-5.8 s. First trustworthy split, E1M1 per frame: application CPU 17.20, queue 6.53 (flush 3.92, submit+poll 2.53), flip 5.51 (one vblank wait of 5.30), period 29.25; vkBeginCommandBuffer 0.33 ms and all draw encoding 0.075 ms -- R32/R33's larger values were the clock reads. Start map: application 17.21, queue 20.17 (copies 11.55, flush 5.82), flip 0.21, period 37.60.",
+  "must_contain": [
+    "build identity: b70d2740",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "frame_ms=29.251 frame_min_ms=29.168",
+    "residual_ms=-0.003",
+    "call_begin_ms=0.326",
+    "last_write_ms=1.053",
+    "fps=34.19 work_ms=23.737"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
