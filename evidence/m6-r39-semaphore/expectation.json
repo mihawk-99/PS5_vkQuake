@@ -1,0 +1,14 @@
+{
+  "step": "m6-r39-semaphore",
+  "note": "NEGATIVE RESULT, change not landed (parked/sdl-semaphore). Lock-free SDL semaphore: E1M1 55.76 -> 55.92 FPS (work 17.74 -> 17.69), start 33.08 -> 33.43 (work 30.00 -> 29.69) against m6-r38-marker-spin -- within noise. Contended locks 153 -> 113 a frame; blocking waits unchanged at 81 (idle workers).",
+  "must_contain": [
+    "build identity: 038d516c",
+    "PS5_R32_DONE",
+    "fps=55.92 work_ms=17.693",
+    "fps=33.43 work_ms=29.687"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
