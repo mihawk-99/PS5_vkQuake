@@ -1058,3 +1058,32 @@ The named tiled-chain blit and multiple dynamic offsets plus the single-draw
 zero-stride assertion repeat. Cache acceptance does not close these rendering
 requests or M6. Follow the mission's repeat-failure stop rule before resuming
 rendering experiments.
+
+
+## 2026-09-22 — R14–R16 closed; new map recording gaps
+
+R14 2925ff6 (single-draw stride), R15 b838832 (per-binding dynamic offsets),
+R16 c7f6f95 (mip-tail XOR and measured tiled-chain blits) pass PS5 probes.
+Port PID 208 presents and gets past all three old failures; evidence is
+m2-r16-map-recording. New requests below come from that boot, not guesswork.
+
+### R17 — Three-element sampled-image descriptor array
+
+Named refusal: ps5vk_cmd_buffer_shader_resources, set 0 binding 2 holds three
+descriptors. The lightmap compute layout in gl_rmisc.c declares binding 2 as
+SAMPLED_IMAGE with MAXLIGHTMAPS * 3 / 4 entries (three). The driver allocates one
+record per binding; writes/copies reject multiple elements, and the shared
+resource writer rejects array_size != 1. Fix the shared storage/write/copy and
+per-element table emission paths. Cheapest witness: host write/copy tests with
+partial array updates and three distinct image entries, then a compute/readback
+probe sampling all three on PS5. Do not merely remove the recording guard.
+
+### R18 — Padded sampled-image pitch outside measured descriptor coverage
+
+Named refusal: ps5vk_sampled_image, set 0 binding 0 needs padded texture pitch
+256 texels; custom-pitch coverage currently requires single-level, single-layer
+2D. The exact image extent, format, mip count and layer count are not printed.
+First identify that shape from a host recording or add those fields to this
+existing refusal. Do not assume which condition rejected it. Then prove the
+layout/descriptor with the cheapest host oracle and full PS5 pixel readback.
+No texture scaling, format downgrade or visual-setting workaround is requested.

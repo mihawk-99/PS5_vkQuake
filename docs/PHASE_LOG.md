@@ -2352,3 +2352,38 @@ Port all five gates PASS (23 captures, zero failures), identity
 de7a813a51722193a7c2fb7754afda8285ec8f23c73b9e98230316cf68e6ce6c; template relink PASS
 (pre-existing unused audio helper warnings). Neither was deployed or launched.
 Exact restoration identities: ../PS5_Vulkan/jobs/r16-mip-blit/restored-base.txt.
+
+
+## 2026-09-22 — Corrected R16 readback and vkQuake launch
+
+User explicitly requested corrected mip readback, relink, and launch. Driver
+c7f6f95 accepted R16 on PS5 PID 207: 277 PASS, zero FAIL, all four lower mip
+frames match 8,294,400 pixels each; independent CPU checks match 87,040 lower
+texels, ten streams replay exactly. Fifteen targeted check-driver arms, all
+eleven gates, port five gates/scan and template relink PASS. Failed PID 206
+readback and the separate C7 coverage correction remain preserved.
+
+Explicit engine rebuild and port relink yield identity
+b6a1e9540a03996b94a42346de7e0868fb339b883ea0ddab6e84d1407c6f126f.
+Archive SHA-256 8d5206d5d4fc1535c342916b71c81e57d62ae4086d14fcd993074bc4c2fc8c67;
+eboot content includes R15 offset, R16 map and cache sentences. Two deployed
+ELF reads and all five PT_LOAD segments match. Gates and shader scan PASS before
+launch; listener armed first. Command: bash tools/run-title.sh --no-build
+--no-deploy --watch 120. PID 208 presents, initialises Quake, starts demo1 and
+reaches the Necropolis map recording without the previous three map failures.
+
+Two new recording refusals: set 0 binding 2 holds three descriptors, and set 0
+binding 0 requires padded texture pitch 256 outside current descriptor coverage.
+The latter sentence does not identify full extent/format/mips/layers; that shape
+needs measurement before a fix. EndCommandBuffer returns -13, Quake exits 1,
+and kernel PID 208 records the known SIGSYS exit path. M6 is not accepted.
+On-screen confirmation requested, still pending at this entry. Input/audio
+engine adapters remain stubs. No visual settings changed.
+
+Both final FTP reads match, SHA-256
+49f3bf8d243b8a07d8b9dcc63afd757bff1656f9a36bd334bc32e030c22a5fd4.
+The two-minute harness finishes with count=0; no title left running. Evidence:
+evidence/m2-r16-map-recording, 24 captures replayed with zero failures.
+PID 208 has 99 SPIR-V compiles/stores, 433 cache hits and eight NIR compiles;
+the driver header change invalidates older keys as designed. No new warm-start
+timing claimed. Next driver work is the exact R17/R18 witnesses below.

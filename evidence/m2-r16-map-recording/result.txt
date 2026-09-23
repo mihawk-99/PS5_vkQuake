@@ -1,0 +1,22 @@
+{
+  "identity": "b6a1e9540a03996b94a42346de7e0868fb339b883ea0ddab6e84d1407c6f126f",
+  "driver_commit": "c7f6f95",
+  "pid": 208,
+  "two_final_reads_identical": true,
+  "trace_sha256": "49f3bf8d243b8a07d8b9dcc63afd757bff1656f9a36bd334bc32e030c22a5fd4",
+  "first_present_return": 0,
+  "map": "the Necropolis",
+  "cache_hits": 433,
+  "cache_stores": 99,
+  "spirv_compiles": 99,
+  "nir_compiles": 8,
+  "refusals": [
+    "[ps5vk] recording refusal in ps5vk_cmd_buffer_shader_resources: set 0 binding 2 holds 3 descriptors; descriptor arrays are D1 (docs/M5_REFERENCE.md)",
+    "[ps5vk] recording refusal in ps5vk_sampled_image: set 0 binding 0 needs a padded texture pitch of 256 texels; only single-level, single-layer 2D images up to 16384 texels have a custom-pitch descriptor probe (C4)"
+  ],
+  "prior_map_failures_absent": true,
+  "port_exit": 1,
+  "exit_signal": "SIGSYS",
+  "idle_after_run": true,
+  "human_confirmation": "pending"
+}

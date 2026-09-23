@@ -1,0 +1,14 @@
+{
+  "step": "m2-r16-map-recording",
+  "note": "R14/R15/R16 pass the prior map-recording failures. PID 208 presents then refuses a three-element sampled-image binding and a padded-pitch image outside current descriptor coverage; M6 remains open.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "holds 3 descriptors",
+    "padded texture pitch of 256 texels",
+    "process pid=208"
+  ],
+  "must_not_contain": [
+    "assertion failed: buffer != NULL"
+  ],
+  "human_check": "First present returned success; on-screen confirmation requested and pending. No stable-map, input or audio acceptance."
+}
