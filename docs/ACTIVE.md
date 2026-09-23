@@ -46,8 +46,8 @@ Two final trace reads match and kernel PID 208 agrees. The two-minute harness
 ended with count=0; no title remains running. First-present on-screen check
 was requested and is pending. Evidence: `evidence/m2-r16-map-recording/`.
 R17 is now accepted in driver 3be25f1: PS5 PID 209, 104 PASS, zero FAIL;
-array/scalar compute output exact, two exact replays. R18 now needs the exact
-refused padded image shape before a layout change; see
+array/scalar compute output exact, two exact replays. PID 210 identifies R18 as 224x195 RGBA8, eight mips, one layer, 2D;
+the array refusal is absent. Next is full-mip pixel verification; see
 `docs/PS5_VULKAN_REQUESTS.md`. Input/audio adapters still need implementation.
 
 ## Verification

@@ -1,0 +1,17 @@
+{
+  "pid": 210,
+  "image_extent": [
+    224,
+    195,
+    1
+  ],
+  "format": 37,
+  "mips": 8,
+  "layers": 1,
+  "view_type": 1,
+  "pitch_texels": 256,
+  "r17_refusal_absent": true,
+  "two_final_reads_identical": true,
+  "trace_sha256": "d2645d9a568694767906b5f3818f49363ff111ce7cb20c06f81243f3d7f5cab4",
+  "idle_after_run": true
+}

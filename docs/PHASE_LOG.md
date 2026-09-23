@@ -2400,3 +2400,16 @@ disable caching and its three arms passed. Eleven driver gates, this port's
 five gates/scan and template relink PASS. Console idle. Reproduction/evidence:
 ../PS5_Vulkan/jobs/r17-descriptor-array and golden/r17-descriptor-array.
 R18 remains: measure the exact refused padded image before changing its layout.
+
+
+## 2026-09-23 — R18 image shape identified, vkQuake PID 210
+
+Added image extent/format/mips/layers/view/name to the existing padded-pitch
+refusal. Explicit rebuild, eleven gates, port five gates/scan and template
+relink PASS; two deployed ELF reads match all PT_LOAD segments. Port identity
+cd1b39c8e36e63f45a896f21399b0d542e08a384831512a4f9a356e3e6fca3da,
+PID 210 presents and no longer refuses the descriptor array. R18 names a
+224x195x1 VK_FORMAT_R8G8B8A8_UNORM (37), eight mip levels, one layer, 2D view,
+padded pitch 256 texels. This is the exact shape the next probe must measure.
+No layout fix is claimed. Port evidence/m2-r18-shape has two matching final
+reads and PID-correlated exit 1/SIGSYS; the bounded run ended count=0.
