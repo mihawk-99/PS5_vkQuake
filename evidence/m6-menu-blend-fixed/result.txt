@@ -1,0 +1,21 @@
+{
+  "pid": 259,
+  "build_identity": "3a6078fa4a8f2a71f9196545ef7fd94952a65a97f82013e3c3de8f9a35927afa",
+  "driver_revision": "d8646ce",
+  "trace_sha256": "95f1274f03c1848b847cce0b3c0780b61c92c1b0e6a23638ef6d01f5edcb2116",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-044938-00.png",
+    "vkQuake-Introduction-start-20260117-044944-00.png",
+    "vkQuake-Introduction-start-20260117-044949-00.png",
+    "vkQuake-Introduction-start-20260117-044955-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-045007-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored_absent": true,
+  "audio_frames": 2399744,
+  "audio_errors": 0,
+  "visual_result": "Menu reveals correctly faded world; transparent HUD blends; start and E1M1 render normally."
+}
