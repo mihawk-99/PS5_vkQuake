@@ -1,0 +1,15 @@
+{
+  "step": "m6-r33-span-cache-noprofile",
+  "note": "A/B candidate, profiling off: start map 23.22/26.51 FPS, E1M1 30.03/34.19/34.19. Against m6-r33-control-noprofile (same driver, no span cache): E1M1 34.18, start 22.26/25.41. No measurable FPS change; the span cache is a work reduction that does not cross a vblank.",
+  "must_contain": [
+    "build identity: 28ecb4f8",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=34.19"
+  ],
+  "must_not_contain": [
+    "[ps5vk] profile",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

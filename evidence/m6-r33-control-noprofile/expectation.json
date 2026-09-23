@@ -1,0 +1,15 @@
+{
+  "step": "m6-r33-control-noprofile",
+  "note": "A/B control for the span cache, profiling off, trimmed R32 fixture: start map 22.26/25.41 FPS, E1M1 30.02/34.15/34.18. E1M1 above 30 means some frames present in one 60 Hz vblank.",
+  "must_contain": [
+    "build identity: ce0ea9a8",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=34.18"
+  ],
+  "must_not_contain": [
+    "[ps5vk] profile",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

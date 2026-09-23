@@ -1,0 +1,16 @@
+{
+  "pid": "not read this run",
+  "build_identity": "28ecb4f86905f2b446756c188ec68cc4af2459b1280e1ea6830a4842a3aba860",
+  "driver_revision": "d00a2ce + uncommitted begin/reset split (committed with this evidence)",
+  "trace_sha256": "d4eed88640760550c67ba11d63ceef6ee059b04d67f945783f681e17b2e4fcc4",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-104018-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-104106-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; staged fixture and flags removed because they were absent before",
+  "visual_result": "Both 3840x2160 readbacks correct: textures, lightmaps, HUD and console overlay."
+}

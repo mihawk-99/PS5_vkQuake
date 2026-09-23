@@ -1,0 +1,15 @@
+{
+  "pid": "not read this run",
+  "build_identity": "ce0ea9a8dbf6be36af60a79dc44e93490d9cdff008aaf66218a34afb45d387cf",
+  "driver_revision": "d00a2ce + uncommitted begin/reset split (committed with this evidence)",
+  "trace_sha256": "2ef035c9c5f3a18b4a9f2028b6b498c8c0abd7a1ec930c37826ce88ae2b917a8",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-103409-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": false,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; staged fixture and flags removed because they were absent before",
+  "visual_result": "Start-map readback correct; the E1M1 screenshot was not reached before the harness closed the stalled run at 170 s."
+}

@@ -1,0 +1,15 @@
+{
+  "step": "m6-r33-begin-split",
+  "note": "vkBeginCommandBuffer split by level and by reset part, profiling on, trimmed R32 fixture. 30 begins a frame, 26 of them secondaries; call_begin_ms 4.3 a frame (~143 us a begin); Mesa's common reset 2.45 ms a frame (~82 us each) against 0.62 ms for the driver's clear_state. Only secondaries keep a Mesa cmd queue, whose reset frees and recreates a 64 KiB linear context: through the port's allocator that is an munmap and an mmap. The run stalled (multi-second frame_max_ms once per 10 s window, 4-13 FPS) and was closed by the harness at 170 s before the E1M1 screenshot, so only the counts and per-call costs are quoted.",
+  "must_contain": [
+    "build identity: ce0ea9a8",
+    "secondary_begins/frame=26.0",
+    "begins/frame=30.0",
+    "reset_common_ms=2.4",
+    "PS5_R32_E1M1_BEGIN"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

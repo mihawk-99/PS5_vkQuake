@@ -2793,3 +2793,33 @@ Verification: bash tools/verify.sh format evidence passes; all 48 committed
 captures replay. README local links and referenced controls/build commands were
 checked against the checkout; git diff --check passes. Documentation only;
 the deployed executable and user session are unchanged.
+
+## 2026-09-23 — R33: keep released mmap spans; begins are 26 secondaries a frame
+
+Driver 4f1ebd2 splits `vkBeginCommandBuffer` (profiling on, trimmed R32
+fixture, console idle and owner state snapshotted/restored exactly for every
+run). A frame begins **30 command buffers, 26 of them secondaries**; Mesa's
+common reset was 2.45 ms a frame (~82 us each) against 0.62 ms for the driver's
+clear_state. A secondary's reset frees and recreates Mesa's 64 KiB linear
+context, and src/memory_ps5.cpp sends every allocation of 32 KiB or more to
+mmap, so each one was an munmap and an mmap every frame.
+
+Change: the allocator keeps up to 32 released spans (each at most 1 MiB, 8 MiB
+in total) and reuses one of the same span; calloc clears a reused span because
+only a fresh mapping is zero-filled. Host test extended (reuse, calloc zeroing,
+cache overflow), also clean under ASan/UBSan.
+
+Result, per frame at E1M1 with profiling on: reset_common_ms 2.45 -> 0.92-0.97,
+call_begin_ms 4.3 -> 2.8, same 30 begins. With profiling off, the same driver
+and fixture give E1M1 34.18 vs 34.19 FPS and start 25.41 vs 26.51 without and
+with the change: **less work, no measurable FPS change**. Both readbacks
+correct. The first profiled run stalled (4-13 FPS, multi-second frame_max) and
+only its counts and per-call costs are quoted; the profiled runs show one long
+hitch in every ten-second window, and the trace shows the driver's summary line
+split by another thread's line and cut off mid-write at the harness close, so
+the report write is the next thing timed.
+
+Evidence: m6-r33-begin-split, m6-r33-span-cache, m6-r33-span-cache-noprofile,
+m6-r33-control-noprofile (identities ce0ea9a8 control, 28ecb4f8 candidate).
+tools/verify.sh PASS; 57 captures replay. The console holds the control build
+ce0ea9a8 after the A/B.
