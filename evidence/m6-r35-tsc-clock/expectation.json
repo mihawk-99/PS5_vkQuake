@@ -1,0 +1,16 @@
+{
+  "step": "m6-r35-tsc-clock",
+  "note": "The engine's ~48 clock reads a frame come from the TSC (12 ns) instead of clock_gettime (20.3 us). Profiling off, against m6-r35-kernel-entry-counts: E1M1 34.19 vs 34.19 FPS, start 26.63 vs 26.56. No FPS change at E1M1, which the next evidence (m6-r36-work-metric) explains: E1M1's period is held at 29.2 ms by the display, not by the work.",
+  "must_contain": [
+    "build identity: a2908f87",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=34.19 clock/frame=48.4",
+    "fps=26.63"
+  ],
+  "must_not_contain": [
+    "[ps5vk] profile",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

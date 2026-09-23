@@ -28,3 +28,11 @@ class SdlPs5(unittest.TestCase):
             # covered rather than only that nothing failed.
             self.assertIn('mutex is recursive', result.stdout)
             self.assertIn('all checks passed', result.stdout)
+            # The same checks with libkernel's TSC present, as on the console.
+            subprocess.run(['cc', '-std=gnu11', '-O1', '-pthread', '-Wall', '-Wextra', '-Werror',
+                            '-DSDL_PS5_TEST_TSC', 'tests/sdl_ps5_test.c', '-o', binary],
+                           cwd=ROOT, check=True)
+            result = subprocess.run([binary], cwd=ROOT, check=True, capture_output=True,
+                                    text=True, timeout=60)
+            self.assertIn('tsc path', result.stdout)
+            self.assertIn('all checks passed', result.stdout)
