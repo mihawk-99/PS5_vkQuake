@@ -2823,3 +2823,28 @@ Evidence: m6-r33-begin-split, m6-r33-span-cache, m6-r33-span-cache-noprofile,
 m6-r33-control-noprofile (identities ce0ea9a8 control, 28ecb4f8 candidate).
 tools/verify.sh PASS; 57 captures replay. The console holds the control build
 ce0ea9a8 after the A/B.
+
+## 2026-09-23 — R34-R40: a free profile, the 20 us system call, VRR, flush and spin
+
+- R34 (driver 453c489): the profiled runs' once-per-window multi-second hitch is
+  the driver's own summary write (last_write_ms equals the next frame_max_ms);
+  every system call costs ~20 us (m6-r34-report-write, m6-r34-cost-probe).
+- R35 (46855d2, e0c8c25): the shim counts kernel entries per frame (48 clock
+  reads, 212 semaphore posts, 81 blocking waits, 153 contended locks); the clock
+  is the TSC. No FPS change (m6-r35-kernel-entry-counts, m6-r35-tsc-clock).
+- R36 (cec9fae, driver 44337ef): per-frame work on the present line; profile
+  timestamps from the TSC and one write(2) on fileno(stderr) -- a first version on
+  STDERR_FILENO lost its lines (build d1b39125). E1M1 was a constant 29.25 ms
+  period, work 23.67 + present wait 5.58 (m6-r36-work-metric,
+  m6-r36-cheap-profile).
+- R37 (driver 6f347ba): colour targets flushed only in mapped memory; flush 3.9 ->
+  0.002 ms at E1M1, start map 26.7 -> 31.25 FPS; runner battery identical to the
+  pre-change driver, 138 tests, 130 PASS each (m6-r37-mapped-flush).
+- The owner enabled VRR for unsupported games. Same code: E1M1 50.65 FPS, the
+  present no longer waits, a bare vblank is 20.872 ms (m6-r38-vrr-baseline).
+- R38 (driver d915015): bounded marker spin; E1M1 55.76 FPS, start map 33.08
+  (m6-r38-marker-spin).
+- R39: lock-free SDL semaphore, within noise; parked (m6-r39-semaphore).
+- R40 (driver b4c0b2e): vkCmdExecuteCommands is 0.14 ms a frame, ruled out;
+  run-to-run variation ~2 ms of work (m6-r40-execute).
+tools/verify.sh PASS; 68 captures replay.
