@@ -1,0 +1,14 @@
+{
+  "step": "m2-shader-cache-cold",
+  "note": "Persistent shader cache timing and reuse accepted; known map-rendering failure remains.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "cache hits=433",
+    "SPIR-V compiles=99",
+    "ps5vk_cmd_draw_indirect"
+  ],
+  "must_not_contain": [
+    "shader cache write failed"
+  ],
+  "human_check": "Timing is first successful presentation detected from trace, with one-second polling. No new visual acceptance claimed; PID 197 established M2."
+}

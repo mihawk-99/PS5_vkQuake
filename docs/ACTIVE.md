@@ -1,37 +1,58 @@
 ## Where the port is
 
+**Persistent shader caching is deployed and measured.** Driver `69a5c59`
+saves immutable SPIR-V compiler outputs inside each title's
+`/app0/ps5vk-shader-cache`. Normal deployment preserves them; shader/compiler
+input changes invalidate entries. Failed or corrupt reads compile normally.
+No GPU addresses or live resources are persisted.
+
+Same port identity for both runs:
+`78bd43a2e575089a96cf8dc561937dd7781c462fbcf051f2fa177ac0c55107b1`.
+
+| Run | PID | First present | SPIR-V compiles | Cache hits | Stores |
+| --- | --- | --- | --- | --- | --- |
+| Cold | 202 | 30.410 s | 99 | 433 | 99 |
+| Warm | 203 | 13.018 s | 0 | 532 | 0 |
+
+Eight internal NIR shaders still compile in each run. Times include launch IPC
+and one-second trace polling, not optical scanout. Both final trace reads match
+per run, build identities and kernel PIDs match, and the console is idle.
+Evidence: `evidence/m2-shader-cache-cold/` and `evidence/m2-shader-cache-warm/`.
+Reproduce from here with the driver's jobs/shader-cache/benchmark-vkquake.py,
+after this tree's gates, shader scan and verified deployment.
+
 **M2 met:** PID 197 presented a frame, confirmed by the human as the Quake menu
 or console. Evidence: `evidence/m2-first-frame/`. M3–M6 remain unaccepted.
 
-**R13 passed the earlier staging-memory stop.** Driver cb1fa76 records one copy
-per region. Its explicit build, eleven gates, fifteen targeted check-driver
-arms and PS5 PID 198 probes passed (486 PASS, zero FAIL, twelve exact replays).
-The port passed all five gates and the shader scan before launch.
+**Same map-recording stop remains:** after presenting, PIDs 199, 202 and 203
+reach lightmap/indirect/visibility allocations, then named tiled-chain blit
+and multiple-dynamic-offset refusals and an indirect-stride assertion.
+The cold cache survived that crash and was reused by the warm process.
+R13 fixed the earlier staging upload OOM; caching does not repair rendering.
 
-PPSA99010 PID 199, identity
-`28581900784f866f50da7cab0eedba4a10d6a03d4816e8959833ad6e9b19f945`,
-compiled 540 stages and presented successfully, then allocated map lightmap,
-indirect-draw and visibility data without the prior OOM. It stopped on two
-interleaved named refusals: tiled-chain blit and one set with two dynamic
-offsets, then asserted on an indirect draw's stride. Upstream uses count=1,
-stride=0 in r_brush.c. Two full FTP reads match (SHA-256 193e4095…); kernel
-records PID 199 abort and termination; console count=0. Capture harness still
-finishing its 900-second window. Evidence: `evidence/m2-r13-map-recording/`.
+## Next / stop condition
 
-## Next
+The user's cache request is complete. The paired launches tested persistence
+and timing, not a repair of the known map stop. With the same rendering failure
+now repeated, follow the mission's stop-and-report rule before another rendering
+experiment. The cheapest next witness on resumption is a host single indexed
+indirect draw with count=1/stride=0, which upstream r_brush.c issues; the driver
+currently asserts stride >= command size even for that single-draw case.
+Then the named dynamic-offset and tiled-chain blit gaps remain to address.
 
-**User priority: persistent shader caching and measured faster warm launch.**
-The driver pipeline-cache API is currently an empty stub; every stage compiles.
-Implement persistence at the shared compiler boundary, with content-based
-invalidation, corruption fallback and cold/warm witnesses before hardware.
-Record the rendering failures above for later cycles; caching does not fix them.
+## Verification
 
-## Open questions
+Explicit driver build zero warnings, 167 check-driver arms and eleven gates
+PASS; persistent-key/corruption/fresh-process package tests PASS. Probe PIDs
+200/201 each passed 241 checks, zero FAIL; twelve submissions replay exactly.
+Template relink PASS. Port five gates and scan passed before launch, with scan
+repeated before each console run; evidence replay now 23 captures, zero failed.
+Archive: 14,425,130 bytes, SHA-256 e089e060… . No title is left running.
 
-- M3 needs stable menu acceptance; M4 input and M5 audio adapters are stubs;
-  M6 needs a textured/lightmapped world without refusals.
-- R10 subpass read matched only the first quarter-width on hardware.
-- `v0-lines` still fails; line guards remain.
-- Menu ImageQuery warnings need measured output.
-- Earlier exit SIGSYS and ignored staging EndCommandBuffer errors remain.
+## Other open work
+
+- M3 stable menu; M4 input and M5 audio engine adapters remain stubs;
+  M6 textured/lightmapped world without refusals.
+- R10 quarter-width subpass read, failing v0-lines and ImageQuery output.
+- Earlier exit SIGSYS; staging path ignores EndCommandBuffer failure.
 - Step 0 trace capture and reproducible build identity are closed.

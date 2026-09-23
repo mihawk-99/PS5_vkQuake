@@ -2264,3 +2264,47 @@ The harness remains in its fixed capture window, with no title left running.
 User reprioritized persistent shader caching: ten-minute startup is unacceptable.
 Next cycle measures cold versus warm compilation and persists valid compiled
 stages; these rendering failures remain open, and M6 is not claimed.
+
+
+## 2026-09-22 — Persistent shader caching: 30.4-second cold, 13.0-second warm
+
+User requested permanent shader storage and substantially faster loading.
+Driver 69a5c59 adds a content-keyed disk cache at the shared graphics/compute
+compiler boundary. Successful SPIR-V outputs persist immediately via atomic
+write, so the later application crash does not lose them. Host checks cover
+all key fields, specialization data/pointer independence, corruption and
+truncation fallback, exact restored bytes and fresh-process pipeline packages.
+Driver explicit build zero warnings, 167 arms and eleven gates PASS; PS5 probe
+PIDs 200/201 each 241 PASS, zero FAIL, twelve submissions replay exactly.
+Template relink PASS. Port all five gates PASS; scan before each launch.
+
+Archive 14,425,130 bytes, SHA-256
+e089e0608def7d4f2b100e0b5ee1713b1d2b6c2ed8cd7a59f261f8686efeb44f.
+Eboot contains the new shader-cache sentences; verified deploy identifies
+78bd43a2e575089a96cf8dc561937dd7781c462fbcf051f2fa177ac0c55107b1.
+Same binary, no rebuild or deployment between timed launches:
+
+- PID 202 cold: first successful QueuePresent detected at 30.410 s; 99 SPIR-V
+  compiles, 433 cache hits, 99 stores, zero invalid entries.
+- PID 203 warm: first successful QueuePresent detected at 13.018 s; zero
+  SPIR-V compiles, 532 cache hits, zero stores/invalid entries.
+
+Both compile eight internal NIR shaders. Timing includes launch IPC and
+one-second FTP trace polling; it is not an optical display timestamp. The
+listener precedes launch and each newest boot is tied to its kernel PID.
+Two final reads match per run: cold bb42a33172ef1484ca0396920ec5b2ace77c6552a899cd51d63937b8d208e578,
+warm aab57dafc15fb3ab3b557968e60e199bece3c24848779f9d9ab7ed6356f8be9e.
+Console idle after both runs. Evidence: m2-shader-cache-cold and -warm;
+compare now 23 captures, zero failed. Reproduction and summaries are also in
+../PS5_Vulkan/jobs/shader-cache/README.md and benchmark-vkquake.py.
+
+The cache request is accepted; M6 is not. Both boots retain the known tiled
+chain blit and multiple-dynamic-offset refusals, then indirect stride assertion,
+already recorded for PID 199. These were paired cache timing/persistence runs,
+not attempts to fix that stop. With the experiment complete, obey the user's
+repeat-failure stop rule before another rendering experiment. Next host witness
+on resumption: upstream's count=1/stride=0 indirect draw. No visual settings
+changed and no new human visual acceptance claimed. PID 197 already met M2.
+
+The previous R13 900-second harness also finished with capture status 0 and
+count=0. Capture success is distinct from the recorded application abort.
