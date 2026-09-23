@@ -1,59 +1,54 @@
 ## Where the port is
 
-**M2 is still blocked in first-frame recording, now by a named texture pitch
-limit.** Build `6b437103029f1702f911ecb5ea75785133a2880388ea3ec74804cf354ef4d705`,
-console PPSA99010 PID 195: 540 successful shader compiles, then:
+**M2 met: the engine presented a visible frame.** R12 driver `c8658bf`,
+port identity `a779b2bde40b52b3ce6ce84dc6a17325b0c5df883a9d61e09ea559ad10c0b342`,
+PPSA99010 PID 197: 540 successful compiles, then `vkQueuePresentKHR -> 0`.
+The human saw a frame before the crash and identified it as the Quake menu or
+console. This is visibility evidence, not stable menu operation or a textured
+world. M3–M6 remain unaccepted. Evidence: `evidence/m2-first-frame/`.
+
+**The next failure is map staging memory.** After `the Necropolis` and
+`Using protocol 15`, the trace reports:
 
 ```
-[ps5vk] recording refusal in ps5vk_sampled_image: set 0 binding 0 samples a 32-texel-wide image whose rows are padded to 256 bytes; the descriptor's row pitch needs a runner probe (docs/M5_REFERENCE.md, C4)
-vkEndCommandBuffer -> -13
-QUAKE ERROR: vkEndCommandBuffer failed with code -13
+[ScePthread/System] Internal Memory is running out.
+[ps5vk] recording refusal in ps5vk_CmdCopyMemoryToImageKHR: no memory to record an image copy
+vkEndCommandBuffer -> -1
 ```
 
-No `vkQueuePresentKHR` result occurred. Earlier successful end/submit calls
-are startup uploads, not a presented frame. Two FTP reads are byte-identical
-and the kernel listener identifies PID 195. Evidence:
-`evidence/m2-texture-row-pitch/`.
-
-**R11 made measurable progress.** Driver `0e33761` replaces the optional
-inheritance-framebuffer refusal with Mesa's owned secondary command queue,
-replayed into the primary's actual attachments. Recording failures print their
-command and sentence without a debug messenger. Its runner PID 194 passed
-secondary, presentation and render-to-texture probes. The port now reaches
-texture descriptor construction. R11's positive first-frame criterion remains
-open; the negative trace criterion is met by this boot.
-
-The port now traces the first end/submit/present result and every error.
-The host test exercises the real wrappers with successful and failed calls.
-All five port gates passed before this run; evidence replay passes afterward.
-The linked driver archive is 14,383,172 bytes, SHA-256 `65550cae…`.
+The engine's staging path ignores that end result and submits the invalid
+command buffer; Mesa asserts in vk_queue_submit_add_command_buffer. The kernel
+records the resulting abort for PID 197 and termination. Two complete FTP reads
+match (SHA-256 `f0975b88…`); the console reports count=0. The harness's scheduled
+watch/cleanup remains responsible for this run; no second title is launched.
 
 ## Next
 
-**R12: padded sampled-image rows**, owned in the driver under the mission's
-cross-tree authorization. Cheapest source witness: the image upload pads to
-256 bytes but descriptor word 4 never carries that pitch. Prove the encoding
-with a 32-wide texture readback in the driver's runner before another port boot.
-No port texture workaround or visual setting change.
+**R13: bound upload-record memory in the driver.** Source witness: row-layout
+uploads append one 272-byte copy record per row; the port's allocator leaves
+native reallocations native when they grow beyond its 32 KiB mapping threshold.
+The driver already has a one-record region-copy executor. A host reproduction
+should establish record-count and byte-correctness before a console probe.
+This is a candidate cause of heap pressure, not a measured allocation census.
+The staging path's ignored error is a separate port error-handling issue.
+
+## Verified R12
+
+Driver c8658bf explicitly rebuilt: all eleven gates and 167 check-driver arms
+PASS. Console probe PID 196: both 64-wide baseline and padded 32-wide texture
+matched all 2,073,600 pixels; nearest exact, bilinear maximum error 1. Four
+streams replay identically with same-run defaults. Template gates PASS.
+Archive: 14,385,036 bytes, SHA-256 `c37afdec…`. Port five gates and shader scan
+PASS before PID 197; evidence replay afterward: 20 captures, zero failures.
 
 ## Open questions
 
-- M2 requires a presented frame plus human screen confirmation; neither has
-  occurred. M3 menu, M4 input, M5 audio and M6 world remain unaccepted. Engine
-  input/audio adapters are still stubs.
-- R10's subpass read matched only the first quarter-width on hardware; the
-  cause is not yet proved. `v0-lines` still fails, so line guards remain.
-- `OpImageQuerySize` menu upscaler warnings need measured output.
-- The exit SIGSYS remains open (`evidence/exit-sigsys/`).
-- Step 0 is closed: the harness requires `trace.txt` and checks its newest
-  identity. `SOURCE_DATE_EPOCH=0` makes two identical engine builds byte-equal.
-  Evidence: `evidence/harness-identity/`.
-
-## Stop condition
-
-The first R12 host check was mistakenly described as validating new code but
-used the old archive. The explicit rebuild failed on an unavailable ALIGN
-macro. Per the mission's contradiction rule, work stopped and the unverified
-candidate is parked in `../PS5_Vulkan/parked/r12-row-pitch/`; the phase log has
-a separate correction. This does not alter the measured R11 boot above.
-The harness finished with count=0 and capture status 0; no title remains running.
+- M3 needs stable menu acceptance; M4 input and M5 audio adapters are stubs;
+  M6 needs a textured/lightmapped world without refusals.
+- R10 subpass read matched only the first quarter-width on hardware; the
+  cause remains unproved. `v0-lines` still fails; line guards remain.
+- Menu `OpImageQuerySize` warnings need measured output.
+- The earlier exit SIGSYS remains separate from PID 197's assertion abort.
+- Step 0's trace capture and reproducible identity are closed. The earlier
+  R12 stale-archive correction remains in the phase log; the user authorized
+  resumption and the fresh build/hardware probe now prove the implementation.

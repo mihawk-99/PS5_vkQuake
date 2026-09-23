@@ -1,0 +1,13 @@
+{
+  "step": "m2-first-frame",
+  "note": "First presentation and human-visible menu/console confirmed. Later map staging exhausts host memory and aborts; M6 not met.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "ps5vk_CmdCopyMemoryToImageKHR: no memory to record an image copy",
+    "vkEndCommandBuffer -> -1"
+  ],
+  "must_not_contain": [
+    "descriptor's row pitch needs a runner"
+  ],
+  "human_check": "User saw a frame before the crash and identified it as the Quake menu or console. This confirms visibility, not stable menu operation or world rendering."
+}
