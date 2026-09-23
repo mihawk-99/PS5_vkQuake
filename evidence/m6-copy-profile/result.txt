@@ -1,0 +1,18 @@
+{
+  "pid": 261,
+  "build_identity": "d584176efc73f76f5b34754b74e78cb24dae3883d87b246faabc1418e07d13a4",
+  "driver_revision": "9f9f395",
+  "trace_sha256": "10d5d2fdf3867675f12ac8c569ffe05980d235ff95cf0976cbe1522b0aad8910",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-045716-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-045808-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored_absent": true,
+  "audio_frames": 7082496,
+  "audio_errors": 0,
+  "visual_result": "Two map captures complete; default-off profiling measures copy bottleneck, no optimization yet."
+}

@@ -2717,3 +2717,15 @@ kernel PID match. Clean LoadExec exit, 2,399,744 audio frames and zero errors.
 All temporary configurations restored absent; console idle. Five gates/scan
 and 45 captures replay pass. Evidence: m6-menu-blend-fixed. Physical control
 and audible acceptance remain unconfirmed; performance work continues.
+
+## 2026-09-23 — R28 two-map CPU-copy profile
+
+Driver 9f9f395 adds default-off copy/synchronization timings. PID 261, identity
+d584176e…, completes start/E1M1 1,200-frame phases. Omitting the first mixed
+interval gives seven start intervals averaging 24.095 ms CPU copies and three
+E1M1 intervals averaging 0.041 ms. Both sync wait/signal average 0.021 ms each.
+Two PNGs, normal LoadExec exit, 7,082,496 audio frames/zero errors. Deployed
+segments and final trace/PNG reads agree twice, PID matches, console idle,
+three configuration paths and profiling flag restored absent. Gates/scan pass;
+46 captures replay. Evidence m6-copy-profile. This identifies the slow work
+class and makes no optimization claim.
