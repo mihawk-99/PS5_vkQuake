@@ -19,8 +19,8 @@ vkEndCommandBuffer -> -1
 The engine's staging path ignores that end result and submits the invalid
 command buffer; Mesa asserts in vk_queue_submit_add_command_buffer. The kernel
 records the resulting abort for PID 197 and termination. Two complete FTP reads
-match (SHA-256 `f0975b88…`); the console reports count=0. The harness's scheduled
-watch/cleanup remains responsible for this run; no second title is launched.
+match (SHA-256 `f0975b88…`); the console reports count=0. The 900-second harness completed with capture status 0 and count=0.
+Application failure remains recorded independently of capture success.
 
 ## Next
 
