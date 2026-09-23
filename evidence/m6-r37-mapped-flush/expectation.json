@@ -1,0 +1,16 @@
+{
+  "step": "m6-r37-mapped-flush",
+  "note": "Driver 6f347ba flushes colour targets only in mapped memory. Flush 3.92 -> 0.002 ms a frame at E1M1 and 5.82 -> 0.003 ms at the start map. Start map 26.7 -> 31.25 FPS (work 37.3 -> 31.8 ms). E1M1: one window 39.28 FPS at work 20.84 ms (162 frames under 25 ms), the next 34.19 at work 21.56. Both readbacks correct. Runner battery identical to the pre-change driver (driver jobs/r37-mapped-flush). VRR 'Apply to Unsupported Games' was off during this run (owner, afterwards).",
+  "must_contain": [
+    "build identity: 026599ff",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=31.25 work_ms=31.803",
+    "fps=39.28 work_ms=20.844",
+    "flush_ms=0.002"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

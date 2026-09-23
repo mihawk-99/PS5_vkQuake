@@ -1,0 +1,16 @@
+{
+  "pid": "not read this run",
+  "build_identity": "026599fffaba29812ecfc54c0c75cd828be95d6fbb0afa41cbeb3d1621838a9e",
+  "trace_sha256": "5f1c9e5705edaf2691da87fbf1c1b0b529b5644fcfcfdd28d06fabc10f5a7cbb",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-122100-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-122134-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; staged fixture and flags removed",
+  "visual_result": "Both 3840x2160 readbacks correct: textures, lightmaps, sky, lava/teleport surfaces, HUD.",
+  "display": "VRR Apply to Unsupported Games OFF"
+}
