@@ -1,54 +1,37 @@
 ## Where the port is
 
-**M2 met: the engine presented a visible frame.** R12 driver `c8658bf`,
-port identity `a779b2bde40b52b3ce6ce84dc6a17325b0c5df883a9d61e09ea559ad10c0b342`,
-PPSA99010 PID 197: 540 successful compiles, then `vkQueuePresentKHR -> 0`.
-The human saw a frame before the crash and identified it as the Quake menu or
-console. This is visibility evidence, not stable menu operation or a textured
-world. M3–M6 remain unaccepted. Evidence: `evidence/m2-first-frame/`.
+**M2 met:** PID 197 presented a frame, confirmed by the human as the Quake menu
+or console. Evidence: `evidence/m2-first-frame/`. M3–M6 remain unaccepted.
 
-**The next failure is map staging memory.** After `the Necropolis` and
-`Using protocol 15`, the trace reports:
+**R13 passed the earlier staging-memory stop.** Driver cb1fa76 records one copy
+per region. Its explicit build, eleven gates, fifteen targeted check-driver
+arms and PS5 PID 198 probes passed (486 PASS, zero FAIL, twelve exact replays).
+The port passed all five gates and the shader scan before launch.
 
-```
-[ScePthread/System] Internal Memory is running out.
-[ps5vk] recording refusal in ps5vk_CmdCopyMemoryToImageKHR: no memory to record an image copy
-vkEndCommandBuffer -> -1
-```
-
-The engine's staging path ignores that end result and submits the invalid
-command buffer; Mesa asserts in vk_queue_submit_add_command_buffer. The kernel
-records the resulting abort for PID 197 and termination. Two complete FTP reads
-match (SHA-256 `f0975b88…`); the console reports count=0. The 900-second harness completed with capture status 0 and count=0.
-Application failure remains recorded independently of capture success.
+PPSA99010 PID 199, identity
+`28581900784f866f50da7cab0eedba4a10d6a03d4816e8959833ad6e9b19f945`,
+compiled 540 stages and presented successfully, then allocated map lightmap,
+indirect-draw and visibility data without the prior OOM. It stopped on two
+interleaved named refusals: tiled-chain blit and one set with two dynamic
+offsets, then asserted on an indirect draw's stride. Upstream uses count=1,
+stride=0 in r_brush.c. Two full FTP reads match (SHA-256 193e4095…); kernel
+records PID 199 abort and termination; console count=0. Capture harness still
+finishing its 900-second window. Evidence: `evidence/m2-r13-map-recording/`.
 
 ## Next
 
-**R13: bound upload-record memory in the driver.** Source witness: row-layout
-uploads append one 272-byte copy record per row; the port's allocator leaves
-native reallocations native when they grow beyond its 32 KiB mapping threshold.
-The driver already has a one-record region-copy executor. A host reproduction
-should establish record-count and byte-correctness before a console probe.
-This is a candidate cause of heap pressure, not a measured allocation census.
-The staging path's ignored error is a separate port error-handling issue.
-
-## Verified R12
-
-Driver c8658bf explicitly rebuilt: all eleven gates and 167 check-driver arms
-PASS. Console probe PID 196: both 64-wide baseline and padded 32-wide texture
-matched all 2,073,600 pixels; nearest exact, bilinear maximum error 1. Four
-streams replay identically with same-run defaults. Template gates PASS.
-Archive: 14,385,036 bytes, SHA-256 `c37afdec…`. Port five gates and shader scan
-PASS before PID 197; evidence replay afterward: 20 captures, zero failures.
+**User priority: persistent shader caching and measured faster warm launch.**
+The driver pipeline-cache API is currently an empty stub; every stage compiles.
+Implement persistence at the shared compiler boundary, with content-based
+invalidation, corruption fallback and cold/warm witnesses before hardware.
+Record the rendering failures above for later cycles; caching does not fix them.
 
 ## Open questions
 
 - M3 needs stable menu acceptance; M4 input and M5 audio adapters are stubs;
   M6 needs a textured/lightmapped world without refusals.
-- R10 subpass read matched only the first quarter-width on hardware; the
-  cause remains unproved. `v0-lines` still fails; line guards remain.
-- Menu `OpImageQuerySize` warnings need measured output.
-- The earlier exit SIGSYS remains separate from PID 197's assertion abort.
-- Step 0's trace capture and reproducible identity are closed. The earlier
-  R12 stale-archive correction remains in the phase log; the user authorized
-  resumption and the fresh build/hardware probe now prove the implementation.
+- R10 subpass read matched only the first quarter-width on hardware.
+- `v0-lines` still fails; line guards remain.
+- Menu ImageQuery warnings need measured output.
+- Earlier exit SIGSYS and ignored staging EndCommandBuffer errors remain.
+- Step 0 trace capture and reproducible build identity are closed.

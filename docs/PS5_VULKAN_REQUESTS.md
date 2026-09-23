@@ -1037,3 +1037,11 @@ match. Cheapest witness: a host large-row upload that checks record count and
 exact destination bytes, including pitch, offsets and reversed storage. Then
 probe on console before another port run. The exact heap contribution is not
 measured yet. No texture-data or visual-settings workaround is requested.
+
+
+## R13 port result and next priority
+
+PID 199 passed the old upload OOM and reached map recording; evidence/m2-r13-map-recording
+names tiled-chain blit, multiple dynamic offsets and single-draw zero-stride
+failures. User now requests persistent shader caching first, with measured
+cold/warm boot times. Cache hits must preserve specialization and compiler options.

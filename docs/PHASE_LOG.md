@@ -2240,3 +2240,27 @@ application issue. No further port launch belongs to this R12 cycle.
 R12 capture cleanup completed: the 900-second harness returned status 0,
 reported count=0, and saved trace.txt. Its died verdict agrees with the recorded
 PID 197 abort. Console idle; no title was left running.
+
+
+## 2026-09-22 — R13 port map-recording result; shader cache priority
+
+Driver cb1fa76, archive b3bb7ac99730e894895fb817f956eb48616eaa856dc1fe1ffd3d31b8221e52f0,
+was explicitly rebuilt and hardware-proven before the port relink. Port five
+gates and shader scan PASS. Identity 28581900784f866f50da7cab0eedba4a10d6a03d4816e8959833ad6e9b19f945.
+`bash tools/run-title.sh --no-build --watch 900` launched PID 199. Its 540
+successful compiles ended in QueuePresent=0, then the Necropolis loaded and
+allocated lightmap/indirect/visibility data. The prior staging OOM is absent.
+
+Two new named refusals interleave: ps5vk_image_transfer_check refuses a tiled
+chain blit; ps5vk_CmdBindDescriptorSets2KHR refuses one set with two dynamic
+offsets. Then ps5vk_cmd_draw_indirect asserts stride >= command_bytes; source
+r_brush.c uses a single draw with stride=0. No implementation change for these
+failures yet. Kernel confirms PID 199 abort/termination; console count=0.
+Two FTP reads are identical, SHA-256
+193e40957f7cc0c786ce01d54bd344729694a10eba0f52c933bfd5a66fa9a36e.
+Evidence: evidence/m2-r13-map-recording; compare: 21 captures, zero failed.
+The harness remains in its fixed capture window, with no title left running.
+
+User reprioritized persistent shader caching: ten-minute startup is unacceptable.
+Next cycle measures cold versus warm compilation and persists valid compiled
+stages; these rendering failures remain open, and M6 is not claimed.
