@@ -1,0 +1,14 @@
+{
+  "step": "m6-tasks0-benchmark",
+  "note": "Existing r_tasks=0 measured for 300 seconds; no demonstrated benefit, default unchanged; fixture removed",
+  "must_contain": [
+    "PS5_TASKS0_BENCHMARK",
+    "\"r_tasks\" is \"0\"",
+    "Terminating pid=228"
+  ],
+  "must_not_contain": [
+    "Host_Error",
+    "refused"
+  ],
+  "human_check": ""
+}

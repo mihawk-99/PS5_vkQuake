@@ -69,7 +69,10 @@ PID 226 executes map start, 120 waits and console quit, drains audio without
 errors, writes both configuration files, and exits via LoadExec without SIGSYS.
 Both final traces/deployed ELF/PID match, idle verified, test files restored.
 Five gates and 32 evidence captures PASS. Evidence: evidence/m6-native-quit.
-Next: measure r_tasks=0, then prove screenshot readback and inspect world output.
+Single-thread rendering tested (PID 228): 6,345 versus 6,357 frames over the
+first 27 steady intervals, no useful gain. r_tasks stays at its upstream default.
+Evidence: evidence/m6-tasks0-benchmark, 33 capture replays PASS, fixtures removed.
+Next: prove screenshot readback and inspect world output.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
