@@ -2319,3 +2319,36 @@ and exact stream replay PASS; title closed. Evidence is the driver's
 jobs/r14-indirect-stride and golden/r14-indirect-stride. This is driver
 acceptance, not a new vkQuake run. Dynamic offsets and the water-texture mip
 blit remain next; M6 is not claimed complete.
+
+
+## 2026-09-22 — R15 accepted; R16 corrected candidate parked
+
+Driver b838832 applies each dynamic uniform offset to its own binding while
+preserving static bindings. PID 205 passed all four probe frames and four exact
+replays (196 PASS, zero FAIL). Host checks, driver eleven gates, this port's
+five gates and template relink passed. No new vkQuake run in this cycle.
+
+The next named refusal was water-texture mip blitting. Initial R16 probe PID 206
+failed 64x64 mip readback: 7,776,000/8,294,400 pixels matched, other lower levels
+passed. CPU checks using the same wrong additive addresses misleadingly passed.
+Whole-chain AddrLib queries show 2,048 address mismatches per tested chain;
+XOR tail addressing has zero. This contradicts earlier driver C7 whole-chain
+coverage, so the mission's stop rule applies. Separate correction entries and
+failed golden evidence are preserved in the driver, not rewritten.
+
+The corrected shared upload/copy/blit and cache-flush candidate passed an
+explicit driver rebuild, fifteen host/link arms, all eleven gates, independent
+CPU checks of all 87,040 lower texels, this port's five gates and template
+relink. No corrected hardware acceptance is claimed. It is parked against
+b838832 in ../PS5_Vulkan/parked/r16-mip-tail.patch, with exact reproduction and
+acceptance in ../PS5_Vulkan/jobs/r16-mip-blit/README.md. Console idle. Restore
+accepted driver source/archive and port/template links before checkpointing.
+Next authorized experiment is corrected R16 full-mip readback on PS5, before
+another vkQuake deployment. M3–M6 remain open; no new visual acceptance.
+
+Checkpoint restoration completed: explicit accepted-base build is 14,427,682
+bytes, SHA-256 055c7c6c1ff47829fcb3c294cc4d8bd758529a0c2dea8f238e3347ed11c17811.
+Port all five gates PASS (23 captures, zero failures), identity
+de7a813a51722193a7c2fb7754afda8285ec8f23c73b9e98230316cf68e6ce6c; template relink PASS
+(pre-existing unused audio helper warnings). Neither was deployed or launched.
+Exact restoration identities: ../PS5_Vulkan/jobs/r16-mip-blit/restored-base.txt.
