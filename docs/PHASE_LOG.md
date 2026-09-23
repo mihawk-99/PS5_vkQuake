@@ -2637,3 +2637,20 @@ trace read twice identically; normal LoadExec exit, kernel PID agrees, idle and
 originally absent configurations restored. This narrows the next probe to depth
 state persisting from a depth-attached pass into a colour-only UI pass; it does
 not yet prove the cause. Evidence: m6-hud-depth-diagnosis (40 captures pass).
+
+## 2026-09-23 — R25 relink restores the gameplay HUD
+
+Driver 90c28a1 explicitly disables depth/stencil when ending a depth-attached
+rendering. Its console regression reproduces the overlay failure before the fix
+and passes D32/D16 detachment, stencil/bias, readback and 24 strict replays after.
+The port relinks archive e172ce0f…; five gates/shader scan and two deployed ELF
+reads match identity 8eff69e9f60f768e2fa6eb9cff6f029d262603d9f32983f5985f5ee56586cadc.
+
+PID 246 writes seven 4K PNGs and exits normally via LoadExec. Inspected start and
+E1M1 images show the HUD; controlled opaque, transparent, modern and scale-1
+settings also retain it. Audio drains 2,550,528 frames with zero errors. Each PNG
+and final trace was read twice identically, actual kernel PID agrees, idle was
+verified and three configuration paths restored to their original absence.
+The menu remains readable against an unexpectedly black background; that
+composition issue remains open. These screenshots are not an FPS benchmark.
+Evidence m6-hud-depth-fixed; all 41 captures replay with zero failures.

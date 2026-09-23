@@ -85,10 +85,14 @@ Diagnostic final report: zero failures/dropped records; native peak 8.40 MB.
 Normal identity 9e7cced2…; five gates/scan and 39 evidence captures pass.
 Both deployed ELF and final trace reads match, actual PIDs agree, idle verified;
 three temporary/generated configuration paths restored absent after each run.
-Images show textured/lit worlds, weapon and readable menu. Gameplay HUD is
-absent; controlled opacity/style/scale screenshots are the next diagnosis.
+Images show textured/lit worlds, weapon and readable menu. R25 driver 90c28a1
+fixes depth state leaking into UI passes. Relink PID 246 writes seven PNGs:
+start/E1M1 and classic/transparent/modern HUDs are now visible. Normal LoadExec
+exit, 2,550,528 audio frames/zero errors; deployment/final reads/PID agree.
+Five gates/scan and 41 captures pass. Menu background remains black and open.
+Evidence: evidence/m6-hud-depth-fixed; identity 8eff69e9…; configs restored absent.
 Evidence: evidence/m6-png-{heap-exhaustion,heap-diagnosis,growth-diagnostic,growth-normal}.
-Next: HUD diagnosis, live-map performance, gameplay/save/load soak.
+Next: live-map scale/threading comparison, menu composition, gameplay/save/load soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
