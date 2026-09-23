@@ -1,9 +1,10 @@
 ## Current objective
 
-Make vkQuake stable, playable and faster on the PS5. The user authorized
-uninterrupted work while unavailable for eight hours; do not wait for questions
-or physical confirmation. CTS is out of scope. M2 was human-confirmed earlier
-as a visible Quake menu/console. Never claim flawless gameplay from a short run.
+Make vkQuake stable, playable and faster on the PS5. The user has returned and
+requests deployment of the latest build for manual testing. The heartbeat is
+PAUSED: do not run automated fixtures or a harness that closes their game.
+CTS is out of scope. M2 was human-confirmed as a visible Quake menu/console.
+Never claim flawless gameplay from a short run.
 
 ## Verified application state
 
@@ -51,7 +52,7 @@ gain (start about 14.81, E1M1 29.58). It was rolled back. Two PNGs, normal exit,
 6,891,008 audio frames/zero errors; all final/deployed reads/PID agree. Fixture
 and profile absent. Evidence: m6-mip-integer-benchmark; 47 captures replay.
 
-## Next runs and current interruption
+## Manual deployment now; automated runs deferred
 
 Driver c3e51f6 evaluates the existing common tile equation directly. PID 267
 passes four full 4K mip frames and all generated lower texels; four strict
@@ -67,6 +68,13 @@ no route, local route exists, neighbor failed, discovery has no response.
 Deployment failed before connecting. No new executable or fixture was uploaded.
 Last game PID 265 and probe PID 268 exited/closed normally; the cause of network
 loss is unknown. Do not describe this as a proven game crash.
+
+Latest manual-deploy preflight: shader scan and manifest pass; package contains
+no autoexec/profile fixture. Control, FTP, payload loader and kernel log now
+refuse connections (errno 111). Upload has not started. Enable the console
+services, verify idle, deploy/read back this R29 build, and preserve user files.
+Leave launch and play to the user. The steps below are deferred until manual
+testing is finished and automated work resumes.
 
 1. Retry control/FTP. Once reachable, require count=0, deploy the saved R29
    game, verify two served ELF reads/all load segments, then stage
