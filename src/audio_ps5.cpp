@@ -12,6 +12,7 @@
  * thread that blocks in sceAudioOutOutput. The interface it exposes is the one
  * its own callers use, so the vkQuake side can drive it directly.
  */
+#include "audio_ps5.h"
 #include <pthread.h>
 #include <algorithm>
 #include <cmath>
@@ -30,6 +31,8 @@ extern "C"
     int32_t sceAudioOutClose(int32_t);
 }
 
+extern "C" void ps5_trace(const char *line) noexcept;
+
 namespace
 {
 constexpr unsigned rate = 48000;
@@ -47,6 +50,9 @@ struct Audio
     size_t capacity = 0, head = 0, count = 0, peak = 0;
     bool active = true, shutdown = false, failed = false, nonblock = false, in_output = false;
     uint64_t accepted = 0, played = 0, discarded = 0, silence = 0, calls = 0, errors = 0;
+    ps5_audio_fill fill = nullptr;
+    void *context = nullptr;
+    uint64_t nonzero_blocks = 0;
     alignas(16) int16_t output[grain * 2] = {};
 };
 
@@ -60,13 +66,23 @@ void *worker(void *opaque)
             pthread_cond_wait(&a->changed, &a->mutex);
         if (a->shutdown)
             break;
-        const size_t frames = std::min(a->count, grain);
-        const size_t first = std::min(frames, a->capacity - a->head);
-        std::memcpy(a->output, a->ring + a->head * 2, first * frame_bytes);
-        std::memcpy(a->output + first * 2, a->ring, (frames - first) * frame_bytes);
-        std::memset(a->output + frames * 2, 0, (grain - frames) * frame_bytes);
-        a->head = (a->head + frames) % a->capacity;
-        a->count -= frames;
+        const size_t frames = a->fill ? grain : std::min(a->count, grain);
+        if (a->fill)
+        {
+            a->fill(a->context, a->output, frames);
+            a->accepted += frames;
+            a->nonzero_blocks += std::any_of(std::begin(a->output), std::end(a->output),
+                                             [](int16_t value) { return value != 0; });
+        }
+        else
+        {
+            const size_t first = std::min(frames, a->capacity - a->head);
+            std::memcpy(a->output, a->ring + a->head * 2, first * frame_bytes);
+            std::memcpy(a->output + first * 2, a->ring, (frames - first) * frame_bytes);
+            std::memset(a->output + frames * 2, 0, (grain - frames) * frame_bytes);
+            a->head = (a->head + frames) % a->capacity;
+            a->count -= frames;
+        }
         a->in_output = true;
         pthread_cond_broadcast(&a->changed);
         pthread_mutex_unlock(&a->mutex);
@@ -87,6 +103,15 @@ void *worker(void *opaque)
             a->played += frames;
             a->silence += grain - frames;
         }
+        if (a->fill && a->calls % (rate * 10 / grain) == 0)
+        {
+            char line[160];
+            std::snprintf(line, sizeof line,
+                          "PS5 audio: played=%llu nonzero_blocks=%llu errors=%llu",
+                          (unsigned long long)a->played, (unsigned long long)a->nonzero_blocks,
+                          (unsigned long long)a->errors);
+            ps5_trace(line);
+        }
         pthread_cond_broadcast(&a->changed);
     }
     pthread_mutex_unlock(&a->mutex);
@@ -94,7 +119,7 @@ void *worker(void *opaque)
 }
 
 void *audio_init(const char *device, unsigned requested_rate, unsigned latency, unsigned,
-                 unsigned *new_rate)
+                 unsigned *new_rate, ps5_audio_fill fill = nullptr, void *context = nullptr)
 {
     if (device && *device && std::strcmp(device, "default") != 0)
     {
@@ -131,6 +156,8 @@ void *audio_init(const char *device, unsigned requested_rate, unsigned latency, 
         delete a;
         return nullptr;
     }
+    a->fill = fill;
+    a->context = context;
     a->port = sceAudioOutOpen(0xff, 0, 0, grain, rate, 1);
     const int thread_result = a->port > 0 ? pthread_create(&a->thread, nullptr, worker, a) : -1;
     if (thread_result != 0)
@@ -308,6 +335,27 @@ bool use_float(void *)
     return false;
 }
 } // namespace
+
+extern "C" void *ps5_audio_open(ps5_audio_fill fill, void *context)
+{
+    return fill ? audio_init(nullptr, rate, 32, 0, nullptr, fill, context) : nullptr;
+}
+extern "C" void ps5_audio_close(void *audio)
+{
+    audio_free(audio);
+}
+extern "C" void ps5_audio_lock(void *audio)
+{
+    pthread_mutex_lock(&static_cast<Audio *>(audio)->mutex);
+}
+extern "C" void ps5_audio_unlock(void *audio)
+{
+    pthread_mutex_unlock(&static_cast<Audio *>(audio)->mutex);
+}
+extern "C" bool ps5_audio_pause(void *audio, bool paused)
+{
+    return paused ? audio_stop(audio) : audio_start(audio, false);
+}
 
 /* Opt-in bring-up test; normal launches never generate audio themselves. */
 extern "C" void ps5_audio_test_if_requested()

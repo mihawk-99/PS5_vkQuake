@@ -123,6 +123,39 @@ void fifo_and_lifecycle()
     assert(a->accepted == 1041 + 256 && a->played == 1041 && a->discarded == 256);
     finish(a);
 }
+void pull_and_pause()
+{
+    reset();
+    unsigned cursor = 1;
+    auto fill = [](void *context, int16_t *output, size_t frames)
+    {
+        auto &next = *static_cast<unsigned *>(context);
+        for (size_t i = 0; i < frames; ++i, ++next)
+        {
+            output[i * 2] = int16_t(next);
+            output[i * 2 + 1] = -int16_t(next);
+        }
+    };
+    auto *a = static_cast<Audio *>(ps5_audio_open(fill, &cursor));
+    assert(a);
+    entered(1);
+    assert(blocks[0] == pcm(1, 256));
+    ps5_audio_lock(a);
+    cursor = 1000;
+    ps5_audio_unlock(a);
+    tick();
+    entered(2);
+    assert(blocks[1] == pcm(1000, 256));
+    auto pause = std::async(std::launch::async, [&] { return ps5_audio_pause(a, true); });
+    wait_state(a, false);
+    tick();
+    assert(pause.get());
+    assert(a->played == 512 && a->nonzero_blocks == 2 && cursor == 1256);
+    assert(ps5_audio_pause(a, false));
+    entered(3);
+    assert(blocks[2] == pcm(1256, 256));
+    finish(a);
+}
 void blocking_and_failure()
 {
     reset();
@@ -145,6 +178,10 @@ void blocking_and_failure()
     assert(closes == 1);
 }
 } // namespace
+extern "C" void ps5_trace(const char *line) noexcept
+{
+    std::puts(line);
+}
 extern "C" int32_t sceAudioOutInit()
 {
     return init_result;
@@ -197,6 +234,7 @@ int main()
     finish(a);
     fifo_and_lifecycle();
     blocking_and_failure();
+    pull_and_pause();
     std::puts("audio_ps5: native ABI, byte counts, rate, queue wrap/backpressure, pause/resume and "
               "failure PASS");
 }

@@ -1,0 +1,15 @@
+{
+  "step": "m5-audio-profile-run",
+  "note": "Native mixer output and serialized periodic tracing verified; driver queue profiler enabled for frame-cost baseline.",
+  "must_contain": [
+    "PS5 audio: engine mixer ready, 48000 Hz stereo S16",
+    "PS5 audio: played=12960000 nonzero_blocks=49890 errors=0",
+    "PS5 present: frames=6335",
+    "build identity: 87db84a9207568947fc6e21e0c04ba5faf84e8cab4327cacd2501b1213c18ebb"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR",
+    "refus"
+  ],
+  "human_check": "Nonzero PCM and native output success verified. Audible quality, physical controls and current picture still await the unavailable user."
+}

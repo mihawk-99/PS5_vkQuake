@@ -2489,3 +2489,37 @@ Correction: driver R20 d8080dc proved the earlier R10 quarter-width conclusion
 was a faulty probe: raw tiled memory was read as linear, and the writer was
 not mapped. PID 219's corrected writer/reader both match every pixel in two
 frames. No descriptor or shader change was needed.
+
+## 2026-09-23: M5 mixer reaches native AudioOut
+
+Replaced the silent SNDDMA stub with a stereo S16 DMA ring at 48 kHz. The
+existing native backend pulls 256 frames per output call under the same mutex
+the engine uses while painting. Cursor wrap, channel order, open failure,
+pause/resume and cleanup have host coverage using actual engine types and the
+clocked native-output mock. Native output remains the pacing source.
+
+First run PID 221, identity a5c6e68f…, remained alive 300 seconds with 6,605
+presents and 13,440,000 stereo frames played; 51,908 blocks contained nonzero
+samples and no output error was reported. Some periodic audio and presentation
+messages overlapped because separate FILE appends interleaved. Preserved in
+evidence/m5-audio-initial. This was a diagnostic defect, not proof of an audio
+dropout. Serialized the trace helper and routed periodic audio through it.
+
+Final run PID 222, identity 87db84a9207568947fc6e21e0c04ba5faf84e8cab4327cacd2501b1213c18ebb,
+remained alive 300 seconds; 6,335 presents, 12,960,000 stereo frames played,
+49,890 nonzero blocks, zero output errors. All 27 periodic audio lines parse
+completely. No driver refusal or Quake error. Harness closed it, idle verified.
+Final trace read twice, SHA-256
+dbd90d97308646162132790625b0f428e3d0d40a0e70b761c27af10181682735.
+Kernel PID matches; all deployed ELF load segments match. Driver profiler
+archive dae28c8a… is linked here. Five port gates, shader scan, 170 driver
+check arms/cache checks, eleven driver gates and template relink pass.
+Thirty captures replay: python3 tools/evidence.py compare evidence/.
+
+The profiler baseline measures 509.54 MiB of target eviction per frame costing
+7.87 ms, included in 15.20 ms queue time; native submit/marker wait averages
+2.85 ms and flip waiting 7.79 ms. These overlap and are not summed. Profiling
+flag removed while idle and absence verified (FTP DELE returned its known
+nonstandard 226 success). Next optimization will remove duplicate cache work.
+Native nonzero output is established; audible quality, physical controls and
+current visual acceptance still need the unavailable user.

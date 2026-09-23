@@ -1,0 +1,14 @@
+{
+  "step": "m5-audio-initial",
+  "note": "Audio adapter candidate: nonzero PCM reaches native output. Some periodic lines interleave with presentation logging; retained as observed, logging correction pending next run.",
+  "must_contain": [
+    "PS5 audio: engine mixer ready, 48000 Hz stereo S16",
+    "PS5 audio: played=13440000 nonzero_blocks=51908 errors=0",
+    "PS5 present: frames=6605"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR",
+    "refus"
+  ],
+  "human_check": "Native output success and nonzero samples are measured; audible quality and physical controls not confirmed because user unavailable."
+}
