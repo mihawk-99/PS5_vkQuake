@@ -1,0 +1,26 @@
+{
+  "pid": 226,
+  "build_identity": "d3d0da7c86a1514fea26ee5848724ca491f9cc1c99dd013085e1af47cf37548c",
+  "final_trace_sha256": "7b1f39041c36c08d5603373e3f463dabdf47e2bf91cbcb0736744ae01f80abf6",
+  "normal_quit": true,
+  "native_shell_close": true,
+  "harness_closed": false,
+  "idle_verified": true,
+  "fixture_commands": "map start; 120 wait frames; toggleconsole; quit",
+  "configuration_files": {
+    "vkQuake.cfg": {
+      "bytes": 1019,
+      "sha256": "fb0f2117eb50beb3d90c78d9686c185fadcd6f77d40f57bff9f9448532ed65f9"
+    },
+    "id1/vkQuake.cfg": {
+      "bytes": 2510,
+      "sha256": "879d4d08ba9624ed64d9f8417b3add551dafe7c44836f27a0800023b2cb92c42"
+    },
+    "id1/autoexec.cfg": {
+      "bytes": 677,
+      "sha256": "a5733d66bfebbf7ed862a7f1aaee27b403059bd567902af465c115ec085bb0df"
+    }
+  },
+  "fixture_restored": true,
+  "limitation": "No visual map acceptance claimed; no interval presentation report before early quit."
+}

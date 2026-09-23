@@ -47,6 +47,10 @@ The FTE particle family already creates its line variants conditionally (on the 
 able to fill non-solid), so this mirrors upstream's own pattern. Retire it when LINE_LIST is
 mapped, which is request R8.
 
+**4. Title exit goes through the shell after engine shutdown.** The template measured
+kernel exit() raising SIGSYS. The port's native helper requests shell termination and waits;
+Sys_Quit and Sys_Error retain their existing cleanup and reporting before that handoff.
+
 Every edit is an exact-match replacement with a required occurrence count, so a vkQuake
 revision that moves or rewrites the text fails this script loudly instead of compiling
 something nobody has read.
@@ -224,6 +228,29 @@ EDITS = (
             "\t\t\t\tva (\"md5_debug%s\", pass_suffix));\n"
         ),
         why="the skeleton debug pipeline shares the showtris base's line topology; its draw is r_showskel-gated",
+    ),
+    Edit(
+        path="Quake/sys_sdl_unix.c",
+        before='#include "quakedef.h"\n#include "steam.h"\n',
+        after=(
+            '#include "quakedef.h"\n'
+            '/* PS5 titles terminate through the shell after engine shutdown. */\n'
+            'extern void ps5_title_exit (int status) __attribute__((noreturn));\n'
+            '#include "steam.h"\n'
+        ),
+        why="declare the native title exit path",
+    ),
+    Edit(
+        path="Quake/sys_sdl_unix.c",
+        before="\texit (0);\n",
+        after="\tps5_title_exit (0);\n",
+        why="normal quit preserves Host_Shutdown, then asks the shell to close the title",
+    ),
+    Edit(
+        path="Quake/sys_sdl_unix.c",
+        before="\texit (1);\n",
+        after="\tps5_title_exit (1);\n",
+        why="reported engine errors close through the same native path",
     ),
 )
 
