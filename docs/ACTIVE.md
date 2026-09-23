@@ -69,12 +69,14 @@ Deployment failed before connecting. No new executable or fixture was uploaded.
 Last game PID 265 and probe PID 268 exited/closed normally; the cause of network
 loss is unknown. Do not describe this as a proven game crash.
 
-Latest manual-deploy preflight: shader scan and manifest pass; package contains
-no autoexec/profile fixture. Control, FTP, payload loader and kernel log now
-refuse connections (errno 111). Upload has not started. Enable the console
-services, verify idle, deploy/read back this R29 build, and preserve user files.
-Leave launch and play to the user. The steps below are deferred until manual
-testing is finished and automated work resumes.
+**Manual deployment COMPLETE.** The saved R29 identity above is installed.
+Two served ELF reads and all five PT_LOAD segments match; shader scan and
+manifest pass. Game data/cache are present; configurations preserved; no args,
+autoexec or diagnostic/profile flags. Console idle, manual launch left to user.
+Evidence: manual-r29-deployment; 48 captures replay. Automated testing stays
+PAUSED. The historical network interruption above ended when services returned.
+The steps below remain deferred until manual testing is finished and automated
+work resumes.
 
 1. Retry control/FTP. Once reachable, require count=0, deploy the saved R29
    game, verify two served ELF reads/all load segments, then stage
