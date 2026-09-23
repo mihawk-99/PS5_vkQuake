@@ -1,0 +1,11 @@
+{
+  "step": "m6-screenshot-fixture-incomplete",
+  "note": "Failed screenshot fixture: zero images; clean quit only. Retained before corrected protocol-response fixture.",
+  "must_contain": [
+    "PS5_R23_SCREENSHOT_END"
+  ],
+  "must_not_contain": [
+    "Wrote"
+  ],
+  "human_check": ""
+}

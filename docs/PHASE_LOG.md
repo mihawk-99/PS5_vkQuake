@@ -2571,3 +2571,22 @@ handoff, which is not exercised by the harness-closed workload.
 reads, identity and kernel PID; harness closes, idle verified. Temporary
 autoexec/profile flag removed and absence verified. 33 evidence captures PASS.
 Evidence: evidence/m6-tasks0-benchmark.
+
+## 2026-09-23 — R23 relink and local-game connection diagnosis
+
+Driver 4f8037f accepts screenshot transfer source after 238 console checks and
+16 exact replays. Port five gates/shader scan pass; b5385c51… deployed ELF
+segments match twice. PID 230's long autoexec wait chain reaches quit normally
+but writes no images. This is retained as a failed screenshot fixture, not
+visual acceptance (evidence/m6-screenshot-fixture-incomplete).
+
+The local server queues `cmd pext` through svc_stufftext/Cbuf_AddText. The
+fixture's existing waits and quit precede that newly appended protocol reply.
+PID 232 with only developer logging and map start lets the queue empty: all
+four sign-on stages finish, the player enters Introduction, 1,037 presents
+over the 90-second harness run and steady 14.99 FPS. No game/audio error;
+matching final traces/PID, harness close and idle verified. Evidence:
+evidence/m6-local-map-connect. This confirms connection and presentation,
+not the appearance of the world. The corrected fixture sends the ordinary
+cmd pext response after two initial waits; production connection code stays
+unchanged. 35 evidence captures replay without mismatch.
