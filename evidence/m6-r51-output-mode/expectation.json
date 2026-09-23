@@ -1,0 +1,15 @@
+{
+  "step": "m6-r51-output-mode",
+  "note": "The driver selects the 119.88 Hz output itself: vkQuake (attribute3 0x80040 declared) takes the first 4K mode, now the 119880 mHz one, and the driver configures VideoOut for it. Walking the start map: 119.88-119.89 FPS, every frame 8.29-8.40 ms. Fallback, the same build with attribute3 0 (klog/r51-hfr-fallback): the driver offers 59.94 Hz only, selects nothing, and the game runs a steady 59.94 FPS (frames 16.60-16.76 ms).",
+  "must_contain": [
+    "build identity: 19aede0d",
+    "[ps5vk] output: 119.88 Hz selected",
+    "fps=119.89 work_ms=3.996",
+    "frame_ms=8.342 frame_min_ms=8.290 frame_max_ms=8.400"
+  ],
+  "must_not_contain": [
+    "refused",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
