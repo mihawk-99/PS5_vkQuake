@@ -2694,3 +2694,15 @@ overlap and do not isolate GPU shader cost. Defaults remain unchanged.
 Screenshots are taken between phases after switching to tasks0, avoiding the
 previous run's lost asynchronous screenshot request. Phase timings are recorded
 before that switch. Evidence m6-scale-sampler-fixed; 43 captures replay.
+
+## 2026-09-23 — R27 menu fade isolated
+
+PID 253, identity fd60fadc…, runs four controlled modes: default, compute-only,
+fade-only, default. Compute-only preserves the desaturated world; both modes
+with the fade overlay hide it. Four PNGs and the final trace were read twice
+identically; deployed ELF segments and kernel PID match. Normal LoadExec exit,
+1,489,664 audio frames, zero audio errors, console idle, all three temporary
+configuration paths restored absent. Temporary exact-edit diagnostic is retained
+only as evidence/m6-menu-fade-diagnosis/diagnostic.patch and removed from the
+active port script/vendor copy. Five diagnostic gates and shader scan passed;
+44 evidence captures replay. This localizes a defect, it does not accept menus.
