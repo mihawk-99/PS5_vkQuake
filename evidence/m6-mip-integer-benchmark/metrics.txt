@@ -1,0 +1,32 @@
+{
+  "START": {
+    "intervals": 8,
+    "means": {
+      "frames": 148.75,
+      "steps/frame": 3.0,
+      "queue_ms": 31.795125,
+      "flush_ms": 5.968249999999999,
+      "gpu_ms": 2.75425,
+      "flip_ms": 15.837375,
+      "flush_MiB/frame": 384.09,
+      "copy_ms": 22.656625,
+      "sync_wait_ms": 0.021,
+      "sync_signal_ms": 0.021
+    }
+  },
+  "E1M1": {
+    "intervals": 3,
+    "means": {
+      "frames": 296.0,
+      "steps/frame": 2.0,
+      "queue_ms": 6.910333333333333,
+      "flush_ms": 3.9766666666666666,
+      "gpu_ms": 2.584,
+      "flip_ms": 7.420333333333333,
+      "flush_MiB/frame": 256.06,
+      "copy_ms": 0.041,
+      "sync_wait_ms": 0.021,
+      "sync_signal_ms": 0.021
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "step": "m6-mip-integer-benchmark",
+  "note": "Integer mip filter reduces start copy cost to 22.657 ms but does not improve FPS; candidate rolled back in favor of shared address-map optimization. Normal shell exit, identical final reads, deployment and PID verified.",
+  "must_contain": [
+    "ecea42a1ed9bd62502068bba916b8438f0821dbd1e4f3c2b6d230a2c09abf4b4",
+    "PS5_R29_DONE",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

@@ -110,7 +110,9 @@ phases: CPU copies average 24.095 ms on start and 0.041 ms at E1M1 spawn;
 sync wait/signal each 0.021 ms. Driver 9f9f395, identity d584176e…, clean exit,
 7,082,496 audio frames/zero errors. Two identical PNG reads, deployed/final
 reads and PID match; fixture/profile absent. Evidence: m6-copy-profile, 46 captures.
-Next: optimize proven water-mipmap CPU work, then gameplay/save/load soak.
+R29 integer filter PID 265: copy 22.657 ms, no FPS gain; candidate rolled back.
+Evidence m6-mip-integer-benchmark; 47 captures. Next: shared tile-address
+optimization, then gameplay/save/load soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
