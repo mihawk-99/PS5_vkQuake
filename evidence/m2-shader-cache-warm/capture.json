@@ -1,0 +1,26 @@
+{
+  "step": "m2-shader-cache-warm",
+  "recorded": "2026-09-23T02:36:54Z",
+  "console_run": "PPSA99010 PID 203; identity 78bd43a2",
+  "revision": "92476e2",
+  "command": "python3 ../PS5_Vulkan/jobs/shader-cache/benchmark-vkquake.py warm",
+  "raw_capture": "klog/cache-warm-distilled.txt",
+  "raw_lines": 14,
+  "raw_bytes": 1353,
+  "lines": [
+    "build identity: 78bd43a2e575089a96cf8dc561937dd7781c462fbcf051f2fa177ac0c55107b1",
+    "vkQueuePresentKHR -> 0",
+    "the Necropolis",
+    "Allocating lightmap compute surface data (332 KB)",
+    "[ps5vk] recording refusal in ps5vk_image_transfer_check: [ps5vk] recording refusal in ps5vk_CmdBindDescriptorSets2KHR: a blit into or out of a tiled image whose element has no map (a two-byte element is mapped for one sample, a four-byte one for one or four) or that is not single-level; the map a chain's levels sit at is C7's open piece (docs/HARDWARE_FINDINGS.md)a bind of 1 sets with 2 dynamic offsets; this driver records one dynamic uniform buffer per set (docs/M5_REFERENCE.md, D1)",
+    "assertion failed: buffer != NULL && (stride % 4) == 0 && stride >= command_bytes (/home/mihawk/Desktop/PS5_Homebrews/PS5_Vulkan/driver/ps5vk_draw.c:2515, ps5vk_cmd_draw_indirect)",
+    "[measured launch_to_present_seconds: 13.018; one-second trace polling]",
+    "[computed shader counts: SPIR-V compiles=0; NIR compiles=8; cache hits=532; stored=0; invalid=0]",
+    "[two complete FTP reads identical; SHA-256 aab57dafc15fb3ab3b557968e60e199bece3c24848779f9d9ab7ed6356f8be9e]",
+    "[console procs: count=0]",
+    "<203> EXEC /app0/eboot.bin [user], vm#1, dmem#1 abi=native category=native_game <55361328 msec>",
+    "# reason:  abort is called(system)",
+    "mDBG: Sending signal(pid: 203, tid: 101880, signo: 0xa002008b)",
+    "Terminating pid=203"
+  ]
+}

@@ -1045,3 +1045,16 @@ PID 199 passed the old upload OOM and reached map recording; evidence/m2-r13-map
 names tiled-chain blit, multiple dynamic offsets and single-draw zero-stride
 failures. User now requests persistent shader caching first, with measured
 cold/warm boot times. Cache hits must preserve specialization and compiler options.
+
+
+## 2026-09-22 — Shader cache accepted, rendering requests retained
+
+Driver 69a5c59: same-binary PS5 port PID 202 cold 30.410 s to present, PID 203
+warm 13.018 s with 532 hits and zero SPIR-V compiles. Persisted stages survive
+the application crash. Evidence: m2-shader-cache-cold/-warm, driver
+jobs/shader-cache/README.md. Remaining eight NIR stages are uncached.
+
+The named tiled-chain blit and multiple dynamic offsets plus the single-draw
+zero-stride assertion repeat. Cache acceptance does not close these rendering
+requests or M6. Follow the mission's repeat-failure stop rule before resuming
+rendering experiments.
