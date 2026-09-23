@@ -101,7 +101,11 @@ Evidence: m6-scale-sampler-{refusal,fixed}; 43 capture replays pass.
 R27 PID 253 isolates the black menu to its fade overlay: compute-only shows the
 world, fade-only and default hide it. Four PNGs and normal exit are verified;
 temporary diagnostic removed. Evidence: m6-menu-fade-diagnosis, 44 captures.
-Next: prove/fix menu alpha blending, profile remaining queue cost, gameplay soak.
+Driver d8646ce restores the lost blend-control assignment. PID 259 normal
+relink shows the faded world behind both menu openings, a transparent HUD and
+start/E1M1 worlds in five verified PNGs. Clean exit, 2,399,744 audio frames/zero
+errors; identity 3a6078fa…, all final/deployed reads/PID agree, configs restored.
+Evidence: m6-menu-blend-fixed; 45 captures. Next: remaining queue cost and soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work

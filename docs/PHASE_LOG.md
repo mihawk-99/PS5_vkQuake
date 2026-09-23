@@ -2706,3 +2706,14 @@ configuration paths restored absent. Temporary exact-edit diagnostic is retained
 only as evidence/m6-menu-fade-diagnosis/diagnostic.patch and removed from the
 active port script/vendor copy. Five diagnostic gates and shader scan passed;
 44 evidence captures replay. This localizes a defect, it does not accept menus.
+
+## 2026-09-23 — R27 menu blending corrected in the game
+
+Driver d8646ce restores a missing pipeline blend-control assignment. Normal
+port PID 259, identity 3a6078fa…, shows correct dimmed world behind the menu
+on both openings, correct transparent HUD, and normal start/E1M1 rendering.
+Five PNGs and final trace read twice identically; deployed ELF segments and
+kernel PID match. Clean LoadExec exit, 2,399,744 audio frames and zero errors.
+All temporary configurations restored absent; console idle. Five gates/scan
+and 45 captures replay pass. Evidence: m6-menu-blend-fixed. Physical control
+and audible acceptance remain unconfirmed; performance work continues.

@@ -1,0 +1,13 @@
+{
+  "step": "m6-menu-blend-fixed",
+  "note": "Five PS5 screenshots show corrected menu fading, transparent HUD and start/E1M1 worlds. Normal shell exit, identical final reads, deployment and PID verified.",
+  "must_contain": [
+    "3a6078fa4a8f2a71f9196545ef7fd94952a65a97f82013e3c3de8f9a35927afa",
+    "PS5_R27_FIXED_DONE",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
