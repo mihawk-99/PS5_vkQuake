@@ -177,6 +177,18 @@ dist="$root/dist/$title_id"
 # every file present and every size plausible. Recording it on every build means
 # the digests describe the bytes that exist now, and tools/check-manifest.sh can
 # then verify the copy that reaches the console.
+# Pre-built shaders for the linked driver build, when tools/shader-cache.py has
+# harvested them: the title then ships them and compiles nothing on a fresh
+# install. A build with none ships none, which is only slower the first time.
+cache_build=$(python3 "$root/tools/shader-cache.py" build 2>/dev/null || true)
+rm -rf "$dist/ps5vk-shader-cache"
+if [[ -n $cache_build && -d $root/build/shader-cache/$cache_build ]]; then
+    mkdir -p "$dist/ps5vk-shader-cache/$cache_build"
+    cp -- "$root/build/shader-cache/$cache_build"/*.bin "$dist/ps5vk-shader-cache/$cache_build/"
+    printf '==> [title] shipping %s pre-built shaders of driver build %s\n' \
+        "$(find "$dist/ps5vk-shader-cache/$cache_build" -name '*.bin' | wc -l)" "$cache_build"
+fi
+
 bash "$root/tools/check-manifest.sh" --record
 
 printf '==> [title] built %s (%s files, eboot.bin %s bytes)\n' \
