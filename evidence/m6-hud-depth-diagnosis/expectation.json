@@ -1,0 +1,12 @@
+{
+  "step": "m6-hud-depth-diagnosis",
+  "note": "Four controlled HUD screenshots: opaque status bar visible, transparent/modern overlays absent. Retained diagnosis, not visual acceptance.",
+  "must_contain": [
+    "PS5_HUD_END",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
