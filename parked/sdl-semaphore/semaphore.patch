@@ -1,0 +1,304 @@
+diff --git a/platform/ps5/sdl_ps5.c b/platform/ps5/sdl_ps5.c
+index 1d9a9fb..367ee02 100644
+--- a/platform/ps5/sdl_ps5.c
++++ b/platform/ps5/sdl_ps5.c
+@@ -113,6 +113,7 @@ enum
+     COUNT_COND_WAIT,
+     COUNT_COND_WAKE,
+     COUNT_DELAY,
++    COUNT_SEM_SPUN,
+     COUNT_KINDS
+ };
+ static _Atomic unsigned long long counts[COUNT_KINDS];
+@@ -132,9 +133,9 @@ static int lock_counted(pthread_mutex_t *mutex)
+ /* The means per frame since the previous call, as " name=value" fields. */
+ int ps5_sdl_counts_format(char *line, size_t bytes, unsigned long long frames)
+ {
+-    static const char *const names[COUNT_KINDS] = {"clock",     "sem_post",      "sem_block",
+-                                                   "sem_try",   "sem_try_empty", "contended",
+-                                                   "cond_wait", "cond_wake",     "delay"};
++    static const char *const names[COUNT_KINDS] = {
++        "clock",     "sem_post",  "sem_block", "sem_try", "sem_try_empty",
++        "contended", "cond_wait", "cond_wake", "delay",   "sem_spun"};
+     static unsigned long long previous[COUNT_KINDS];
+     size_t used = 0;
+     for (int kind = 0; kind < COUNT_KINDS && used < bytes; ++kind)
+@@ -161,11 +162,15 @@ struct SDL_cond
+     pthread_cond_t handle;
+ };
+ 
++/* The count is atomic so that taking and posting never need the mutex; the mutex
++ * and the condition are only for a thread that has to sleep, and sleepers says
++ * whether one might be, so a post wakes someone only when there is someone. */
+ struct SDL_sem
+ {
+     pthread_mutex_t mutex;
+     pthread_cond_t cond;
+-    Uint32 count;
++    _Atomic Uint32 count;
++    _Atomic Uint32 sleepers;
+ };
+ 
+ /* The probe's clock: see src/probe.c. The engine creates mutexes at several points
+@@ -315,21 +320,59 @@ SDL_sem *SDL_CreateSemaphore(Uint32 initial_value)
+     }
+     pthread_mutex_init(&sem->mutex, NULL);
+     pthread_cond_init(&sem->cond, NULL);
+-    sem->count = initial_value;
++    atomic_init(&sem->count, initial_value);
++    atomic_init(&sem->sleepers, 0u);
+     return sem;
+ }
+ 
++/* Takes one unit if there is one, without the mutex. The load is sequentially
++ * consistent so that a sleeper's check after announcing itself cannot miss a
++ * post that did not see it (SDL_SemPost). */
++static int sem_take(SDL_sem *sem)
++{
++    Uint32 value = atomic_load(&sem->count);
++    while (value != 0)
++        if (atomic_compare_exchange_weak(&sem->count, &value, value - 1))
++            return 1;
++    return 0;
++}
++
++static Uint64 now_ns(void);
++
++/* How long a wait spins before it sleeps. A console run measured a system call
++ * at ~20 us, and a sleep costs the sleeper one and its waker another, so a unit
++ * that arrives within about that long is cheaper to spin for. vkQuake's task
++ * queue already spins a hundred pauses (~2 us) before it waits; this is the
++ * remainder, and it is short so that an idle worker does not hold a core the
++ * main thread's SMT sibling could use. */
++#define SEM_SPIN_NS 20000u
++
+ int SDL_SemWait(SDL_sem *sem)
+ {
+     if (!sem)
+         return -1;
++    if (sem_take(sem))
++        return 0;
++    const Uint64 until = now_ns() + SEM_SPIN_NS;
++    do
++    {
++#if defined(__x86_64__) || defined(__i386__)
++        __builtin_ia32_pause();
++#endif
++        if (sem_take(sem))
++        {
++            count(COUNT_SEM_SPUN);
++            return 0;
++        }
++    } while (now_ns() < until);
+     lock_counted(&sem->mutex);
+-    while (sem->count == 0)
++    atomic_fetch_add(&sem->sleepers, 1u);
++    while (!sem_take(sem))
+     {
+         count(COUNT_SEM_BLOCK);
+         pthread_cond_wait(&sem->cond, &sem->mutex);
+     }
+-    sem->count--;
++    atomic_fetch_sub(&sem->sleepers, 1u);
+     pthread_mutex_unlock(&sem->mutex);
+     return 0;
+ }
+@@ -339,39 +382,36 @@ int SDL_SemTryWait(SDL_sem *sem)
+     if (!sem)
+         return -1;
+     count(COUNT_SEM_TRY);
+-    lock_counted(&sem->mutex);
+     /* SDL returns SDL_MUTEX_TIMEDOUT rather than blocking, and vkQuake's macro
+      * turns a zero return into true. Non-zero is the answer either way, but the
+      * value is kept as SDL's. */
+-    const int result = sem->count == 0 ? 1 : 0;
+-    if (result == 0)
+-        sem->count--;
+-    else
+-        count(COUNT_SEM_TRY_EMPTY);
+-    pthread_mutex_unlock(&sem->mutex);
+-    return result;
++    if (sem_take(sem))
++        return 0;
++    count(COUNT_SEM_TRY_EMPTY);
++    return 1;
+ }
+ 
++/* The count goes up first, then the sleepers are read, both sequentially
++ * consistent: either this post sees a sleeper that announced itself and wakes it
++ * under the mutex, or that sleeper's check after announcing sees this unit. */
+ int SDL_SemPost(SDL_sem *sem)
+ {
+     if (!sem)
+         return -1;
+     count(COUNT_SEM_POST);
+-    lock_counted(&sem->mutex);
+-    sem->count++;
+-    pthread_cond_signal(&sem->cond);
+-    pthread_mutex_unlock(&sem->mutex);
++    atomic_fetch_add(&sem->count, 1u);
++    if (atomic_load(&sem->sleepers) != 0)
++    {
++        lock_counted(&sem->mutex);
++        pthread_cond_signal(&sem->cond);
++        pthread_mutex_unlock(&sem->mutex);
++    }
+     return 0;
+ }
+ 
+ Uint32 SDL_SemValue(SDL_sem *sem)
+ {
+-    if (!sem)
+-        return 0;
+-    pthread_mutex_lock(&sem->mutex);
+-    const Uint32 value = sem->count;
+-    pthread_mutex_unlock(&sem->mutex);
+-    return value;
++    return sem ? atomic_load(&sem->count) : 0;
+ }
+ 
+ void SDL_DestroySemaphore(SDL_sem *sem)
+@@ -493,10 +533,15 @@ extern Uint64 sceKernelGetTscFrequency(void) __attribute__((weak));
+  * nothing above changes, and it never goes backwards: a read on one core that
+  * lands before a read already returned on another is clamped to it. */
+ Uint64 SDL_GetPerformanceCounter(void)
++{
++    count(COUNT_CLOCK);
++    return now_ns();
++}
++
++static Uint64 now_ns(void)
+ {
+     static _Atomic Uint64 latest;
+     static Uint64 hz;
+-    count(COUNT_CLOCK);
+     if (sceKernelReadTsc == NULL || sceKernelGetTscFrequency == NULL)
+     {
+         struct timespec now;
+diff --git a/tests/sdl_ps5_test.c b/tests/sdl_ps5_test.c
+index cc307d6..44e32c4 100644
+--- a/tests/sdl_ps5_test.c
++++ b/tests/sdl_ps5_test.c
+@@ -28,6 +28,7 @@
+  */
+ 
+ #include <assert.h>
++#include <stdatomic.h>
+ #include <pthread.h>
+ #include <sched.h>
+ #include <stdio.h>
+@@ -235,6 +236,94 @@ static void test_semaphore(void)
+     printf("  semaphore: wait, try-wait, post and value agree\n");
+ }
+ 
++/* Many threads through one semaphore: every unit posted is taken exactly once
++ * and no waiter sleeps through a post. A lost wakeup hangs here, which the
++ * harness's timeout turns into a failure. A try-waiting thread competes the way
++ * vkQuake's task queue spins before it waits. */
++enum
++{
++    STRESS_THREADS = 4,
++    STRESS_UNITS = 100000
++};
++static SDL_sem *stress_sem;
++static _Atomic int stress_taken;
++static _Atomic int stress_done;
++static void *stress_producer(void *arg)
++{
++    (void)arg;
++    for (int i = 0; i < STRESS_UNITS; ++i)
++        SDL_SemPost(stress_sem);
++    return NULL;
++}
++static void *stress_consumer(void *arg)
++{
++    (void)arg;
++    for (int i = 0; i < STRESS_UNITS; ++i)
++    {
++        SDL_SemWait(stress_sem);
++        atomic_fetch_add(&stress_taken, 1);
++    }
++    return NULL;
++}
++static void *stress_sleeper(void *arg)
++{
++    (void)arg;
++    for (int i = 0; i < 100; ++i)
++    {
++        SDL_SemWait(stress_sem);
++        atomic_fetch_add(&stress_taken, 1);
++    }
++    return NULL;
++}
++static void *stress_trier(void *arg)
++{
++    (void)arg;
++    while (!atomic_load(&stress_done))
++        if (SDL_SemTryWait(stress_sem) == 0)
++            SDL_SemPost(stress_sem); /* give it back: only the consumers keep units */
++    return NULL;
++}
++static void test_semaphore_stress(void)
++{
++    stress_sem = SDL_CreateSemaphore(0);
++    assert(stress_sem != NULL);
++    pthread_t producers[STRESS_THREADS], consumers[STRESS_THREADS], trier;
++    pthread_create(&trier, NULL, stress_trier, NULL);
++    for (int t = 0; t < STRESS_THREADS; ++t)
++    {
++        pthread_create(&consumers[t], NULL, stress_consumer, NULL);
++        pthread_create(&producers[t], NULL, stress_producer, NULL);
++    }
++    for (int t = 0; t < STRESS_THREADS; ++t)
++    {
++        pthread_join(producers[t], NULL);
++        pthread_join(consumers[t], NULL);
++    }
++    atomic_store(&stress_done, 1);
++    pthread_join(trier, NULL);
++    assert(atomic_load(&stress_taken) == STRESS_THREADS * STRESS_UNITS);
++    assert(SDL_SemValue(stress_sem) == 0);
++
++    /* Units that arrive slower than a wait spins, so the waiters really sleep and
++     * only a post's wake can get them out: 200 posts 500 us apart to two waiters. */
++    atomic_store(&stress_taken, 0);
++    pthread_t sleepers[2];
++    for (int t = 0; t < 2; ++t)
++        pthread_create(&sleepers[t], NULL, stress_sleeper, NULL);
++    for (int i = 0; i < 200; ++i)
++    {
++        usleep(500);
++        SDL_SemPost(stress_sem);
++    }
++    for (int t = 0; t < 2; ++t)
++        pthread_join(sleepers[t], NULL);
++    assert(atomic_load(&stress_taken) == 200);
++    SDL_DestroySemaphore(stress_sem);
++    printf("  semaphore: %d units through %d producers, %d consumers and a try-waiter, and 200 "
++           "slow posts to sleeping waiters, none lost\n",
++           STRESS_THREADS * STRESS_UNITS, STRESS_THREADS, STRESS_THREADS);
++}
++
+ static void test_delay_and_clock(void)
+ {
+     const Uint64 first = SDL_GetPerformanceCounter();
+@@ -360,6 +449,7 @@ int main(void)
+     test_cond_signalled_and_timeout();
+     test_thread_lifecycle();
+     test_semaphore();
++    test_semaphore_stress();
+     test_delay_and_clock();
+     test_error_is_per_thread();
+     test_filesystem_answers();
+diff --git a/tests/test_sdl_ps5.py b/tests/test_sdl_ps5.py
+index 7aa7cb3..11f79b3 100644
+--- a/tests/test_sdl_ps5.py
++++ b/tests/test_sdl_ps5.py
+@@ -27,6 +27,7 @@ class SdlPs5(unittest.TestCase):
+             # The checks print what they proved, so a passing run says what it
+             # covered rather than only that nothing failed.
+             self.assertIn('mutex is recursive', result.stdout)
++            self.assertIn('none lost', result.stdout)
+             self.assertIn('all checks passed', result.stdout)
+             # The same checks with libkernel's TSC present, as on the console.
+             subprocess.run(['cc', '-std=gnu11', '-O1', '-pthread', '-Wall', '-Wextra', '-Werror',
