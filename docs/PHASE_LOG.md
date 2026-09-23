@@ -2438,3 +2438,26 @@ fix: zero SPIR-V compiles/stores, 532 hits, eight internal NIR compiles. No new
 startup timing was measured. Evidence: evidence/m2-r18-map-recording; all 26
 captures replay with zero failures. Next: R19, shared 32-bit indexed draws with
 correct byte offsets, bounds and index-size packets, then a hardware probe.
+
+
+## 2026-09-23 — R19 consumed; first sustained demo run
+
+Driver 8d11392 passed the UINT32 index probe on PS5 PID 216: 257 PASS,
+zero FAIL, three full pixel frames, UINT16 regressions and five exact replays.
+The port relink content includes the new type diagnostic and excludes the old
+UINT32 refusal. Five gates, shader scan and template relink pass; two deployed
+ELF reads and all PT_LOAD segments match.
+
+PPSA99010 PID 217, identity 7d8aca4169312e1ab9a465c21c7af294b49cbdc493ef33c63788197c373af922,
+presents and advances from Necropolis into The Door To Chthon, with gameplay
+events and buffer growth, no refusal and no Quake error. It remains alive at
+180 seconds; the harness closes it, and count=0 is verified. Two final trace
+reads agree (22cc2d895513391cda37c44e5ccf8e463c911fcbb4c55339d639d8df7bb1f27f).
+Kernel PID 217 correlates; prior PID 216 cleanup in the listener backlog is
+not a game crash. Evidence: evidence/m3-r19-demo-run; replay via
+python3 tools/evidence.py compare evidence/. Cache 433 hits, 99 stores/compiles
+after the driver's header changed; eight NIR compiles remain.
+
+This is sustained execution, not visual/audio/controller acceptance. User
+authorized eight hours without interaction. Continue the known full-width
+subpass issue and engine input/audio adapters, then sustained acceptance.

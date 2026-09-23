@@ -1,0 +1,3 @@
+PID 217 remained alive for 180 seconds and advanced from demo1/Necropolis to The Door To Chthon. Harness closed it; count=0 verified. No recording refusal or Quake error. Kernel PID 217 correlates; PID 216 signal in backlog belongs to prior probe cleanup.
+Two final trace reads identical SHA-256 22cc2d895513391cda37c44e5ccf8e463c911fcbb4c55339d639d8df7bb1f27f.
+Cache: 433 hits, 99 stores/compiles after driver cache-key change; eight internal NIR compiles. No timing measurement or visual acceptance claimed.
