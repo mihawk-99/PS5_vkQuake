@@ -2672,3 +2672,25 @@ collector's assumption that they existed failed after preserving trace/PNG.
 Explicit cleanup then restored all three paths and profiling flag absent.
 Evidence m6-scale-sampler-refusal; all 42 captures replay. Next: measured sampler
 bias support, then repeat scaling and inspect the screen-effects path.
+
+## 2026-09-23 — R26 relink: scaling works, no performance win
+
+Driver 86b4cc6 passes eight complete bias readbacks, twenty strict replays and
+all gates. Port five gates/scan and two deployed ELF reads match identity
+fc6ba13af2d9023f4bff94ad4cafaacc34993eb01581299d839c1b16701d9c10.
+PID 251 completes five 1,200-frame start-map phases, then exits through LoadExec
+(0xfb). Final trace and all five PNGs read twice identically. Audio drains
+21,079,808 frames with zero errors; idle verified and configurations/profile
+restored absent. Baseline is revisited at the end to check repeatability.
+
+Seven steady intervals per phase, excluding its first mixed interval: tasks1/
+scale1 14.860 FPS; tasks0/scale1 14.861; tasks0/scale2 14.851; tasks1/scale2
+14.840; tasks1/scale1 again 14.861. Both inspected scale2 images render the
+world/weapon/HUD correctly. No speed gain: target flush traffic rises from
+384.09 to 768.13 MiB/frame and flush time from about 5.99 to 11.86 ms/frame.
+Reported queue time rises from 33.1 to 40.5 ms/frame; these profiler times
+overlap and do not isolate GPU shader cost. Defaults remain unchanged.
+
+Screenshots are taken between phases after switching to tasks0, avoiding the
+previous run's lost asynchronous screenshot request. Phase timings are recorded
+before that switch. Evidence m6-scale-sampler-fixed; 43 captures replay.

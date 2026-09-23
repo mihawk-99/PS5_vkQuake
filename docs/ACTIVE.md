@@ -92,10 +92,14 @@ exit, 2,550,528 audio frames/zero errors; deployment/final reads/PID agree.
 Five gates/scan and 41 captures pass. Menu background remains black and open.
 Evidence: evidence/m6-hud-depth-fixed; identity 8eff69e9…; configs restored absent.
 Evidence: evidence/m6-png-{heap-exhaustion,heap-diagnosis,growth-diagnostic,growth-normal}.
-R26 PID 248: both threading modes average 14.86 FPS on the live start map.
-Scaling to r_scale 2 exposes sampler bias 1 refusal and exits with status 1.
-Evidence: m6-scale-sampler-refusal; 42 captures pass; configs/profile restored.
-Next: sampler LOD bias probe/fix, scaling, menu composition, gameplay/save/load soak.
+R26 driver 86b4cc6 fixes the sampler bias 1 refusal exposed by PID 248.
+Retest PID 251 completes five 1,200-frame phases, five matching PNGs and normal
+exit; 21,079,808 audio frames/zero errors. Scale 1/2 and tasks 0/1 all average
+14.84–14.86 FPS. Scale 2 renders correctly but doubles target-flush traffic.
+Defaults unchanged; identity fc6ba13a…; configs/profile restored absent.
+Evidence: m6-scale-sampler-{refusal,fixed}; 43 capture replays pass.
+Next: isolate menu compute versus fade overlay, profile remaining queue cost,
+gameplay/save/load soak. Temporary menu diagnostic is being tested.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work

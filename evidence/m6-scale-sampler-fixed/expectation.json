@@ -1,0 +1,13 @@
+{
+  "step": "m6-scale-sampler-fixed",
+  "note": "All five live-map scale/threading phases complete and five PNGs match both reads. Scaling renders correctly but gives no FPS gain; defaults unchanged. Normal shell exit; configs/profile restored absent.",
+  "must_contain": [
+    "PS5_PERF_FINISHED",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR:",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
