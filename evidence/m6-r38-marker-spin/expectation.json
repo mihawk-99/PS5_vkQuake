@@ -1,0 +1,15 @@
+{
+  "step": "m6-r38-marker-spin",
+  "note": "The marker is checked in a loop for up to 1.5 ms before the first 1 ms sleep. Every step found it during the spin (poll_first 100%, no sleeps); poll 1.12 -> 0.13-0.15 ms a step, gpu_ms 2.5 -> 0.7-0.8 a frame. Against m6-r38-vrr-baseline (same display setting): E1M1 50.65 -> 55.76 FPS (work 19.52 -> 17.74 ms), start map 31.11 -> 33.08 FPS (work 31.92 -> 30.00). Both readbacks correct.",
+  "must_contain": [
+    "build identity: 91dcbf02",
+    "PS5_R32_DONE",
+    "fps=55.76 work_ms=17.744",
+    "fps=33.08 work_ms=30.002",
+    "polls/step=0.00 poll_first=100%"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
