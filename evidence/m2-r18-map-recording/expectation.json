@@ -1,0 +1,14 @@
+{
+  "step": "m2-r18-map-recording",
+  "note": "R17 and R18 refusals are gone. Map recording now refuses 32-bit indices; M6 remains open.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "32-bit indices need a runner probe",
+    "process pid=215"
+  ],
+  "must_not_contain": [
+    "holds 3 descriptors",
+    "needs a padded texture pitch"
+  ],
+  "human_check": "No new visual acceptance claimed; this run stops before map submission."
+}

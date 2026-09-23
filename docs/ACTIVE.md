@@ -26,40 +26,31 @@ or console. Evidence: `evidence/m2-first-frame/`. M3–M6 remain unaccepted.
 
 ## Current work
 
-**R14–R16 accepted in the driver and exercised by vkQuake.** Single-draw
-stride, independent dynamic UBO offsets and tiled water mip blits pass their
-PS5 probes. Driver R16 `c7f6f95`, PID 207: 277 PASS, zero FAIL; all four mip
-frames match all 8,294,400 pixels, all 87,040 lower texels match independently,
-and ten streams replay exactly. Earlier failed PID 206 evidence is retained.
+**R14–R18 accepted in the driver.** R17 `3be25f1` fixes descriptor arrays;
+R18 `aafd697` fixes row mip placement and pitched 2D mip descriptors.
+R18 PS5 PID 214: 531 PASS, zero FAIL; 19 complete mip frames match every pixel,
+21 streams replay exactly. See driver jobs/r18-padded-mips/README.md.
 
-**Requested relink/launch completed; M6 still open.** Port PID 208, identity
-`b6a1e9540a03996b94a42346de7e0868fb339b883ea0ddab6e84d1407c6f126f`,
-presented a frame and reached demo1/the Necropolis map recording. The three
-previous map failures are absent. Two new named refusals then stop recording:
-set 0 binding 2 has three descriptors; set 0 binding 0 needs a padded pitch of
-256 texels outside the measured custom-pitch descriptor coverage. Full image
-shape/format is not yet measured; do not assume mip count or array layer count
-from that sentence alone. EndCommandBuffer returns -13; exit 1 takes the known
-SIGSYS exit path. The game is not yet playable.
-
-Two final trace reads match and kernel PID 208 agrees. The two-minute harness
-ended with count=0; no title remains running. First-present on-screen check
-was requested and is pending. Evidence: `evidence/m2-r16-map-recording/`.
-R17 is now accepted in driver 3be25f1: PS5 PID 209, 104 PASS, zero FAIL;
-array/scalar compute output exact, two exact replays. PID 210 identifies R18 as 224x195 RGBA8, eight mips, one layer, 2D;
-the array refusal is absent. Next is full-mip pixel verification; see
-`docs/PS5_VULKAN_REQUESTS.md`. Input/audio adapters still need implementation.
+**Relink/launch completed; M6 remains open.** Port PID 215, identity
+`b3aecd67729ccd91e5ec0fdeb9330e96a9d4e4923ad859aed3a5782fbcd061f1`,
+presents and reaches demo1/the Necropolis map recording. R17/R18 refusals are
+absent. The next named refusal is "32-bit indices need a runner probe" in
+ps5vk_cmd_draw; EndCommandBuffer -13, exit 1, known SIGSYS exit path.
+Next: R19 in the shared driver, including byte offsets/bounds and index type,
+then PS5 pixel verification and another game launch. Input/audio remain stubs.
+The user prioritizes a running, stable, optimized vkQuake; console CTS is out
+of scope. No new visual acceptance is claimed for PID 215.
 
 ## Verification
 
-R16 explicit driver build zero warnings; fifteen targeted check-driver arms,
-cache checks and all eleven gates PASS. Archive 14,428,778 bytes, SHA-256
-8d5206d5d4fc1535c342916b71c81e57d62ae4086d14fcd993074bc4c2fc8c67.
-Port five gates, per-run shader scans and template relink PASS. Two deployed
-ELF reads match all five PT_LOAD segments. Evidence replay: 24 captures,
-zero failed. Changed driver header invalidated prior shader-cache entries as
-designed: PID 208 had 99 SPIR-V compiles/stores, 433 hits and eight NIR compiles.
-No new warm-start timing was measured.
+R18 archive 14,434,994 bytes, SHA-256 cef1d817…; explicit driver rebuild,
+21 targeted host arms, eleven gates, port five gates/scan and template pass.
+Two deployed ELF reads match all five PT_LOAD segments. Two final trace reads
+match; kernel PID 215 agrees; count=0 verified. Evidence:
+`evidence/m2-r18-map-recording/`; 26 captures replay with zero failures.
+This launch reused 532 cache hits, zero SPIR-V compiles/stores and eight NIR
+compiles. No new startup timing measurement. Driver failed/partial captures
+remain preserved alongside complete PID 214 evidence.
 
 ## Other open work
 
