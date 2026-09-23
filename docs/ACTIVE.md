@@ -64,7 +64,12 @@ target ranges now flush once per operation. Game PID 225: 300 seconds, 6,557
 presents, 532 cache hits and no reported game/audio error. Flush cost falls
 7.87 -> 5.79 ms/frame; FPS remains about 20–30 because flip wait grows.
 Both trace reads match and PID agrees, harness closed, idle verified.
-Evidence: evidence/m5-r22-flush-run. Next: normal map/quit/configuration test.
+Evidence: evidence/m5-r22-flush-run. Native quit now hands off to the shell:
+PID 226 executes map start, 120 waits and console quit, drains audio without
+errors, writes both configuration files, and exits via LoadExec without SIGSYS.
+Both final traces/deployed ELF/PID match, idle verified, test files restored.
+Five gates and 32 evidence captures PASS. Evidence: evidence/m6-native-quit.
+Next: measure r_tasks=0, then prove screenshot readback and inspect world output.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
@@ -72,5 +77,5 @@ M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scop
 - M3 stable menu, M4 physical control and M5 audible confirmation remain open;
   M6 textured/lightmapped world without refusals.
 - R10 quarter-width claim retired by corrected R20 readback; v0-lines and ImageQuery output remain.
-- Earlier exit SIGSYS; staging path ignores EndCommandBuffer failure.
+- Exit SIGSYS fixed by shell handoff; staging path ignores EndCommandBuffer failure.
 - Step 0 trace capture and reproducible build identity are closed.

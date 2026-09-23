@@ -1,0 +1,13 @@
+{
+  "step": "m6-native-quit",
+  "note": "Normal Quake shutdown saves configuration and exits through shell, PID 226; temporary fixture restored",
+  "must_contain": [
+    "PS5_QUIT_TEST_END",
+    "Kill for LoadExec(0xe2)",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "fatal signal"
+  ],
+  "human_check": ""
+}

@@ -2539,3 +2539,20 @@ flip wait 7.787 -> 9.821 ms. This is reduced CPU cost, not demonstrated FPS
 improvement. R21 had 99 cold shader compiles, R22 none; whole-run frame counts
 are not a startup-equivalent FPS comparison. Evidence/m5-r22-flush-run records
 exact identity, trace hash and deployed proof. All 31 evidence captures pass.
+
+## 2026-09-23 — normal title exit and configuration writes
+
+The port's exact upstream edit routes Sys_Quit/Sys_Error termination to
+ps5_title_exit after existing shutdown/reporting. The helper requests native
+shell LoadExec("exit") and waits; it never falls through to the faulting kernel
+exit syscall. Host tests verify request arguments and non-return behavior;
+upstream edits remain exact and idempotent. All five gates/shader scan pass.
+
+PID 226, identity d3d0da7c…: temporary autoexec runs map start, 120 wait frames,
+opens console and quits. Audio drains 120,320 frames with zero errors; both
+configuration files are written/read twice. Kernel records Kill for LoadExec,
+then PID 226 termination with no fatal signal; harness reports self exit.
+Two final traces and deployed ELF segments match, idle verified. All fixture
+and generated configuration paths were restored to their prior absent state.
+32 evidence captures pass. Evidence/m6-native-quit contains hashes and proof.
+No visual acceptance or long-duration map claim follows from this short run.
