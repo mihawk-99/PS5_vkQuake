@@ -1,0 +1,16 @@
+{
+  "step": "m6-r42-parallel-blit",
+  "note": "The same walk with blits resampled on five threads: CPU copies 0.4-1.2 ms a frame (was 2.3-8.2), walking 52.4-55.4 FPS (was 34-47), frames at the 29 ms VRR cliff 1-12 a window (was 109-342). Left: one 151 ms hitch in the third window and the post-load settling. Readback correct; runner blit/mip/resolve tests identical to the pre-change driver (driver jobs/r42-parallel-blit).",
+  "must_contain": [
+    "build identity: 65c3f139",
+    "PS5_R41_DONE",
+    "fps=55.38 work_ms=17.867",
+    "fps=52.41 work_ms=18.701",
+    "copy_ms=0.392"
+  ],
+  "must_not_contain": [
+    "blit workers refused",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
