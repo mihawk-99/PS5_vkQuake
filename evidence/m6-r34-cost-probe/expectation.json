@@ -1,0 +1,12 @@
+{
+  "step": "m6-r34-cost-probe",
+  "note": "Every system call costs ~20 us on this console: getpid 20.1 us, clock_gettime 20.3 us, against 11.8 ns for sceKernelReadTsc, 12.1 ns for sceKernelGetProcessTimeCounter and 16.3 ns for an uncontended mutex pair. The TSC ticks at its reported rate: 32,167,462 ticks over 20.150 ms = 1.5964 GHz against 1,596,300,232 Hz reported.",
+  "must_contain": [
+    "build identity: 0fff1ea6",
+    "cost probe calls=10000 clock_gettime_ns=20278.8 read_tsc_ns=11.8 process_time_counter_ns=12.1 getpid_ns=20123.6 mutex_pair_ns=16.3 tsc_hz=1596300232 tsc_ticks=32167462 over_ns=20150035"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

@@ -1,0 +1,15 @@
+{
+  "pid": "not read this run",
+  "build_identity": "517081dc52a11c41f404f0a24d6fcf54de5b5468ec7539fcebaa7d68579dfa3d",
+  "trace_sha256": "3b8f034813b319c35ef42439f0eeaa07ecf980eb915db3bf8a8c2023bf19b8a6",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-112430-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-112504-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; staged fixture and flags removed because they were absent before",
+  "visual_result": "Both readbacks read twice identically; normal exit."
+}
