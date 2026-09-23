@@ -98,8 +98,10 @@ exit; 21,079,808 audio frames/zero errors. Scale 1/2 and tasks 0/1 all average
 14.84–14.86 FPS. Scale 2 renders correctly but doubles target-flush traffic.
 Defaults unchanged; identity fc6ba13a…; configs/profile restored absent.
 Evidence: m6-scale-sampler-{refusal,fixed}; 43 capture replays pass.
-Next: isolate menu compute versus fade overlay, profile remaining queue cost,
-gameplay/save/load soak. Temporary menu diagnostic is being tested.
+R27 PID 253 isolates the black menu to its fade overlay: compute-only shows the
+world, fade-only and default hide it. Four PNGs and normal exit are verified;
+temporary diagnostic removed. Evidence: m6-menu-fade-diagnosis, 44 captures.
+Next: prove/fix menu alpha blending, profile remaining queue cost, gameplay soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work

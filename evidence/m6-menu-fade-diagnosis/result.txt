@@ -1,0 +1,20 @@
+{
+  "pid": 253,
+  "build_identity": "fd60fadcd587b0f24f9fc8a65f873108e80b8f6397608753ba0ac13d4b840e62",
+  "driver_revision": "86b4cc6",
+  "trace_sha256": "4c4877eff1a0bb2b3b9d436b6ad336550bb5e5cef90ded65d9a6be5a5aa03117",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-043003-00.png",
+    "vkQuake-Introduction-start-20260117-043008-00.png",
+    "vkQuake-Introduction-start-20260117-043012-00.png",
+    "vkQuake-Introduction-start-20260117-043016-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored_absent": true,
+  "audio_frames": 1489664,
+  "audio_errors": 0,
+  "visual_result": "Default and fade-only modes black; compute-only mode shows dimmed/desaturated world. Alpha/blend path remains open."
+}

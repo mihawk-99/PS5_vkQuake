@@ -1,0 +1,13 @@
+{
+  "step": "m6-menu-fade-diagnosis",
+  "note": "Four controlled PS5 screenshots isolate black menu background to fade overlay; compute effect alone preserves world. Normal shell exit, identical final reads, deployment and PID verified.",
+  "must_contain": [
+    "fd60fadcd587b0f24f9fc8a65f873108e80b8f6397608753ba0ac13d4b840e62",
+    "PS5_R27_MENU_DONE",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

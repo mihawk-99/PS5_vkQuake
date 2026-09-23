@@ -1,0 +1,35 @@
+diff --git a/platform/ps5/vkquake-edits.py b/platform/ps5/vkquake-edits.py
+index 1c25915..5ff6d73 100644
+--- a/platform/ps5/vkquake-edits.py
++++ b/platform/ps5/vkquake-edits.py
+@@ -252,6 +252,30 @@ EDITS = (
+         after="\tps5_title_exit (1);\n",
+         why="reported engine errors close through the same native path",
+     ),
++    Edit(
++        path='Quake/gl_draw.c',
++        before='extern cvar_t scr_style;',
++        after='extern cvar_t scr_style /* R27 diagnostic */;\ncvar_t ps5_menu_test = {"ps5_menu_test", "1"};',
++        why="R27 temporary menu composition bisection; remove after diagnosis",
++    ),
++    Edit(
++        path='Quake/gl_draw.c',
++        before='\tCvar_RegisterVariable (&scr_guifilter);',
++        after='\tCvar_RegisterVariable(&scr_guifilter);\n\tCvar_RegisterVariable (&ps5_menu_test);',
++        why="R27 temporary menu composition bisection; remove after diagnosis",
++    ),
++    Edit(
++        path='Quake/gl_draw.c',
++        before='void Draw_FadeScreen (cb_context_t *cbx)\n{\n\tint i;',
++        after='void Draw_FadeScreen (cb_context_t *cbx)\n{\n\tif (ps5_menu_test.value == 0)\n\t\treturn;\n\tint i;',
++        why="R27 temporary menu composition bisection; remove after diagnosis",
++    ),
++    Edit(
++        path='Quake/gl_vidsdl.c',
++        before='\t\t.menu = key_dest == key_menu,',
++        after='\t\t.menu = (key_dest == key_menu) && Cvar_VariableValue ("ps5_menu_test") != 2,',
++        why="R27 temporary menu composition bisection; remove after diagnosis",
++    ),
+ )
+ 
+ 
