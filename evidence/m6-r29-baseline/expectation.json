@@ -1,0 +1,14 @@
+{
+  "step": "m6-r29-baseline",
+  "note": "Controlled R29 game baseline: the deployed binary, unmodified. Start map copy_ms 24.095 -> 11.619 and queue_ms 33.222 -> 20.765 against R28, raising the start map from 14.81 to 19.72 FPS and its frame period from four 60 Hz vblanks to three; E1M1 is unchanged at 29.58 FPS. host_speeds, captured for the first time, puts 33.87 of E1M1's 35.45 ms frame in gfx and 1.56 ms in server. 19.39 ms of every frame is application CPU time no driver interval covers, and it is the same at both maps.",
+  "must_contain": [
+    "e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1",
+    "PS5_R29B_DONE",
+    "PS5 exit: status=0",
+    "29.58"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

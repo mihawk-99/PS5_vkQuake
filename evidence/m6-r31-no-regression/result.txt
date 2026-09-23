@@ -1,0 +1,18 @@
+{
+  "pid": "not read this run",
+  "build_identity": "dc19779c0e27039e94d756c304e5b49cc278b1ac0ef2b0361dc9656900ee1fb2",
+  "driver_revision": "R31 fbd52a0 + relinked port, no profiling flag",
+  "trace_sha256": "b9b26a679fd8d87f2130a62116a0727006f897933c1a01374725a487cb6e2378",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-091506-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-091604-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; autoexec, profile flag, cadence probe and args.txt removed because they were absent before",
+  "audio_frames": 5998080,
+  "audio_errors": 0,
+  "visual_result": "Both map captures complete, normal exit, profiling and the cadence probe absent. E1M1 29.97 FPS, start map 21.12 FPS."
+}

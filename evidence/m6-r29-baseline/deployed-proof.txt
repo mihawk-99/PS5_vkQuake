@@ -1,0 +1,10 @@
+{
+  "verified_before_the_run": true,
+  "two_reads_identical": true,
+  "served_elf_sha256": "91c0212238108917e8752b41d2b8bc293527e257aed027dde97136846fe55490",
+  "deployed_bytes": 24226852,
+  "whole_file_matches_recorded_deployment": true,
+  "all_five_pt_load_segments_match": true,
+  "recorded_deployment": "evidence/manual-r29-deployment/deployed-proof.txt",
+  "note": "tools/verify.sh rebuilt the local title at 08:39 after this verification and before the run, changing build/title_build_identity.h, so tools/run-title.sh's post-run identity check compared the deployed binary against the rebuilt local one and reported a mismatch. The deployed binary was never uploaded to and never changed on the console; the trace's own identity is the deployed one."
+}

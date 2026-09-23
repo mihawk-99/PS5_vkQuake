@@ -27,90 +27,101 @@ longer produces SIGSYS. R24 7f9deae migrates growing native allocations to mmap,
 fixing PNG heap exhaustion. Physical pad interactions and audible quality remain
 unconfirmed: acceptance limits, not reasons to stop autonomous testing.
 
-Driver rounds R14-R29 each keep their proof in the driver's jobs/r*-*/ and are
-closed: vertex stride, dynamic UBO offsets, mip tails, descriptor arrays, padded
-pitches, UINT32 indices (R14-R19); the retired quarter-width probe allegation
-(R20); dedicated flush dedup (R22); swapchain TRANSFER_SRC (R23); depth state
+Driver rounds R14-R29 are closed and each keeps its proof in the driver's
+jobs/r*-*/: vertex stride, dynamic UBO offsets, mip tails, descriptor arrays,
+padded pitches and UINT32 indices (R14-R19); the retired quarter-width probe
+allegation (R20); flush dedup (R22); swapchain TRANSFER_SRC (R23); depth state
 leaking into colour-only UI (R25, PID 246 verifies every tested HUD style);
 sampler LOD bias (R26, PID 251); blend control (R27, PID 259); copy/wait/signal
-timing (R28, PID 261); the common tile address (R29). Scale 2 and tasks 0 do not
-improve FPS; defaults stay scale 1, tasks 1. The normal source retains fifteen
-exact upstream edits.
+timing (R28, PID 261); the common tile address (R29). The normal source retains
+fifteen exact upstream edits. Scale 2 and tasks 0 do not improve FPS; defaults
+stay scale 1, tasks 1.
 
-R28 driver 9f9f395 isolates the slow work: PID 261 start CPU copies average
-24.095 ms, versus 0.041 ms at E1M1 spawn, which points at water mip generation
-without pretending aggregate timing identifies one operation. R29's integer
-filter lowered that to 22.657 ms with no FPS gain and was rolled back. Both keep
-their evidence: m6-copy-profile and m6-mip-integer-benchmark.
+R28 driver 9f9f395 isolated the slow work: PID 261 start CPU copies averaged
+24.095 ms against 0.041 ms at E1M1 spawn, which pointed at water mip generation
+without identifying an operation. R29's integer filter cut that to 22.657 ms
+with no FPS gain and was rolled back; R29's tile-address change then cut it to
+11.619 ms and did move the frame rate. Evidence: m6-copy-profile,
+m6-mip-integer-benchmark, m6-r29-baseline.
 
-## Manual deployment done; the console went away again
+## The measured baseline, and what it says
 
-Driver c3e51f6 evaluates the existing common tile equation directly. PID 267
-passes four full 4K mip frames and all generated lower texels; four strict
-replays. PID 268 passes 3,501 checks across mip/upload/copy/format regressions.
-Host checks cover 2,441,216 addresses and 144 random-colour blits. Explicit
-rebuild, full host/cache, eleven driver gates, port five gates/scan and template
-relink pass. Controlled R29 game performance remains unmeasured.
+**R29 is a real speedup and the controlled baseline now exists.** On the
+deployed binary -- verified before the run by two served-ELF reads and all five
+PT_LOAD segments against evidence/manual-r29-deployment -- the start map went
+14.81 -> 19.72 FPS with CPU copies 24.095 -> 11.619 ms, and E1M1 was unchanged
+at 29.58. Evidence: m6-r29-baseline.
 
-The already-built game identity is
-e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1.
+The console went unreachable at 12:36 UTC holding a live application (`procs`
+reported `title=PPSA99010 count=1`, from live kernel enumeration) and came back
+idle at 12:40; nothing was staged, uploaded, launched or closed. Four runs then
+followed, each with the owner's state snapshotted and restored exactly.
 
-**Manual deployment COMPLETE.** The saved R29 identity above is installed.
-Two served ELF reads and all five PT_LOAD segments match; shader scan and
-manifest pass. Game data/cache are present; no args, autoexec or
-diagnostic/profile flags. The user subsequently launched it and confirmed the
-game works. Their 15-30 FPS estimate is not an instrumented benchmark.
-Evidence: manual-r29-deployment; 48 captures replay.
+Two facts change how everything else should be read:
 
-At 2026-09-23 12:36 UTC the console stopped answering again: control on 9111
-returns no route to host. Just before that it held a live application --
-`procs` reported `title=PPSA99010 count=1`, from live kernel process
-enumeration, not a cached record -- so the owner had the game up and nothing
-was staged, uploaded, launched or closed. This is the same class of event as
-the earlier outage and is not evidence of a game crash.
+- **The frame period is quantised to whole 60 Hz vblanks.** frame_min_ms was
+  49.976 ms at the start map and 33.292 ms at E1M1, against 16.6831 ms measured
+  a vblank. A partial saving cannot raise FPS until a whole interval is crossed.
+  That is what R22's and R29's "no FPS gain" results were really showing, and it
+  means the work a frame does -- not FPS -- is what to measure.
+- **The largest remaining cost is the application's own CPU: 21.7 ms a frame,
+  identical at both maps**, in a run where the driver's queue cost differs
+  threefold between them. host_speeds agrees from the other side -- of E1M1's
+  35.4 ms frame, gfx is 33.9 and server 1.6. Evidence: m6-r31-frame-profile.
 
-## The next console session, in order
+Also measured: `gpu_ms` is not GPU execution (`submit_ms` is 0.169 ms a step and
+the rest is the marker poll's 1 ms sleeps); a present waits exactly one vblank
+and never zero; and the display's real cadence is 16.6831 ms over 60 intervals,
+59.941 Hz, spread 0.108 ms.
 
-Driver R31 (0f52d0a) adds default-off instrumentation for what R28's means
-cannot separate: the application's own CPU time before and after a submission,
-the submission call apart from the marker poll loop, unsuccessful marker checks
-per step, flip-status calls and vblank waits per present with their durations,
-the interval between confirmed presents with its histogram, and a
-sceVideoOutWaitVblank cadence probe. Host build clean, eleven gates and
-check-driver/shader-cache pass; jobs/r31-frame-profile holds it. It changes no
-packet, wait, flip or copy when profiling is off, and it is not an optimization:
-the R29 baseline is still the first thing to measure.
+**Do not log a line per frame on this console.** src/trace.cpp reopens stderr
+unbuffered onto /app0/trace.txt, so every stdio write is its own write to that
+filesystem. One summary line written as one fprintf per field cost 12% of the
+frame budget and the run measuring it came out 10-13% slow; enabling
+host_speeds, a line per frame, collapsed the game to 0.04 FPS. Both driver
+summary lines are now a single write each for exactly this reason.
 
-1. `python3 build/r29b-preserve.py snapshot`, then `bash build/r29-run.sh
-   baseline 250`. The scripts in build/ are ignored working files; preserve.py
-   now owns the user's state, because r29b-stage.py refuses to stage unless a
-   snapshot exists and r24-collect.py used to restore the configs by DELETING
-   them. Do not run r24-collect.py against the current state: `vkQuake.cfg`
-   (1020 bytes) and `id1/vkQuake.cfg` (2510 bytes) both exist now and are the
-   owner's settings.
-2. That run measures the deployed R29 with the existing counters, so its
-   numbers compare directly with R28's. Read them with
-   `python3 build/profile-metrics.py <capture>`; it reproduces
-   evidence/m6-copy-profile/metrics.txt exactly from that capture.
-3. Then relink the port against the R31 driver and run `build/r29-run.sh
-   profile 250` for the decomposition. Relink only after step 2: run-title.sh
-   validates the deployed binary against build/title_build_identity.h, so a
-   relink before the baseline run makes the baseline unrunnable.
-4. The fixture already samples `host_speeds`, which prints `tot/server/gfx/snd`
-   per frame and has never been captured; Con_Printf output does reach the log,
-   so step 2 returns the engine's own split too. Those samples run at r_tasks 0
-   while the timed phases run at r_tasks 1 -- do not average them together.
-5. Stage build/r30-stage.py only when all three new save paths are absent.
-   Its fixture moves/fires, saves, loads, and visits all eight shareware maps.
-   build/r30-saves.py retains saves twice and compares position/ammo/restoration;
-   collect screenshots and remove only these test files. Then extend the soak.
+R31 does not regress the game: with no profiling flag and no probe, E1M1 runs
+29.97 FPS at 33.37 ms -- the two-vblank floor -- and the start map 21.12, against
+the baseline's 29.58 and 19.72 with profiling on. Evidence:
+m6-r31-no-regression. That build (`dc19779c`) is what the console holds.
 
-The console's own config sets host_maxfps 200, r_scale 1, vid_vsync 0 and
-r_waterwarp 1, so the engine's frame cap is not what limits the frame rate.
-r_scale is not a resolution knob on this port -- every target is created at
-vid.width x vid.height, the drawable is the one 3840x2160 mode, and r_scale 2
-would not lower it either. Do not read the recorded "scale 2 gives no FPS gain"
-as evidence about fill rate.
+## Next
+
+1. **Find the 21.7 ms.** R31 times application stretches between Vulkan calls
+   but not the calls themselves, and `app_pre_ms` exceeds the sum of its gaps by
+   the duration of `vkGetQueryPoolResults`, every `vkBeginCommandBuffer`, every
+   `vkEndCommandBuffer` and the acquire. Time those calls. Also make the gap
+   chain thread-local, or decompose at `r_tasks 0`: the engine records on the
+   main thread and presents on a worker, and two threads closing one shared
+   chain is why the per-slot split is not yet quoted as a finding.
+2. Then, in order of measured size at E1M1: the cache flush (3.96 ms, 256 MiB a
+   frame over render targets the application never maps), and the marker poll's
+   ~2.4 ms of 1 ms sleeps for a GPU that finishes in under a millisecond.
+   Neither alone reaches 16.667 ms; the 21.7 ms has to come down too.
+3. Stage build/r30-stage.py only when all three new save paths are absent. Its
+   fixture moves/fires, saves, loads and visits all eight shareware maps;
+   build/r30-saves.py retains saves twice and compares position/ammo/restoration.
+   Then extend the soak. None of this is done yet.
+4. The parked NIR cache in the driver (parked/nir-shader-cache) is unstarted
+   console work: eight internal NIR stages still compile per launch, and its
+   host cold/warm/disabled equality and eight strict replays pass.
+
+Working notes. The scripts under build/ are ignored working files:
+r29b-preserve.py owns the owner's state, r29b-stage.py takes `noprofile` to run
+the same fixture with the instrumentation compiled in and never armed, and
+r24-collect.py restores the configs by DELETING them so it must not be run
+against the current state. A relink or a `tools/verify.sh` rewrites
+build/title_build_identity.h, and run-title.sh validates the deployed binary
+against it, so a rebuild between staging and a `--no-deploy` run makes that run
+fail its identity check -- that is a local harness mismatch, not a deployment
+failure; read the served ELF and the trace's own identity instead.
+
+The console's config sets host_maxfps 200, r_scale 1, vid_vsync 0 and
+r_waterwarp 1, so the engine's cap is not what limits the frame rate. r_scale is
+not a resolution knob on this port -- every target is created at vid.width x
+vid.height and the drawable is the one 3840x2160 mode -- so "scale 2 gives no
+FPS gain" says nothing about fill rate.
 
 While hardware is offline, a separate driver NIR-cache candidate passes host
 fresh-process cold/warm/disabled output equality and eight strict mip replays.
