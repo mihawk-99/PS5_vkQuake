@@ -2556,3 +2556,18 @@ Two final traces and deployed ELF segments match, idle verified. All fixture
 and generated configuration paths were restored to their prior absent state.
 32 evidence captures pass. Evidence/m6-native-quit contains hashes and proof.
 No visual acceptance or long-duration map claim follows from this short run.
+
+## 2026-09-23 — reject single-thread rendering as an optimization
+
+PID 228 runs the existing r_tasks=0 setting for 300 seconds on the verified
+native-exit build d3d0da7c…. First 27 steady profile intervals produce 6,345
+frames versus R22's 6,357; queue 13.195 versus 13.113 ms, flush 5.808 versus
+5.788 ms, native submit/marker 2.851 versus 2.854 ms. No useful improvement
+measured, so the upstream default remains unchanged. Both are warm 532-hit
+runs of the same demo workload; the only intervening code change is exit
+handoff, which is not exercised by the harness-closed workload.
+
+6,545 total presents, no reported game/audio errors. Matching final trace
+reads, identity and kernel PID; harness closes, idle verified. Temporary
+autoexec/profile flag removed and absence verified. 33 evidence captures PASS.
+Evidence: evidence/m6-tasks0-benchmark.
