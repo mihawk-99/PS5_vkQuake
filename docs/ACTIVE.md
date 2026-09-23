@@ -84,8 +84,10 @@ loss is unknown. Do not describe this as a proven game crash.
 
 While hardware is offline, a separate driver NIR-cache candidate passes host
 fresh-process cold/warm/disabled output equality and eight strict mip replays.
-Warm compilation count is zero. Its console/startup checks remain pending;
-do not relink it over the saved R29 benchmark until that measurement completes.
+Warm compilation count is zero; full driver/cache and eleven gates pass.
+The patch is parked/nir-shader-cache in the driver; production source/archive
+are restored to R29. Console/startup checks remain pending. Finish the saved
+R29 benchmark before applying it.
 
 ## Persistence and acceptance
 
