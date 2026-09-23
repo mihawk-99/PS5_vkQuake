@@ -1,0 +1,14 @@
+{
+  "step": "m4-input-demo-run",
+  "note": "Native DualSense opens and game continues presenting throughout five-minute run.",
+  "must_contain": [
+    "PS5 controller: ready",
+    "PS5 present: frames=6613",
+    "pid 220"
+  ],
+  "must_not_contain": [
+    "recording refusal",
+    "QUAKE ERROR"
+  ],
+  "human_check": "Adapter transitions/movement tested on host; native pad open verified. Physical controls, visuals and audio not human-confirmed; user unavailable."
+}

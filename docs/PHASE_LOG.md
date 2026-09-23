@@ -2461,3 +2461,31 @@ after the driver's header changed; eight NIR compiles remain.
 This is sustained execution, not visual/audio/controller acceptance. User
 authorized eight hours without interaction. Continue the known full-width
 subpass issue and engine input/audio adapters, then sustained acceptance.
+
+
+## 2026-09-23 — DualSense adapter and five-minute demo run
+
+Connected the existing native pad backend to Quake key events and usercmd
+movement, preserving upstream default gamepad bindings. Added radial deadzones,
+menu repeat, triggers, pitch limits/invert and release handling. A C-compatible
+backend header avoids duplicate ABI declarations. Failed pad opens now return
+false. The adapter test compiles against the pinned engine's actual types and
+covers transitions, repeated polls, disable/release, menu repeat, movement and
+pitch bounds. Presentation counters report every ten seconds; their existing
+loader-hook test also checks interval timing and failure logging.
+
+Five gates PASS. Deployed identity 132d1474996eeb54099dbf82c173f1170e28bcf6759aaa28ca5dc6ea308a538c
+is content-verified by two ELF reads/all PT_LOAD segments. PID 220 opens the
+native DualSense and runs 300 seconds without refusal/Quake error; the latest
+periodic counter is 6,613 successful presentations. Intervals vary around
+20–30 FPS at 4K. 532 cache hits, zero SPIR-V compiles. The harness closes it;
+count=0 verified. Final trace reads match SHA-256
+70b7bffc644616aecd02b46bcb96ff7e2a21960fee82654124e17bd7869e6fd7.
+Evidence/replay: evidence/m4-input-demo-run; tools/evidence.py compare evidence/.
+Physical button response and visual acceptance await the unavailable user;
+no M4 human acceptance is claimed.
+
+Correction: driver R20 d8080dc proved the earlier R10 quarter-width conclusion
+was a faulty probe: raw tiled memory was read as linear, and the writer was
+not mapped. PID 219's corrected writer/reader both match every pixel in two
+frames. No descriptor or shader change was needed.

@@ -43,14 +43,24 @@ No refusal or Quake error. Still alive at 180 seconds, then closed by harness;
 count=0 verified. Evidence: evidence/m3-r19-demo-run. Both final trace reads
 match; kernel PID agrees. 433 cache hits, 99 stores after driver-key change.
 No new visual acceptance; user unavailable for eight hours and authorized
-autonomous continuation. Next: diagnose the known R10 full-width subpass
-read defect, then connect input/audio and run sustained game acceptance.
+autonomous continuation. R20 driver d8080dc corrects that diagnosis: the old probe misread tiled
+bytes and never mapped its writer. PID 219 matches every pixel of both
+attachments in two frames; no production driver change was necessary.
+
+**Input adapter implemented and native pad opens.** PID 220 ran 300 seconds
+without refusal/Quake error, at least 6,613 successful presentations, roughly
+20–30 FPS at 4K. Identity 132d1474…; 532 shader-cache hits. Host checks cover
+button transitions/release, menu repeat, triggers, deadzones and movement.
+The existing DualSense backend opens successfully; physical interactions
+await human confirmation. Evidence: evidence/m4-input-demo-run.
+Audio adapter candidate now passes host tests and five gates; console output
+verification is next, followed by measured frame-time optimization.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
 
-- M3 stable menu; M4 input and M5 audio engine adapters remain stubs;
+- M3 stable menu and M4 physical control confirmation remain open; M5 audio verification next;
   M6 textured/lightmapped world without refusals.
-- R10 quarter-width subpass read, failing v0-lines and ImageQuery output.
+- R10 quarter-width claim retired by corrected R20 readback; v0-lines and ImageQuery output remain.
 - Earlier exit SIGSYS; staging path ignores EndCommandBuffer failure.
 - Step 0 trace capture and reproducible build identity are closed.
