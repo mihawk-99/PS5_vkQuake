@@ -1,0 +1,16 @@
+{
+  "step": "m6-r49-kstuff-paused",
+  "note": "With kstuff paused at game launch (etaHEN setting, owner), a system call costs 0.73-0.81 us instead of ~20 us, and the whole start-map walk runs at 119.88-119.89 FPS: work 4.0-4.4 ms (max 6.4), every one of 1199 frames a window in the 8 ms bucket, present-to-present 8.342 ms (min 8.286, max 8.401) = 119.88 Hz. Driver split: application 2.36 ms, queue 2.08 (CPU blits 1.39), one vblank wait of 3.9 ms. The display, with no flips pending, still measures its VRR floor (20.87 ms): the output is 4K VRR up to 120 Hz and the game runs at its ceiling. The owner's own unprofiled session (klog/owner-session-trace.txt) agrees: 119.86-119.88 FPS, work 4.0-5.1 ms, first present 0.554 s into the process.",
+  "must_contain": [
+    "build identity: 3977e574",
+    "clock_gettime_ns=810.1",
+    "getpid_ns=732.1",
+    "fps=119.88 work_ms=4.022",
+    "frame_ms=8.342 frame_min_ms=8.286 frame_max_ms=8.401",
+    "periods=8:1199"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

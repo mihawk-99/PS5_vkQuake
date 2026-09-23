@@ -1,0 +1,15 @@
+{
+  "pid": "not read this run",
+  "build_identity": "3977e574837bf00bdc4653a9ebe0b2fe4f8f31c071509060eff14bba9287adf9",
+  "trace_sha256": "913826797ba55478ed4c447dc823b63673f87b122ed94990388bd1f2206e04f7",
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "normal_exit": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-175135-00.png"
+  ],
+  "configs_restored": "restored to snapshot bytes",
+  "display": "VRR ON, 4K up to 120 Hz",
+  "environment": "etaHEN pause-kstuff-on-launch ON",
+  "shader_cache_housekeeping": "1983 stale loose entries (11.1 MB) from pre-6ff265f driver builds deleted from /app0/ps5vk-shader-cache with the owner's permission; the current build directory (102 entries) kept"
+}
