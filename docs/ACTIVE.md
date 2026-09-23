@@ -30,15 +30,15 @@ and multiple-dynamic-offset refusals and an indirect-stride assertion.
 The cold cache survived that crash and was reused by the warm process.
 R13 fixed the earlier staging upload OOM; caching does not repair rendering.
 
-## Next / stop condition
+## Current work
 
-The user's cache request is complete. The paired launches tested persistence
-and timing, not a repair of the known map stop. With the same rendering failure
-now repeated, follow the mission's stop-and-report rule before another rendering
-experiment. The cheapest next witness on resumption is a host single indexed
-indirect draw with count=1/stride=0, which upstream r_brush.c issues; the driver
-currently asserts stride >= command size even for that single-draw case.
-Then the named dynamic-offset and tiled-chain blit gaps remain to address.
+The user explicitly resumed M6: continue until the game is stable and playable.
+Driver R14 `2925ff6` fixes the valid single-draw count=1/stride=0 assertion.
+Host indexed/non-indexed checks pass; PS5 probe PID 204 passes pixel readback
+and exact stream replay (121 PASS, zero FAIL). Driver eleven gates, port five
+gates and template relink pass. No port retry yet. R15 is now being verified
+in the driver for independent dynamic uniform offsets; the named water-texture
+mip blit remains after it. Input/audio adapters still need implementation.
 
 ## Verification
 

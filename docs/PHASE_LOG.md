@@ -2308,3 +2308,14 @@ changed and no new human visual acceptance claimed. PID 197 already met M2.
 
 The previous R13 900-second harness also finished with capture status 0 and
 count=0. Capture success is distinct from the recorded application abort.
+
+## 2026-09-22 — User resumed M6; driver R14 accepted
+
+Driver 2925ff6 removes the single-draw stride assertion for count=1/stride=0,
+which vkQuake uses in r_brush.c. Six indexed/indirect check-driver arms,
+eleven driver gates, this port's five gates and template relink PASS.
+PS5 driver probe PID 204: 121 PASS, zero FAIL, indirect triangle pixel readback
+and exact stream replay PASS; title closed. Evidence is the driver's
+jobs/r14-indirect-stride and golden/r14-indirect-stride. This is driver
+acceptance, not a new vkQuake run. Dynamic offsets and the water-texture mip
+blit remain next; M6 is not claimed complete.
