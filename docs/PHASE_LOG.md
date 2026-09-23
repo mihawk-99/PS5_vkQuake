@@ -2626,3 +2626,14 @@ these captures do not establish flawless gameplay. PNG encoding affects frame
 intervals, so these runs are not performance benchmarks. Screenshot hashes are
 committed in the two growth evidence directories; raw images remain ignored.
 39 evidence captures replay with zero failures.
+
+## 2026-09-23 — isolate HUD disappearance by composition
+
+PID 240, unchanged normal R24 binary, writes four controlled start-map captures:
+viewsize 100/opaque classic HUD, transparent classic, modern HUD, then scale 1.
+Opaque classic HUD and FPS are visible in the area outside the world viewport;
+transparent/modern overlays over the world disappear. All four PNGs and the final
+trace read twice identically; normal LoadExec exit, kernel PID agrees, idle and
+originally absent configurations restored. This narrows the next probe to depth
+state persisting from a depth-attached pass into a colour-only UI pass; it does
+not yet prove the cause. Evidence: m6-hud-depth-diagnosis (40 captures pass).

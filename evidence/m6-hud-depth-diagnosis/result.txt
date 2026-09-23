@@ -1,0 +1,10 @@
+{
+  "pid": 240,
+  "build_identity": "9e7cced2c149303399895fc4ed799ed7e0dace91275b220997f692ecdca536f0",
+  "trace_sha256": "327de034716202628dc1ba37c967d48f2be68d5af1020053b7ec28cacf1061fb",
+  "trace_reads_identical": true,
+  "normal_exit": true,
+  "idle_verified": true,
+  "configs_restored": true,
+  "observation": "Opaque classic HUD visible where world viewport excludes it; transparent classic and modern HUD plus FPS/crosshair absent over world. Driver depth-state leak is a hypothesis pending isolated probe."
+}
