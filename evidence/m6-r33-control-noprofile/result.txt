@@ -1,0 +1,16 @@
+{
+  "pid": "not read this run",
+  "build_identity": "ce0ea9a8dbf6be36af60a79dc44e93490d9cdff008aaf66218a34afb45d387cf",
+  "driver_revision": "d00a2ce + uncommitted begin/reset split (committed with this evidence)",
+  "trace_sha256": "b88a45dc9133632ba4679bf7be4f29728127a5fe5d497bf5e0b35dda59fb7adf",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-104849-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-104923-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; staged fixture and flags removed because they were absent before",
+  "visual_result": "Both readbacks present; A/B control with profiling off."
+}

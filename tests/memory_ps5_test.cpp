@@ -90,6 +90,29 @@ int main()
     assert(empty);
     __wrap_free(empty);
     assert(!__wrap_realloc(__wrap_malloc(large), 0));
+    // A released span is reused for the next allocation of the same span, and
+    // calloc still returns zeroed memory when it is handed a reused one.
+    constexpr size_t linear = 64 * 1024;
+    auto *first = static_cast<unsigned char *>(__wrap_malloc(linear));
+    assert(first);
+    std::memset(first, 0x5c, linear);
+    __wrap_free(first);
+    auto *again = static_cast<unsigned char *>(__wrap_calloc(1, linear));
+    assert(again == first);
+    for (size_t i = 0; i < linear; ++i)
+        assert(again[i] == 0);
+    std::memset(again, 0x33, linear);
+    __wrap_free(again);
+    again = static_cast<unsigned char *>(__wrap_malloc(linear));
+    assert(again == first && again[linear - 1] == 0x33);
+    __wrap_free(again);
+    // Spans above the cache's per-span limit are still returned to the system,
+    // and a full cache does not keep more.
+    std::vector<void *> many;
+    for (int i = 0; i < 40; ++i)
+        many.push_back(__wrap_malloc(linear));
+    for (void *block : many)
+        __wrap_free(block);
     std::vector<std::thread> workers;
     for (int t = 0; t < 4; ++t)
         workers.emplace_back(

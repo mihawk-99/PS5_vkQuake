@@ -46,6 +46,19 @@ struct alignas(std::max_align_t) Mapping
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 Mapping *mappings = nullptr;
 
+/* Recently released spans, kept mapped for the next allocation of the same span.
+ * A console run measured why: the Vulkan driver's secondary command buffers each
+ * free and recreate Mesa's 64 KiB linear allocator on every vkBeginCommandBuffer,
+ * 26 of them a frame, and with every such block an munmap and an mmap that reset
+ * cost ~95 us a buffer (driver profile2 reset_common_ms, 2.45 ms a frame). The
+ * cache is bounded in count, per-span size and total bytes, so what it holds back
+ * from the system stays small next to the traffic it saves. */
+constexpr size_t cache_slots = 32;
+constexpr size_t cache_span_limit = 1024 * 1024;
+constexpr size_t cache_bytes_limit = 8 * 1024 * 1024;
+Mapping *cached[cache_slots];
+size_t cached_count = 0, cached_bytes = 0;
+
 Mapping **find(void *pointer)
 {
     Mapping **entry = &mappings;
@@ -54,7 +67,9 @@ Mapping **find(void *pointer)
     return entry;
 }
 
-void *allocate(size_t size)
+// A fresh mapping is zero-filled and a reused one is not, so zero says whether
+// the caller (calloc) needs the bytes cleared.
+void *allocate(size_t size, bool zero = false)
 {
     if (size < threshold)
         return __real_malloc(size ? size : 1);
@@ -64,10 +79,29 @@ void *allocate(size_t size)
         return nullptr;
     }
     const size_t span = (sizeof(Mapping) + size + page - 1) & ~(page - 1);
-    void *memory = mmap(nullptr, span, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    if (memory == MAP_FAILED)
-        return nullptr;
-    auto *entry = static_cast<Mapping *>(memory);
+    Mapping *entry = nullptr;
+    pthread_mutex_lock(&lock);
+    for (size_t i = 0; i < cached_count; ++i)
+        if (cached[i]->span == span)
+        {
+            entry = cached[i];
+            cached[i] = cached[--cached_count];
+            cached_bytes -= span;
+            break;
+        }
+    pthread_mutex_unlock(&lock);
+    if (entry)
+    {
+        if (zero)
+            std::memset(entry + 1, 0, size);
+    }
+    else
+    {
+        void *memory = mmap(nullptr, span, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        if (memory == MAP_FAILED)
+            return nullptr;
+        entry = static_cast<Mapping *>(memory);
+    }
     entry->requested = size;
     entry->span = span;
     pthread_mutex_lock(&lock);
@@ -84,9 +118,21 @@ void release(void *pointer)
     pthread_mutex_lock(&lock);
     Mapping **slot = find(pointer);
     Mapping *entry = *slot;
+    bool kept = false;
     if (entry)
+    {
         *slot = entry->next;
+        if (entry->span <= cache_span_limit && cached_count < cache_slots &&
+            cached_bytes + entry->span <= cache_bytes_limit)
+        {
+            cached[cached_count++] = entry;
+            cached_bytes += entry->span;
+            kept = true;
+        }
+    }
     pthread_mutex_unlock(&lock);
+    if (kept)
+        return;
     if (entry)
         munmap(entry, entry->span);
     else
@@ -162,7 +208,7 @@ extern "C" void *__wrap_calloc(size_t count, size_t size)
     }
     const size_t bytes = count * size;
     void *p = bytes < threshold ? (bytes ? __real_calloc(count, size) : __real_calloc(1, 1))
-                                : allocate(bytes);
+                                : allocate(bytes, true);
     if (p)
         ps5::memory::add(
             {p, bytes, caller,

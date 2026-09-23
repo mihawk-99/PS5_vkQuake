@@ -1,0 +1,15 @@
+{
+  "step": "m6-r33-span-cache",
+  "note": "Same driver instrument and fixture as m6-r33-begin-split, with the port's allocator keeping up to 32 released spans (<=1 MiB each, <=8 MiB total) for reuse. Same 30 begins a frame; reset_common_ms 2.45 -> 0.92-0.97 ms a frame and call_begin_ms 4.3 -> 2.8, so munmap/mmap churn was ~60% of the begin cost. Both readbacks correct. Every window still has one 0.8-2.1 s hitch (periods 64:1), so window-mean ms are inflated; per-call costs are quoted.",
+  "must_contain": [
+    "build identity: 28ecb4f8",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "begins/frame=30.0",
+    "reset_common_ms=0.9"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
