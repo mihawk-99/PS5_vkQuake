@@ -1,0 +1,13 @@
+{
+  "step": "m6-copy-profile",
+  "note": "Two map phases show CPU copies cost 24.095 ms on start and 0.041 ms at E1M1 spawn; synchronization negligible. Normal shell exit, identical final reads, deployment and PID verified.",
+  "must_contain": [
+    "d584176efc73f76f5b34754b74e78cb24dae3883d87b246faabc1418e07d13a4",
+    "PS5_R28_DONE",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

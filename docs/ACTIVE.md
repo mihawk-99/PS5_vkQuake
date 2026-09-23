@@ -105,7 +105,12 @@ Driver d8646ce restores the lost blend-control assignment. PID 259 normal
 relink shows the faded world behind both menu openings, a transparent HUD and
 start/E1M1 worlds in five verified PNGs. Clean exit, 2,399,744 audio frames/zero
 errors; identity 3a6078fa…, all final/deployed reads/PID agree, configs restored.
-Evidence: m6-menu-blend-fixed; 45 captures. Next: remaining queue cost and soak.
+Evidence: m6-menu-blend-fixed; 45 captures. R28 PID 261 completes two profiling
+phases: CPU copies average 24.095 ms on start and 0.041 ms at E1M1 spawn;
+sync wait/signal each 0.021 ms. Driver 9f9f395, identity d584176e…, clean exit,
+7,082,496 audio frames/zero errors. Two identical PNG reads, deployed/final
+reads and PID match; fixture/profile absent. Evidence: m6-copy-profile, 46 captures.
+Next: optimize proven water-mipmap CPU work, then gameplay/save/load soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
