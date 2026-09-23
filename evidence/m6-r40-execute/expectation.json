@@ -1,0 +1,14 @@
+{
+  "step": "m6-r40-execute",
+  "note": "vkCmdExecuteCommands -- the replay of every secondary through the driver -- is 0.14 ms a frame (21 calls, one secondary each): ruled out as the application's ~17-19 ms. The same code as m6-r38-marker-spin plus this probe ran E1M1 at 49.8-51.3 FPS (work 19.3-19.8) against 55.76 there: run-to-run variation is ~2 ms, so single runs cannot resolve smaller changes.",
+  "must_contain": [
+    "build identity: cb4ba120",
+    "PS5_R32_DONE",
+    "executes/frame=21.0 executed/frame=21.0 call_execute_ms=0.141",
+    "fps=51.27 work_ms=19.286"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
