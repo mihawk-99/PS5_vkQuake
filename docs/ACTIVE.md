@@ -53,13 +53,19 @@ without refusal/Quake error, at least 6,613 successful presentations, roughly
 button transitions/release, menu repeat, triggers, deadzones and movement.
 The existing DualSense backend opens successfully; physical interactions
 await human confirmation. Evidence: evidence/m4-input-demo-run.
-Audio adapter candidate now passes host tests and five gates; console output
-verification is next, followed by measured frame-time optimization.
+Audio adapter now feeds native 48 kHz stereo S16 output. PID 221 and 222 each
+ran 300 seconds without refusal/Quake error or reported audio output failure.
+PID 222 produced 12,960,000 stereo frames, 49,890 nonzero blocks and 6,335
+presents; all 27 periodic audio reports are intact after serializing tracing.
+Five gates and 30 evidence captures PASS. Audible quality awaits the user.
+Evidence: evidence/m5-audio-initial and evidence/m5-audio-profile-run.
+Opt-in driver profiling measures 509.54 MiB of target cache eviction per frame,
+7.87 ms/frame; next is duplicate-flush removal with console pixel regressions.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
 
-- M3 stable menu and M4 physical control confirmation remain open; M5 audio verification next;
+- M3 stable menu, M4 physical control and M5 audible confirmation remain open;
   M6 textured/lightmapped world without refusals.
 - R10 quarter-width claim retired by corrected R20 readback; v0-lines and ImageQuery output remain.
 - Earlier exit SIGSYS; staging path ignores EndCommandBuffer failure.

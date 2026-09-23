@@ -361,3 +361,12 @@ fix: zero SPIR-V compiles/stores, 532 hits, eight internal NIR compiles. No new
 startup timing was measured. Evidence: evidence/m2-r18-map-recording; all 26
 captures replay with zero failures. Next: R19, shared 32-bit indexed draws with
 correct byte offsets, bounds and index-size packets, then a hardware probe.
+
+## 2026-09-23: concurrent diagnostics need one trace append lock
+
+PID 221 interleaved audio stderr writes and presentation trace appends on the
+mounted file. A shared mutex around trace appends and routing periodic audio
+through that helper yields 27 complete reports in PID 222. This serializes
+trace-helper callers; it does not promise atomicity for arbitrary engine stdio.
+Both runs continuously feed nonzero PCM to native AudioOut with zero reported
+output errors. See evidence/m5-audio-initial and m5-audio-profile-run.

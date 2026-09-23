@@ -12,6 +12,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <pthread.h>
 
 namespace ps5::debug
 {
@@ -29,15 +30,22 @@ constexpr const char *trace_path = "/app0/trace.txt";
  * the header's other half makes all of this a no-op. */
 constexpr const char *memory_path = "/app0/memory.txt";
 
+pthread_mutex_t trace_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void write(const char *line) noexcept
 {
+    // Audio and presentation report from different threads. Keep each complete
+    // append together, including the newline, on the console's mounted file.
+    pthread_mutex_lock(&trace_mutex);
     std::FILE *file = std::fopen(trace_path, "a");
-    if (file == nullptr)
-        return;
-    std::fputs(line, file);
-    std::fputc('\n', file);
-    std::fflush(file);
-    std::fclose(file);
+    if (file != nullptr)
+    {
+        std::fputs(line, file);
+        std::fputc('\n', file);
+        std::fflush(file);
+        std::fclose(file);
+    }
+    pthread_mutex_unlock(&trace_mutex);
 }
 
 /* Point the C streams at the trace file, before main.

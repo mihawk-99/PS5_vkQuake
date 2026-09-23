@@ -1,0 +1,2 @@
+PID 221: alive until harness closure after 300s; idle verified. Identity a5c6e68fa35e037a47ee96044dcee3865acaabe68735d0a5460af5442e28667e. At least 6605 presents; 13,440,000 stereo frames played, 51,908 nonzero blocks, zero reported audio errors. 532 shader-cache hits, zero SPIR-V compiles. No refusal/Quake error.
+Two final trace reads SHA-256 c7303a7b4021adf41c5663acc64a28bf36367f1f502288887b29ab0a9f9e6655; kernel PID matches. Periodic audio/present text interleaves in early intervals; corrected logging awaits next console run. Audible quality unconfirmed.
