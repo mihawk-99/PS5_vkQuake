@@ -24,43 +24,41 @@ after this tree's gates, shader scan and verified deployment.
 **M2 met:** PID 197 presented a frame, confirmed by the human as the Quake menu
 or console. Evidence: `evidence/m2-first-frame/`. M3–M6 remain unaccepted.
 
-**Same map-recording stop remains:** after presenting, PIDs 199, 202 and 203
-reach lightmap/indirect/visibility allocations, then named tiled-chain blit
-and multiple-dynamic-offset refusals and an indirect-stride assertion.
-The cold cache survived that crash and was reused by the warm process.
-R13 fixed the earlier staging upload OOM; caching does not repair rendering.
-
 ## Current work
 
-M6 remains open. R14 `2925ff6` fixes single-draw count=1/stride=0;
-PS5 PID 204 passed pixels and exact replay (121 PASS, zero FAIL). R15 `b838832`
-fixes independent dynamic UBO offsets; PS5 PID 205 passed all four frames and
-four exact replays (196 PASS, zero FAIL). Both had driver eleven gates, port
-five gates and template relink PASS. No new port launch after these fixes.
+**R14–R16 accepted in the driver and exercised by vkQuake.** Single-draw
+stride, independent dynamic UBO offsets and tiled water mip blits pass their
+PS5 probes. Driver R16 `c7f6f95`, PID 207: 277 PASS, zero FAIL; all four mip
+frames match all 8,294,400 pixels, all 87,040 lower texels match independently,
+and ten streams replay exactly. Earlier failed PID 206 evidence is retained.
 
-R16's water mip-blit probe failed on PS5 PID 206: the 64x64 level sampled zero
-in 1/16 of the frame. Earlier centre-only C7 checks had missed an additive
-mip-tail addressing error. The whole-chain AddrLib oracle now proves XOR
-addressing, and a corrected shared upload/copy/blit candidate passes fifteen
-host/link arms, all eleven gates, independent CPU texel checks, port five
-gates and template relink. It has NOT passed PS5 readback.
+**Requested relink/launch completed; M6 still open.** Port PID 208, identity
+`b6a1e9540a03996b94a42346de7e0868fb339b883ea0ddab6e84d1407c6f126f`,
+presented a frame and reached demo1/the Necropolis map recording. The three
+previous map failures are absent. Two new named refusals then stop recording:
+set 0 binding 2 has three descriptors; set 0 binding 0 needs a padded pitch of
+256 texels outside the measured custom-pitch descriptor coverage. Full image
+shape/format is not yet measured; do not assume mip count or array layer count
+from that sentence alone. EndCommandBuffer returns -13; exit 1 takes the known
+SIGSYS exit path. The game is not yet playable.
 
-The mission requires stopping when a run contradicts an earlier claim.
-Correction and failed evidence are preserved in the driver; the candidate is
-parked in `../PS5_Vulkan/parked/r16-mip-tail.patch`. Reproduction and remaining
-acceptance: `../PS5_Vulkan/jobs/r16-mip-blit/README.md`. Accepted R15 source and
-archive are restored and this port relinked. Console idle; no further launch.
-Next cycle: apply/rebuild the patch, pass the PS5 full-mip probe, then relink
-and launch vkQuake. Input/audio adapters still need implementation.
+Two final trace reads match and kernel PID 208 agrees. The two-minute harness
+ended with count=0; no title remains running. First-present on-screen check
+was requested and is pending. Evidence: `evidence/m2-r16-map-recording/`.
+Next driver witnesses: R17 sampled-image descriptor array with distinct entries,
+then R18 reproduce and measure the refused padded image shape; see
+`docs/PS5_VULKAN_REQUESTS.md`. Input/audio adapters still need implementation.
 
 ## Verification
 
-Explicit driver build zero warnings, 167 check-driver arms and eleven gates
-PASS; persistent-key/corruption/fresh-process package tests PASS. Probe PIDs
-200/201 each passed 241 checks, zero FAIL; twelve submissions replay exactly.
-Template relink PASS. Port five gates and scan passed before launch, with scan
-repeated before each console run; evidence replay now 23 captures, zero failed.
-Archive: 14,425,130 bytes, SHA-256 e089e060… . No title is left running.
+R16 explicit driver build zero warnings; fifteen targeted check-driver arms,
+cache checks and all eleven gates PASS. Archive 14,428,778 bytes, SHA-256
+8d5206d5d4fc1535c342916b71c81e57d62ae4086d14fcd993074bc4c2fc8c67.
+Port five gates, per-run shader scans and template relink PASS. Two deployed
+ELF reads match all five PT_LOAD segments. Evidence replay: 24 captures,
+zero failed. Changed driver header invalidated prior shader-cache entries as
+designed: PID 208 had 99 SPIR-V compiles/stores, 433 hits and eight NIR compiles.
+No new warm-start timing was measured.
 
 ## Other open work
 
