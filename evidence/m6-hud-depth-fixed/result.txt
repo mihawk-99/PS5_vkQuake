@@ -1,0 +1,23 @@
+{
+  "pid": 246,
+  "build_identity": "8eff69e9f60f768e2fa6eb9cff6f029d262603d9f32983f5985f5ee56586cadc",
+  "driver_revision": "90c28a1",
+  "trace_sha256": "444b752f21b8f8b5e697f4d5e029197e1126376b23ad8735cf7012feeec42507",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-035738-00.png",
+    "vkQuake-Introduction-start-20260117-035741-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-035750-00.png",
+    "vkQuake-Introduction-start-20260117-035806-00.png",
+    "vkQuake-Introduction-start-20260117-035809-00.png",
+    "vkQuake-Introduction-start-20260117-035812-00.png",
+    "vkQuake-Introduction-start-20260117-035815-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored_absent": true,
+  "audio_frames": 2550528,
+  "audio_errors": 0,
+  "visual_result": "HUD restored on start/E1M1 and all controlled HUD settings; menu background still black"
+}

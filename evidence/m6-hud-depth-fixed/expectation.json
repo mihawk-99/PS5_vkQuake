@@ -1,0 +1,13 @@
+{
+  "step": "m6-hud-depth-fixed",
+  "note": "Seven PS5 screenshots show restored gameplay HUD in classic/transparent/modern settings; menu background remains black and open. Normal shell exit, identical final reads, deployment and PID verified.",
+  "must_contain": [
+    "8eff69e9f60f768e2fa6eb9cff6f029d262603d9f32983f5985f5ee56586cadc",
+    "PS5_HUD_END",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
