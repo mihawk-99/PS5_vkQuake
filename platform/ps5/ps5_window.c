@@ -39,6 +39,9 @@
 #include <stdio.h>
 #include <string.h>
 
+/* sdl_ps5.c: the shim's kernel-entry counts, as per-frame fields. */
+int ps5_sdl_counts_format(char *line, size_t bytes, unsigned long long frames);
+
 /* The console's mode, matching ../PS5_Vulkan's driver/ps5vk_wsi.c. Named here as
  * constants rather than taken from the driver because the driver's copies are
  * private to it, and the assert that ties the two together is in the driver. If
@@ -355,10 +358,15 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
         }
         else if (now - last_tick >= 10000)
         {
-            char line[128];
-            snprintf(line, sizeof line, "PS5 present: frames=%llu interval=%llu ms fps=%.2f",
-                     (unsigned long long)frames, (unsigned long long)(now - last_tick),
-                     (double)(frames - last_frames) * 1000.0 / (double)(now - last_tick));
+            char line[384];
+            const int used =
+                snprintf(line, sizeof line, "PS5 present: frames=%llu interval=%llu ms fps=%.2f",
+                         (unsigned long long)frames, (unsigned long long)(now - last_tick),
+                         (double)(frames - last_frames) * 1000.0 / (double)(now - last_tick));
+            // The shim's per-frame kernel-entry counts, in the same single write.
+            if (used > 0 && (size_t)used < sizeof line)
+                ps5_sdl_counts_format(line + used, sizeof line - (size_t)used,
+                                      (unsigned long long)(frames - last_frames));
             ps5_trace(line);
             last_tick = now;
             last_frames = frames;

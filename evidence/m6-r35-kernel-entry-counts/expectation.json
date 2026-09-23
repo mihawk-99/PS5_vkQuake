@@ -1,0 +1,15 @@
+{
+  "step": "m6-r35-kernel-entry-counts",
+  "note": "Per frame at E1M1, profiling off: 48 clock reads (clock_gettime), 212 semaphore posts, 81 blocking semaphore waits, ~7,500 try-waits (7,367 empty), 153 contended mutex locks, 3 condition waits, 25 condition wakes. FPS unchanged from m6-r33-span-cache-noprofile (start 23.24/26.56, E1M1 30.08/34.19/34.19).",
+  "must_contain": [
+    "build identity: 517081dc",
+    "PS5_R32_DONE",
+    "PS5 exit: status=0",
+    "fps=34.19 clock/frame=48.4 sem_post/frame=212.0 sem_block/frame=81.0"
+  ],
+  "must_not_contain": [
+    "[ps5vk] profile",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

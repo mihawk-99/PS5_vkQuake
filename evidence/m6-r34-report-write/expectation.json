@@ -1,0 +1,15 @@
+{
+  "step": "m6-r34-report-write",
+  "note": "The profiled runs' once-per-window hitch is the driver's own summary write: last_write_ms (the previous report's single fputs to /app0/trace.txt) matches the next window's frame_max_ms every time -- 1606/1657, 2098/2146, 1726/1773, 3124/3397, 5783/5817, 5331/5373, 5830/5874 ms. One os_time_get_nano costs 20.3 us. The run stalled late in E1M1 and was closed by the harness at 170 s; only the start-map screenshot was taken.",
+  "must_contain": [
+    "build identity: 51a15e98",
+    "last_write_ms=1606.472",
+    "frame_max_ms=1657.298",
+    "last_write_ms=5782.804",
+    "clock_ns=20331.8"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

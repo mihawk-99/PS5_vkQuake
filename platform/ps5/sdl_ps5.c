@@ -96,6 +96,61 @@ void SDL_ClearError(void)
  * Mutexes, conditions, semaphores.
  * ------------------------------------------------------------------------- */
 
+/* What the engine asks of the kernel, counted. A console run measured a system
+ * call at ~20 us on this console (getpid 20.1 us, clock_gettime 20.3 us) against
+ * 12 ns for a user-mode TSC read and 16 ns for an uncontended mutex pair, so how
+ * often these primitives can enter the kernel is a cost worth knowing per frame.
+ * Relaxed atomic adds, no system call; reported on the present line
+ * (ps5_window.c), which is one write every ten seconds. */
+enum
+{
+    COUNT_CLOCK,
+    COUNT_SEM_POST,
+    COUNT_SEM_BLOCK,
+    COUNT_SEM_TRY,
+    COUNT_SEM_TRY_EMPTY,
+    COUNT_CONTENDED,
+    COUNT_COND_WAIT,
+    COUNT_COND_WAKE,
+    COUNT_DELAY,
+    COUNT_KINDS
+};
+static _Atomic unsigned long long counts[COUNT_KINDS];
+static void count(int kind)
+{
+    atomic_fetch_add_explicit(&counts[kind], 1, memory_order_relaxed);
+}
+/* A lock that says whether it had to wait: trylock first, then the real lock. */
+static int lock_counted(pthread_mutex_t *mutex)
+{
+    if (pthread_mutex_trylock(mutex) == 0)
+        return 0;
+    count(COUNT_CONTENDED);
+    return pthread_mutex_lock(mutex);
+}
+
+/* The means per frame since the previous call, as " name=value" fields. */
+int ps5_sdl_counts_format(char *line, size_t bytes, unsigned long long frames)
+{
+    static const char *const names[COUNT_KINDS] = {"clock",     "sem_post",      "sem_block",
+                                                   "sem_try",   "sem_try_empty", "contended",
+                                                   "cond_wait", "cond_wake",     "delay"};
+    static unsigned long long previous[COUNT_KINDS];
+    size_t used = 0;
+    for (int kind = 0; kind < COUNT_KINDS && used < bytes; ++kind)
+    {
+        const unsigned long long now = atomic_load_explicit(&counts[kind], memory_order_relaxed);
+        const double per_frame = frames ? (double)(now - previous[kind]) / (double)frames : 0.0;
+        previous[kind] = now;
+        const int wrote =
+            snprintf(line + used, bytes - used, " %s/frame=%.1f", names[kind], per_frame);
+        if (wrote < 0)
+            break;
+        used += (size_t)wrote;
+    }
+    return (int)used;
+}
+
 struct SDL_mutex
 {
     pthread_mutex_t handle;
@@ -153,7 +208,7 @@ int SDL_LockMutex(SDL_mutex *mutex)
 {
     if (!mutex)
         return -1;
-    return pthread_mutex_lock(&mutex->handle);
+    return lock_counted(&mutex->handle);
 }
 
 int SDL_UnlockMutex(SDL_mutex *mutex)
@@ -192,6 +247,7 @@ int SDL_CondWait(SDL_cond *cond, SDL_mutex *mutex)
 {
     if (!cond || !mutex)
         return -1;
+    count(COUNT_COND_WAIT);
     return pthread_cond_wait(&cond->handle, &mutex->handle);
 }
 
@@ -203,6 +259,7 @@ int SDL_CondWaitTimeout(SDL_cond *cond, SDL_mutex *mutex, Uint32 ms)
 {
     if (!cond || !mutex)
         return -1;
+    count(COUNT_COND_WAIT);
     if (ms == SDL_MUTEX_MAXWAIT)
         return pthread_cond_wait(&cond->handle, &mutex->handle);
 
@@ -224,6 +281,7 @@ int SDL_CondBroadcast(SDL_cond *cond)
 {
     if (!cond)
         return -1;
+    count(COUNT_COND_WAKE);
     return pthread_cond_broadcast(&cond->handle);
 }
 
@@ -231,6 +289,7 @@ int SDL_CondSignal(SDL_cond *cond)
 {
     if (!cond)
         return -1;
+    count(COUNT_COND_WAKE);
     return pthread_cond_signal(&cond->handle);
 }
 
@@ -264,9 +323,12 @@ int SDL_SemWait(SDL_sem *sem)
 {
     if (!sem)
         return -1;
-    pthread_mutex_lock(&sem->mutex);
+    lock_counted(&sem->mutex);
     while (sem->count == 0)
+    {
+        count(COUNT_SEM_BLOCK);
         pthread_cond_wait(&sem->cond, &sem->mutex);
+    }
     sem->count--;
     pthread_mutex_unlock(&sem->mutex);
     return 0;
@@ -276,13 +338,16 @@ int SDL_SemTryWait(SDL_sem *sem)
 {
     if (!sem)
         return -1;
-    pthread_mutex_lock(&sem->mutex);
+    count(COUNT_SEM_TRY);
+    lock_counted(&sem->mutex);
     /* SDL returns SDL_MUTEX_TIMEDOUT rather than blocking, and vkQuake's macro
      * turns a zero return into true. Non-zero is the answer either way, but the
      * value is kept as SDL's. */
     const int result = sem->count == 0 ? 1 : 0;
     if (result == 0)
         sem->count--;
+    else
+        count(COUNT_SEM_TRY_EMPTY);
     pthread_mutex_unlock(&sem->mutex);
     return result;
 }
@@ -291,7 +356,8 @@ int SDL_SemPost(SDL_sem *sem)
 {
     if (!sem)
         return -1;
-    pthread_mutex_lock(&sem->mutex);
+    count(COUNT_SEM_POST);
+    lock_counted(&sem->mutex);
     sem->count++;
     pthread_cond_signal(&sem->cond);
     pthread_mutex_unlock(&sem->mutex);
@@ -403,6 +469,7 @@ void SDL_DetachThread(SDL_Thread *thread)
 
 void SDL_Delay(Uint32 ms)
 {
+    count(COUNT_DELAY);
     struct timespec remaining;
     remaining.tv_sec = (time_t)(ms / 1000u);
     remaining.tv_nsec = (long)(ms % 1000u) * 1000000L;
@@ -416,6 +483,7 @@ void SDL_Delay(Uint32 ms)
 Uint64 SDL_GetPerformanceCounter(void)
 {
     struct timespec now;
+    count(COUNT_CLOCK);
     clock_gettime(CLOCK_MONOTONIC, &now);
     return (Uint64)now.tv_sec * 1000000000ull + (Uint64)now.tv_nsec;
 }
