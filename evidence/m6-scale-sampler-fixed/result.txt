@@ -1,0 +1,83 @@
+{
+  "pid": 251,
+  "build_identity": "fc6ba13af2d9023f4bff94ad4cafaacc34993eb01581299d839c1b16701d9c10",
+  "trace_sha256": "82a08a574b0c2206800a0860c77e865c2f44117c2fc94d9f016472ec2afc3fa8",
+  "final_reads_identical": true,
+  "screenshots_reads_identical": true,
+  "exit_status": 0,
+  "phases": [
+    {
+      "phase": 1,
+      "tasks": 1,
+      "scale": 1,
+      "steady_intervals": 7,
+      "fps": 14.86,
+      "metrics": {
+        "queue_ms": 33.110571428571426,
+        "flush_ms": 5.987857142857143,
+        "gpu_ms": 2.754142857142857,
+        "flip_ms": 14.510571428571428,
+        "flush_MiB/frame": 384.09
+      }
+    },
+    {
+      "phase": 2,
+      "tasks": 0,
+      "scale": 1,
+      "steady_intervals": 7,
+      "fps": 14.86142857142857,
+      "metrics": {
+        "queue_ms": 33.314142857142855,
+        "flush_ms": 6.002428571428571,
+        "gpu_ms": 2.758857142857143,
+        "flip_ms": 15.358428571428572,
+        "flush_MiB/frame": 384.09
+      }
+    },
+    {
+      "phase": 3,
+      "tasks": 0,
+      "scale": 2,
+      "steady_intervals": 7,
+      "fps": 14.85142857142857,
+      "metrics": {
+        "queue_ms": 40.511857142857146,
+        "flush_ms": 11.856285714285715,
+        "gpu_ms": 4.038428571428572,
+        "flip_ms": 8.209285714285715,
+        "flush_MiB/frame": 768.13
+      }
+    },
+    {
+      "phase": 4,
+      "tasks": 1,
+      "scale": 2,
+      "steady_intervals": 7,
+      "fps": 14.84,
+      "metrics": {
+        "queue_ms": 40.33842857142857,
+        "flush_ms": 11.874285714285714,
+        "gpu_ms": 4.0362857142857145,
+        "flip_ms": 7.336714285714286,
+        "flush_MiB/frame": 768.13
+      }
+    },
+    {
+      "phase": 5,
+      "tasks": 1,
+      "scale": 1,
+      "steady_intervals": 7,
+      "fps": 14.86142857142857,
+      "metrics": {
+        "queue_ms": 33.102000000000004,
+        "flush_ms": 5.9794285714285715,
+        "gpu_ms": 2.7535714285714286,
+        "flip_ms": 14.504285714285714,
+        "flush_MiB/frame": 384.09
+      }
+    }
+  ],
+  "audio_frames": 21079808,
+  "audio_errors": 0,
+  "configs_and_profile_restored_absent": true
+}
