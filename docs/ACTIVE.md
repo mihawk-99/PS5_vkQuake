@@ -1,7 +1,8 @@
 ## Current objective
 
 Make vkQuake stable, playable and faster on the PS5. The user has returned and
-requests deployment of the latest build for manual testing. The heartbeat is
+has confirmed the deployed R29 game works and estimates 15–30 FPS. The current
+request is README documentation and performance planning. The heartbeat is
 PAUSED: do not run automated fixtures or a harness that closes their game.
 CTS is out of scope. M2 was human-confirmed as a visible Quake menu/console.
 Never claim flawless gameplay from a short run.
@@ -59,7 +60,7 @@ passes four full 4K mip frames and all generated lower texels; four strict
 replays. PID 268 passes 3,501 checks across mip/upload/copy/format regressions.
 Host checks cover 2,441,216 addresses and 144 random-colour blits. Explicit
 rebuild, full host/cache, eleven driver gates, port five gates/scan and template
-relink pass. Game performance remains unmeasured.
+relink pass. Controlled R29 game performance remains unmeasured.
 
 The already-built game identity is
 e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1.
@@ -72,7 +73,8 @@ loss is unknown. Do not describe this as a proven game crash.
 **Manual deployment COMPLETE.** The saved R29 identity above is installed.
 Two served ELF reads and all five PT_LOAD segments match; shader scan and
 manifest pass. Game data/cache are present; configurations preserved; no args,
-autoexec or diagnostic/profile flags. Console idle, manual launch left to user.
+autoexec or diagnostic/profile flags. Deployment completed while idle; the user subsequently launched and confirmed
+the game works. Their 15–30 FPS estimate is not an instrumented benchmark.
 Evidence: manual-r29-deployment; 48 captures replay. Automated testing stays
 PAUSED. The historical network interruption above ended when services returned.
 The steps below remain deferred until manual testing is finished and automated

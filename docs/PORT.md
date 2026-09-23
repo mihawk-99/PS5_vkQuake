@@ -42,13 +42,12 @@ and the `build/title.map` used to symbolize it must come from the same build.
 
 ## What is built
 
-`tools/build-vkquake-engine.sh` compiles 74 sources — 72 of vkQuake's engine from
-upstream's own `meson.build`, plus the two platform files — into
-`build/vkquake/libvkquake_engine.ps5.a`, defining `Host_Init`,
-`Cvar_RegisterVariable`, `VID_Init` and `GL_EndRendering` among 1900-odd others.
-vkQuake's sources are unmodified: its 5036-line Vulkan backend compiles and links
-as upstream wrote it, because the port describes the console to the renderer
-rather than editing the renderer.
+`tools/build-vkquake-engine.sh` reads upstream's source list and compiles the
+engine with the PS5 platform files into `build/vkquake/libvkquake_engine.ps5.a`.
+It generates the renderer's shaders and embedded configuration pak as needed.
+The upstream tree is fetched, not hand-edited: fifteen exact compatibility edits
+are applied reproducibly by `platform/ps5/vkquake-edits.py`. Native SDL-compatible
+services and the input/audio adapters live under `platform/ps5/`.
 
 `tools/build-title.sh` links that archive with the Vulkan driver archives and Mesa
 objects into `dist/PPSA99010/`. The shaders and the embedded pak are generated, not
@@ -71,11 +70,9 @@ documentation is preserved unchanged under `docs/inherited/`.
 | `audio_ps5.cpp` | AudioOut ring and worker thread; the `audio_driver_t` table is gone |
 | `input_ps5.cpp`, `.h` | The pad, behind a small C surface in the console's numbering |
 
-`in_sdl.c`, `in_sdl2.c` and `snd_sdl.c` are the only upstream platform files still
-excluded; `platform/ps5/ps5_input.c` and `ps5_audio.c` stand in for them, the
-engine's `IN_*` and `SNDDMA_*` interfaces **deliberately doing nothing**. The
-interesting half of both already exists — `src/input_ps5.cpp` reads the pad,
-`src/audio_ps5.cpp` drives AudioOut — so what is missing is the key mapping and the
-`dma_t` adapter, which are M4 and M5. They report absence rather than inventing
-input or accepting samples a device would never drain: a title that moves on its
-own or stalls a frame is harder to read from a log than a silent one.
+Upstream SDL input/audio implementations (including their SDL3 variants) are
+excluded from the engine build. `platform/ps5/ps5_input.c` implements `IN_*`
+through the native pad backend, including buttons, menu repeat, triggers,
+deadzones and movement. `platform/ps5/ps5_audio.c` implements `SNDDMA_*` through
+the AudioOut backend at 48 kHz stereo S16. Automated coverage and remaining
+physical/audible acceptance are recorded in `docs/ACTIVE.md`.

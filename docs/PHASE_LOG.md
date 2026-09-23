@@ -2773,3 +2773,23 @@ persistent shader cache are present; user configurations preserved; args,
 autoexec and diagnostic/profile flags absent. Leave launch to the user with
 automated runs paused. This is deployment evidence, not a new gameplay or FPS
 measurement. Evidence manual-r29-deployment; format and 48 capture replays pass.
+
+## 2026-09-23 — Owner confirms gameplay; README and performance guidance
+
+The owner reports “The game works!” after the verified R29 deployment and
+estimates 15–30 FPS. Record this as human confirmation and an estimate, not a
+new instrumented benchmark or completed all-map/save/load/audio acceptance.
+Manual testing takes priority over the active file's deferred automated steps;
+no console action, fixture change, rebuild or deployment was performed here.
+
+Add README.md covering installation, controller defaults, build dependencies,
+configuration/save/cache preservation, testing and performance. Correct stale
+architecture text in docs/PORT.md. R28's 24.095 ms start-map CPU copy cost and
+4K60-only driver WSI motivate driver-first optimization, followed by measured
+engine work and a separately validated 120 Hz mode. R29 timing and the parked
+NIR-cache console tests remain pending.
+
+Verification: bash tools/verify.sh format evidence passes; all 48 committed
+captures replay. README local links and referenced controls/build commands were
+checked against the checkout; git diff --check passes. Documentation only;
+the deployed executable and user session are unchanged.
