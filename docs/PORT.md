@@ -24,7 +24,7 @@ icon; `pic0.dds`, `pic1.dds` and `snd0.at9` are absent rather than replaced,
 because conforming ones need a BC7 and an ATRAC9 encoder this host does not have,
 and `tools/validate-assets.sh` requires both or neither.
 
-The owner supplies `pak0.pak`; this repository never fetches, commits or stages it.
+`pak0.pak` is supplied separately; this repository never fetches, commits or stages it.
 It lives at `id1/pak0.pak` — the relative path vkQuake's filesystem layer looks for
 under the base directory — and becomes `/app0/id1/pak0.pak` on the console.
 `.gitignore` covers it anywhere in the tree, and `tests/test_game_data_ignored.py`

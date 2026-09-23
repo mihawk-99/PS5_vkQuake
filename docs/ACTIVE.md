@@ -1,73 +1,79 @@
 ## Current objective
 
-Make vkQuake stable, playable and faster on the PS5: 4K60 first, then 4K120 on
-the owner's 120 Hz TV. The loop: measure work per frame, make one focused
-change, verify it on the console, commit it with evidence. Never close a running
-session for a benchmark (`procs` first; the runner's restart refuses another
-title). CTS is out of scope. Never claim flawless gameplay from a short run.
+vkQuake at 4K is working, smooth and running at up to 120 FPS on my 4K120 VRR TV.
+What remains: the driver reporting its refresh truthfully (it still says 60 Hz),
+a fixed 120 Hz mode for displays without VRR, the other maps measured at 120 Hz,
+and the gameplay/stability acceptance run. An intermittent texture glitch I have
+seen in play is set aside until I can capture it. The loop stays the same: measure
+work per frame, make one focused change, verify it on the console, commit it with
+evidence. Never close a running session for a benchmark (`procs` first; the
+harness and the runner's restart refuse another title). CTS is out of scope.
 
-## How to measure now (read before any run)
+## Console setup that the numbers depend on
 
-- **Display: VRR "Apply to Unsupported Games" is ON** (owner, 2026-09-23 ~13:30).
-  Since then a bare vblank measures 20.872 ms (VRR floor, no flips), the present
-  does not wait, and **FPS is the work** (m6-r38-vrr-baseline). Every run before
-  m6-r38-vrr-baseline had it OFF: E1M1 was then held at a constant 29.25 ms
-  period (34.19 FPS) by a present wait whose cause was never established.
-- **Work, not FPS.** The present line carries `work_ms` (present return to next
-  present entry, submission included), `present_ms`, a period histogram in 60 Hz
-  vblanks and the SDL shim's kernel-entry counts per frame. Always on; two TSC
-  reads a frame; one write per ten seconds.
-- **Run-to-run variation is ~2 ms of work** at E1M1 (m6-r38-marker-spin 17.74 ms
-  vs m6-r40-execute 19.3-19.8 ms on nearly the same code). A change smaller than
-  that needs repeated A/B runs before it is claimed.
-- **The driver profile is nearly free** (driver 44337ef: TSC timestamps, one
-  write(2)). Profiled runs before 44337ef paid ~20 us a timestamp and a 1.6-5.8 s
-  summary write once a window (the old "unattributed stall"); their window means
-  are inflated, their counts and per-call ratios are not.
-- **A system call costs ~20 us on this console** (getpid 20.1, clock_gettime 20.3)
-  against 12 ns for a TSC read (m6-r34-cost-probe). The engine clock is the TSC
-  now (e0c8c25); released 64 KiB+ mappings are reused (b89315f).
-- Fixture `build/r32-autoexec.cfg` (FIXTURE= for build/r29b-stage.py, `noprofile`
-  for no driver profile); preserve/stage/run/collect/restore as in the brief.
-  Slice a trace from its last `build identity:` line.
+- **etaHEN "pause kstuff on game launch" is ON.** With kstuff active a system call
+  costs ~20 us (getpid 20.1 us, m6-r34-cost-probe); paused, 0.73 us
+  (m6-r49-kstuff-paused). That alone is the difference between ~18 ms and ~4 ms of
+  work a frame. It also applies to launches from the harness.
+- **VRR "Apply to Unsupported Games" is ON**, 120 Hz output automatic. A bare
+  vblank then measures 20.872 ms (VRR floor, no flips pending) and frames present
+  as soon as they are ready, up to 119.88 Hz. A frame whose work exceeds ~20.8 ms
+  is held to ~29.2 ms. Every run before m6-r38-vrr-baseline had VRR off.
 
-## Measured progress (steady windows)
+## How to measure
 
-| step | E1M1 | start map |
-| --- | --- | --- |
-| R29 baseline, VRR off (m6-r29-baseline) | 29.58 FPS | 19.72 FPS |
-| mapped-only flush, VRR off (m6-r37-mapped-flush) | 34.19-39.28 | 31.25 |
-| same code, VRR on (m6-r38-vrr-baseline) | 50.65, work 19.52 | 31.11 |
-| marker spin (m6-r38-marker-spin) | **55.76**, work 17.74 | 33.08 (standing) |
-| parallel blits, walking the start map (m6-r42-parallel-blit) | | **52.4-55.4** (was 34-47) |
+- The present line (`PS5 present:`) carries `work_ms`, `present_ms`, a period
+  histogram in 60 Hz vblanks and the SDL shim's kernel-entry counts per frame.
+  Always on; one write per ten seconds.
+- Slow frames report themselves: `PS5 hitch:` (a period over 40 ms: work, present,
+  shim/allocator/file counts) and `PS5 slow host frame:` (the engine's phases and
+  its costliest server commands). The driver adds `[ps5vk] hitch` when profiled.
+- The driver profile is nearly free (TSC timestamps, one write). Fixtures:
+  `build/r32-autoexec.cfg` (two standing phases), the walk in
+  evidence/m6-r41-walk, the New Game run in evidence/m6-r43-newgame-svc, and
+  `build/r45-startup-autoexec.cfg`; stage with FIXTURE= for build/r29b-stage.py
+  (`noprofile` for no driver profile). Slice a trace from its last
+  `build identity:` line.
 
-Stutter and startup (R41-R48, owner report "New Game is stuttery", "~15 s"):
-- New Game's 89 and 153 ms frames were svc_centerprint's console log through the
-  unbuffered stdout; the streams are buffered now (m6-r43-newgame-svc,
-  m6-r44-buffered). Acceptance, unprofiled (m6-r48-newgame-final): no stall in
-  play but one 42 ms frame; walking 46-52 FPS; frames still cross the ~20.8 ms VRR
-  window (a frame over it presents at 29.2 ms) because work sits at 18.5-20.7 ms.
-- Startup (m6-r45-startup): a warm launch presents 0.77 s into the process; the
-  console's launcher takes ~2.6 s before that. The NIR cache (driver 46024cd)
-  removed the last per-launch compiles; the driver keeps one cache directory per
-  build and the title ships the harvested set (tools/shader-cache.py; after a
-  driver change: launch once, harvest, rebuild; m6-r47-shipped-cache).
-- Recorder, always armed in the port: `PS5 hitch:` (frame over 40 ms: work,
-  present, shim/allocator/file counts) and `PS5 slow host frame:` (engine phases
-  and the costliest server commands); the driver adds `[ps5vk] hitch` lines when
-  profiled. Fixtures: evidence/m6-r41-walk and m6-r43-newgame-svc keep theirs.
-- Measured unnecessary: large-block file reads (3-4.7 MB in 14-71 ms), pipelines
-  at load (vkQuake already creates them at startup), background compilation
-  (nothing compiles during play, or at all with the shipped cache).
-- The console's cache base holds stale entries from every driver build before
-  6ff265f (unreadable 0700 files); harmless, left for the owner to delete.
+## Where it stands (steady windows, walking the start map unless noted)
+
+| step | FPS | work | evidence |
+| --- | --- | --- | --- |
+| R29 baseline, VRR off (standing) | 19.72 | — | m6-r29-baseline |
+| driver fixes through R42, kstuff active, VRR on | 52.4-55.4 | ~18 ms | m6-r42-parallel-blit |
+| kstuff paused, VRR on | **119.88** | 4.0-4.4 ms | m6-r49-kstuff-paused |
+
+At 119.88 FPS every frame is 8.29-8.40 ms: the display's ceiling, not the work.
+Driver split: engine 2.36 ms, queue 2.08 ms (CPU warp-mip blits 1.39), one vblank
+wait. Startup: first present 0.55-0.77 s into the process (m6-r45-startup); the
+console's launcher adds ~2.6 s. Nothing compiles: the internal NIR cache landed
+and the title ships each driver build's compiled set (tools/shader-cache.py;
+after a driver change: launch once, harvest, rebuild; m6-r47-shipped-cache).
+The New Game stutters were centre-print logging through the unbuffered stdout,
+fixed by buffered console streams (m6-r43-newgame-svc, m6-r44-buffered).
+
+Known limits: `r_waterwarpcompute 0` ends the game with vkEndCommandBuffer -13,
+because the driver renders only into 3840x2160 colour targets and the raster
+warp path renders 512x512 images; the default compute path works. The demo tour
+(klog/r50-*) found no glitch; E1M4's and E1M6's pure-black regions did not change
+with mips off or fast sky, and look like unlit geometry.
 
 ## Next
 
-1. Work below ~16.7 ms at both maps: the application's ~17 ms is the cost now.
-   Average the engine phase marks per window (they are TSC-cheap) to split it.
-2. 120 Hz mode at swapchain creation in the driver (attribute3 0x80040 is set).
-3. Gameplay/stability acceptance (all eight maps, save/load, soak).
+1. The driver reports the real refresh: enumerate VideoOut's modes, select 120 Hz
+   at swapchain creation when the metadata allows it (attribute3 0x80040 is set),
+   restore it at close, keep the 60 Hz fallback, and report what was measured.
+2. Measure E1M1 and the other maps at 120 Hz.
+3. Gameplay/stability acceptance: all eight maps, save/load with position and
+   ammunition compared, menus and HUD, repeated transitions, exit and relaunch,
+   and a soak with its duration reported (build/r30-* covers part of it; its
+   stager refuses existing configs and must be adapted to r29b-preserve first).
 
-The console runs kstuff (klog), a syscall-trapping payload: the likely cause of the
-~20 us system call. Owner question open: a debugger/sampling payload.
+## Persistence
+
+build/r29b-preserve.py snapshots and restores my configuration files (contents
+and absence) around every fixture run; build/r23-fixture-backup/manifest.json is
+the original pre-play backup and is never overwritten. Saves and the shader cache
+are preserved. The stale pre-6ff265f cache entries were deleted (1,983 files,
+11.1 MB); only the current build's directory remains. Raw console data stays in
+the ignored klog/; distilled evidence is under evidence/.

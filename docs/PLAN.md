@@ -112,7 +112,7 @@ answer it in two places.
 - The Vulkan driver and the shader compiler. Graphics on this console are
   `../PS5_Vulkan`'s work; this project consumes its released archives and reports
   what vkQuake needs from them by name.
-- The game data. Quake's `pak0.pak` is the console owner's to supply; it is never
+- The game data. Quake's `pak0.pak` is supplied separately by whoever plays; it is never
   fetched, never committed and never staged into this repository.
 - Retail-style packaging: signing keys, `sce_sys` beyond a homebrew title's own
   metadata, and store submission.

@@ -5,49 +5,57 @@ using the companion [PS5 Vulkan driver](https://github.com/mihawk-99/PS5_Vulkan)
 It runs Quake's Vulkan renderer through AGC and VideoOut, with native DualSense
 input, AudioOut sound and a persistent compiled-shader cache.
 
-**The console owner confirmed that the game works on September 23, 2026.**
-This is a working development port. Performance optimization and systematic
-save/load, all-map and long-duration acceptance remain in progress. The owner's
-current estimate is **15–30 FPS**, not a controlled benchmark of the latest build.
+**The game works and runs at up to 120 FPS at 4K.** Walking the start map, the
+measured frame period is a steady 8.34 ms (119.88 FPS) on a 4K120 VRR display with
+kstuff paused at launch (see [Performance](#performance)). Systematic all-map,
+save/load and long-duration acceptance is still in progress.
 
 [Installation](#installation-and-updates) · [Controls](#controls) ·
-[Building](#building-from-source) · [Performance](#performance-and-the-4k120-target) ·
+[Building](#building-from-source) · [Performance](#performance) ·
 [Testing](#testing-and-reporting-problems) · [Project layout](#project-layout)
 
 ## Current capabilities
 
 | Area | Implemented and verified | Remaining acceptance |
 | --- | --- | --- |
-| Rendering | Textured start/E1M1 worlds, menu fades and transparent HUD; console screenshots read back correctly | All eight shareware maps and extended play |
-| Display | 3840×2160 output through the driver's 60 Hz FIFO mode | Other display modes, including 120 Hz |
-| Input | Native DualSense adapter; host checks for buttons, releases, triggers, menu repeat and analog movement | Detailed physical controller acceptance |
+| Rendering | Textured worlds, water/lava/teleporter warps, particles, models, menu fades and transparent HUD; 4K screenshots read back correctly; the three shareware demos (E1M3, E1M4, E1M6) render | All eight shareware maps in play; an intermittent texture glitch I have seen but not yet reproduced |
+| Display | 3840×2160; presents at the display's own pace, which on a VRR TV means anywhere from 48 to 120 Hz | The driver still reports 60 Hz to the engine; a fixed 120 Hz mode without VRR |
+| Performance | 119.88 FPS walking the start map (kstuff paused); 52–55 FPS with kstuff active | E1M1 and the other maps measured at 120 Hz |
+| Input | Native DualSense adapter; host checks for buttons, releases, triggers, menu repeat and analog movement | Detailed controller feel |
 | Audio | 48 kHz stereo S16; repeated five-minute runs with nonzero samples and zero native-output errors | Listening checks across gameplay |
-| Shader cache | Compiled SPIR-V outputs persist across title restarts and crashes | Console validation of the separate internal-NIR cache candidate |
+| Startup | First frame 0.55–0.77 s after the process starts; every shader comes from the cache, including the driver's internal ones | — |
+| Shader cache | One directory per driver build; the title ships the compiled set, so a fresh install compiles nothing | — |
+| Diagnostics | Any frame over 40 ms writes one trace line saying where its time went | — |
 | Screenshots and exit | 4K PNG capture and normal return to the shell | Longer gameplay/save/load soak |
 
-The driver fixes behind this include vertex stride, dynamic uniform offsets,
-descriptor arrays, padded texture pitches and mip tails, 32-bit indices,
-depth-state transitions, sampler LOD bias and menu blending. The latest deployed
-R29 build also simplifies common tiled-image address calculations, with
-console pixel comparisons covering mip generation, uploads, copies and formats.
+The driver work behind this includes vertex stride, dynamic uniform offsets,
+descriptor arrays, padded pitches and mip tails, 32-bit indices, depth-state
+transitions, sampler LOD bias and menu blending; and for speed, flushing only
+memory the application maps, a bounded spin on the GPU's completion marker,
+blits resampled on five threads and a persistent cache for internal shaders.
 
-The latest working state and exact deployment identity live in
-[docs/ACTIVE.md](docs/ACTIVE.md). Historical runs and their limitations are in
-[docs/PHASE_LOG.md](docs/PHASE_LOG.md). A successful manual test does not imply
-that every map, mod or Vulkan feature has passed acceptance.
+The current state and build identity live in [docs/ACTIVE.md](docs/ACTIVE.md);
+every run and its limits are in [docs/PHASE_LOG.md](docs/PHASE_LOG.md).
 
 ## Requirements
 
-- A PS5 with an already working homebrew environment. Current console validation
-  uses firmware 10.01; compatibility with other versions is not established here.
-- A directory-title loader. The tested setup uses
-  [etaHEN](https://github.com/etaHEN/etaHEN) and
+- A PS5 with a working homebrew environment. I test on firmware 10.01;
+  other versions are untested.
+- A directory-title loader. I use [etaHEN](https://github.com/etaHEN/etaHEN) and
   [ShadowMountPlus](https://github.com/drakmor/ShadowMountPlus).
-- FTP access for installation; the tested service is
-  [ftpsrv](https://github.com/ps5-payload-dev/ftpsrv), port 2121.
-- A DualSense controller and a display supported by the current 4K60 output path.
-- Your own Quake game data. The tested data set is the shareware `id1/pak0.pak`.
-  Game data is not downloaded, committed or included by this project.
+- FTP access for installation; I use
+  [ftpsrv](https://github.com/ps5-payload-dev/ftpsrv) on port 2121.
+- A DualSense controller and a 4K display.
+- Your own Quake game data. I test with the shareware `id1/pak0.pak`; game data
+  is never downloaded, committed or included by this project.
+
+For full speed, two console settings matter (see [Performance](#performance)):
+
+- **etaHEN: pause kstuff on game launch.** With kstuff active, every system call
+  costs about 20 µs instead of under 1 µs, which alone limits the game to ~50 FPS.
+- **Screen and Video → VRR: Apply to Unsupported Games**, with 120 Hz output on
+  automatic, on a VRR-capable TV. Without VRR the game still runs, but presents
+  on a fixed 60 Hz grid.
 
 This repository does not configure the console's homebrew environment. Registered
 Quake, expansion packs, mods and multiplayer are not covered by the current
@@ -79,6 +87,7 @@ Supply your game data separately by FTP. The console folder should contain:
 /data/homebrew/PPSA99010/
 ├── eboot.bin
 ├── sce_sys/                 # title metadata and icon
+├── ps5vk-shader-cache/       # shipped compiled shaders, one directory per driver build
 ├── ...                      # other files from the complete built title
 └── id1/
     └── pak0.pak             # supplied by you
@@ -123,24 +132,26 @@ upstream's `Misc/vq_pak/default.cfg`, fetched with the engine.
 ## Configuration, saves and shader cache
 
 Preserve `vkQuake.cfg`, `id1/vkQuake.cfg`, saves under `id1/`, and
-`ps5vk-shader-cache/` when updating. The filesystem and game directory determine
-which configuration is active; do not replace user configurations with benchmark
-fixtures. Screenshots are written into the game directory.
+`ps5vk-shader-cache/` when updating. Screenshots are written into the game
+directory.
 
-Compiled shader packages are stored at `/app0/ps5vk-shader-cache`, visible over
-FTP under the title folder. Successful entries are reused after restarting the
-game and after application crashes. Keys account for shader/compiler inputs;
-changed or invalid entries are recompiled. Do not clear the cache during normal
-updates. Startup can be slower after a compiler or shader change.
+Compiled shader packages live at `/app0/ps5vk-shader-cache/<driver build>/`, one
+directory per driver build (keys include the build, so entries from another build
+would never be used). Entries survive restarts and crashes; changed or invalid
+entries are recompiled. The build ships the set for the linked driver when it has
+been harvested:
 
-A measured same-binary cold/warm pair reached its first present in
-**30.410 / 13.018 seconds**, with **99 / 0 SPIR-V compilations** and
-**433 / 532 cache hits**. These are historical controlled runs, not a startup-time
-promise for every build or map. Eight internal NIR stages still compile at launch;
-the candidate to cache those is parked in the driver and is not in the deployed
-R29 executable. See the committed
-[cold](evidence/m2-shader-cache-cold/) and
-[warm](evidence/m2-shader-cache-warm/) evidence.
+```bash
+# After the first launch of a new driver build has compiled everything:
+python3 tools/shader-cache.py harvest   # read this build's entries back from the console
+bash tools/build-title.sh               # dist/ now carries them; the next deploy ships them
+```
+
+A launch whose cache held only the shipped entries compiled nothing
+([evidence](evidence/m6-r47-shipped-cache/)). A normal launch reaches its first
+frame 0.55–0.77 s after the process starts ([evidence](evidence/m6-r45-startup/));
+the console's launcher takes about 2.6 s before that. A first launch after a
+driver change, with nothing shipped, spends about 2 s compiling.
 
 ## Building from source
 
@@ -193,52 +204,36 @@ Do not hand-edit the ignored `vendor/vkQuake` tree. Reproducible upstream change
 belong in [platform/ps5/vkquake-edits.py](platform/ps5/vkquake-edits.py), while
 native platform code belongs in `platform/ps5/` and `src/`.
 
-## Performance and the 4K120 target
+## Performance
 
-**Both repositories need performance work, with the driver the first priority
-indicated by the current measurements.** Quake's modest scene complexity does
-not remove the cost of CPU image processing, large cache flushes and serialized
-submission in this developing driver.
+Measured on the console at 3840×2160, walking the start map (steady windows):
 
-The R28 baseline, before the latest R29 address optimization, measured:
+| Setup | FPS | Work per frame | Evidence |
+| --- | ---: | ---: | --- |
+| Starting point (R29, no VRR) | 19.7 | — | [m6-r29-baseline](evidence/m6-r29-baseline/) |
+| kstuff active, VRR on | 52.4–55.4 | ~18 ms | [m6-r42-parallel-blit](evidence/m6-r42-parallel-blit/) |
+| **kstuff paused, VRR on** | **119.88** | 4.0–4.4 ms | [m6-r49-kstuff-paused](evidence/m6-r49-kstuff-paused/) |
 
-| Mean per frame | Start map | E1M1 spawn |
-| --- | ---: | ---: |
-| CPU image copies | 24.095 ms | 0.041 ms |
-| Cache flush | 5.954 ms | 3.974 ms |
-| Whole queue work | 33.222 ms | 6.905 ms |
-| Present/flip path | 14.415 ms | 7.431 ms |
-| Flushed target bytes | 384.09 MiB | 256.06 MiB |
+At 119.88 FPS every frame takes 8.29–8.40 ms: the game is waiting on the display's
+120 Hz ceiling, not on work. Of the ~4 ms of work, about 2.4 ms is the engine,
+1.4 ms the CPU mip generation for water and teleporter textures, and the rest
+submission.
 
-Queue time includes other categories; these rows must not all be added together.
-The profiler's `gpu_ms` includes submission/completion waiting and is not an
-isolated measure of GPU execution. The start-map copy cost points toward water
-mip generation, but per-operation profiling is needed to attribute it precisely.
-See [the captured baseline](evidence/m6-copy-profile/) and the driver's
-[metrics](https://github.com/mihawk-99/PS5_Vulkan/blob/main/jobs/r28-copy-profile/metrics.txt).
-The latest R29 build has pixel-correctness proof; its controlled game performance
-comparison is still pending.
+Two console-side factors decide most of this:
 
-120 FPS gives the entire frame **8.33 ms**, versus 16.67 ms at 60 FPS. Moving
-from an estimated 15–30 FPS to 120 requires roughly **4–8× the throughput**.
-The practical order of work is:
+- **kstuff.** It traps system calls, and each one then costs ~20 µs (measured
+  20.1 µs for `getpid`) instead of 0.73 µs. The engine and driver make hundreds a
+  frame, so pausing kstuff at game launch (an etaHEN setting) takes the frame from
+  ~18 ms of work to ~4 ms.
+- **VRR.** With VRR the TV shows a frame as soon as it is ready, between 48 and
+  120 Hz. A frame that misses the 48 Hz window (20.8 ms) is held to 29.2 ms, so a
+  frame with more work than that swings between ~50 and ~34 FPS. Without VRR the
+  output is a fixed 60 Hz grid.
 
-1. Measure repeatable scenes, frame-time distribution and individual image
-   operations on the deployed build.
-2. Optimize the driver's CPU image/mip paths, investigate GPU blits, reduce
-   unnecessary cache work and improve submission overlap while retaining
-   resource-ownership correctness and exact pixel comparisons.
-3. Profile engine-side water passes, uploads and scheduling; reduce avoidable
-   work where measurements support it. The tested `r_scale 2` and `tasks 0`
-   settings did not improve FPS; defaults remain `r_scale 1`, `tasks 1`.
-4. Establish stable 4K60, then validate a real 120 Hz VideoOut/WSI mode and frame
-   pacing. The driver currently exposes only 3840×2160 at 60 Hz with FIFO.
-
-The console supports 4K120 output with an appropriate display and HDMI setup,
-but the homebrew driver must implement and prove that path
-([Sony's display guide](https://www.playstation.com/en-ca/support/hardware/ps5-4k-resolution-guide/)).
-A frame-rate cvar alone cannot enable it. 4K120 is a target, not an achieved or
-guaranteed result. Shader caching improves startup rather than steady gameplay FPS.
+Remaining performance work: the driver still reports 60 Hz to the engine and has
+no fixed 120 Hz mode for displays without VRR, and the other maps have not been
+measured at 120 Hz. The measurements, rounds and what was ruled out are in
+[docs/ACTIVE.md](docs/ACTIVE.md) and the driver's `jobs/`.
 
 ## Testing and reporting problems
 
@@ -251,11 +246,11 @@ bash tools/verify.sh format evidence # bounded documentation/evidence check
 ```
 
 Hardware changes additionally require executable readback, a listener running
-before launch, the actual process ID, final trace collection and pixel evidence.
-Finish one watch harness before launching another title. Preserve original
-configuration backups and remove only fixtures created for the test.
+before launch, final trace collection and pixel evidence. `build/r29b-preserve.py`
+snapshots and restores my configuration around a fixture run, and the harness
+refuses to start while another title is running.
 
-Useful bug reports include the build identity from `trace.txt`, driver and port
+A useful bug report includes the build identity from `trace.txt`, driver and port
 commits, firmware, map and reproduction steps, relevant trace/klog lines, and a
 screenshot where applicable. State whether the shader cache was warm or cold.
 Remove console addresses and credentials before sharing logs. Raw captures stay
@@ -263,8 +258,9 @@ ignored; distilled results and expected outputs are committed under `evidence/`.
 
 If the game cannot find its data, check the exact `id1/pak0.pak` location. If a
 launch exits, inspect the title's `trace.txt` before rebuilding. A slow first
-launch and consistently slow gameplay are separate issues; retain the cache
-and report both timings. For further developer procedures see
+launch and slow gameplay are separate issues; keep the cache and report both. A
+slow frame (over 40 ms) leaves a `PS5 hitch:` or `PS5 slow host frame:` line in
+`trace.txt` that says where its time went. For further developer procedures see
 [docs/PORT.md](docs/PORT.md) and [docs/PLAN.md](docs/PLAN.md).
 
 ## Project layout
