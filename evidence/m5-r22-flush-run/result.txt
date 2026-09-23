@@ -1,0 +1,26 @@
+{
+  "pid": 225,
+  "build_identity": "94f4957d631e9f60b0e4fc5d852b310204de238daa02554870d0d15aba018f51",
+  "duration_seconds": 300,
+  "successful_present_counter": 6557,
+  "final_trace_sha256": "9372547e260679f53746cb8c7132dfd46c7e2aa5f77c1f5a1a452059ff878f4d",
+  "profile_intervals": 28,
+  "compared_intervals": 27,
+  "compared_frames": 6357.0,
+  "weighted_per_frame": {
+    "steps/frame": 2.650898222431965,
+    "queue_ms": 13.113011011483403,
+    "flush_ms": 5.788045461695768,
+    "gpu_ms": 2.8535485291804306,
+    "flip_ms": 9.820815007078812,
+    "flush_MiB/frame": 373.73365109328296
+  },
+  "audio_intervals": 28,
+  "last_audio": "PS5 audio: played=13440000 nonzero_blocks=51912 errors=0",
+  "shader_cache_hits": 532,
+  "shader_cache_stores": 0,
+  "refusals": 0,
+  "quake_errors": 0,
+  "harness_closed": true,
+  "idle_verified": true
+}
