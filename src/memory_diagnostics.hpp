@@ -1,4 +1,4 @@
-/* Optional host-allocation observation; no allocator policy changes. */
+/* Allocation ownership shared with optional failure diagnostics. */
 #pragma once
 #include <cstddef>
 #include <cstdint>
@@ -24,13 +24,14 @@ struct Stats
     uint64_t failures = 0, failure_records = 0, dropped = 0, foreign_frees = 0,
              foreign_reallocs = 0;
 };
+// Requested sizes let realloc migrate our native buffers without reading libc headers.
+void add(Record record);
+Record take(void *pointer, bool resizing = false);
 #ifdef PS5_MEMORY_DIAGNOSTICS
 void init(const char *path, const char *identity);
 void finish();
 void tick();
 void event(const char *name, bool success = true);
-void add(Record record);
-Record take(void *pointer, bool resizing = false);
 void failure(const char *operation, size_t bytes, size_t alignment, uintptr_t caller, int error);
 Stats snapshot();
 #else
@@ -45,13 +46,6 @@ inline void tick()
 }
 inline void event(const char *, bool = true)
 {
-}
-inline void add(Record)
-{
-}
-inline Record take(void *, bool = false)
-{
-    return {};
 }
 inline void failure(const char *, size_t, size_t, uintptr_t, int)
 {

@@ -78,7 +78,17 @@ First screenshot fixture (PID 230) wrote no images: queued protocol negotiation
 was trapped behind its waits/quit. Retained as an incomplete screenshot test.
 Map-only PID 232 then connects through sign-on 1–4 and renders the start map
 for 90 seconds, 1,037 presents, steady 14.99 FPS, no game/audio error.
-Next: corrected screenshot fixture, world inspection and live-map optimization.
+R24 fixes native realloc growth exhausting the private heap during PNG encoding.
+PIDs 233/234 reproduce the failure; PID 235 diagnostics and PID 238 normal build
+both write three 4K PNGs (start, menu, E1M1) and exit through LoadExec normally.
+Diagnostic final report: zero failures/dropped records; native peak 8.40 MB.
+Normal identity 9e7cced2…; five gates/scan and 39 evidence captures pass.
+Both deployed ELF and final trace reads match, actual PIDs agree, idle verified;
+three temporary/generated configuration paths restored absent after each run.
+Images show textured/lit worlds, weapon and readable menu. Gameplay HUD is
+absent; controlled opacity/style/scale screenshots are the next diagnosis.
+Evidence: evidence/m6-png-{heap-exhaustion,heap-diagnosis,growth-diagnostic,growth-normal}.
+Next: HUD diagnosis, live-map performance, gameplay/save/load soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work

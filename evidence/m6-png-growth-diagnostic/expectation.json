@@ -1,0 +1,14 @@
+{
+  "step": "m6-png-growth-diagnostic",
+  "note": "Three PNGs written and normal shell exit; allocator diagnostics report zero failures.",
+  "must_contain": [
+    "ca8e3d2f",
+    "PS5 exit: status=0",
+    "PS5_R23B_SCREENSHOT_END",
+    "failures=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

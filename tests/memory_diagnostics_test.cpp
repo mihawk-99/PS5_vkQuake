@@ -83,7 +83,7 @@ int main(int argc, char **argv)
     fail_realloc = false;
     p = static_cast<char *>(__wrap_realloc(p, 2 * 1024 * 1024));
     assert(p && p[122] == 37);
-    assert(snapshot().bytes[0] == 2 * 1024 * 1024 && !snapshot().bytes[1]);
+    assert(!snapshot().bytes[0] && snapshot().bytes[1] == 2 * 1024 * 1024);
     __wrap_free(p);
     void *mapped = __wrap_malloc(2 * 1024 * 1024);
     assert(mapped && snapshot().bytes[1] == 2 * 1024 * 1024);

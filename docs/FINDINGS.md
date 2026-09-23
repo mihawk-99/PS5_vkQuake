@@ -370,3 +370,14 @@ through that helper yields 27 complete reports in PID 222. This serializes
 trace-helper callers; it does not promise atomicity for arbitrary engine stdio.
 Both runs continuously feed nonzero PCM to native AudioOut with zero reported
 output errors. See evidence/m5-audio-initial and m5-audio-profile-run.
+
+## 2026-09-23 — allocation growth must respect the large-buffer route
+
+R24's PNG encoder grows a native allocation past the 32 KiB threshold. Routing
+only initial malloc/calloc requests left a 2.36 MB native buffer attempting to
+grow to 3.54 MB inside the limited private heap. Always-on requested-size ownership
+metadata permits safe migration without reading allocator internals. The same
+screenshot fixture fails before the change and completes three 4K captures plus
+normal exit in diagnostic and normal builds afterward. Foreign or untracked
+pointers deliberately retain native realloc behavior. Evidence is under the four
+m6-png-* captures; final diagnostic ownership-table drop count is zero.

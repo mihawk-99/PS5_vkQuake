@@ -23,6 +23,13 @@ extern "C"
     }
     void *__real_realloc(void *p, size_t n)
     {
+        // Model the console's small private heap: growth must migrate before
+        // asking its realloc for a large allocation.
+        if (n >= 32 * 1024)
+        {
+            errno = ENOMEM;
+            return nullptr;
+        }
         return std::realloc(p, n);
     }
     void __real_free(void *p)
@@ -50,10 +57,33 @@ int main()
     __wrap_free(p);
     assert(!__wrap_calloc(SIZE_MAX, 2) && errno == ENOMEM);
     assert(!__wrap_malloc(SIZE_MAX) && errno == ENOMEM);
+    // Native malloc/calloc buffers preserve their content when growth crosses
+    // the mapped threshold, and failed growth leaves ownership/content intact.
+    p = static_cast<unsigned char *>(__wrap_malloc(31));
+    assert(p);
+    std::memset(p, 0x6a, 31);
+    p = static_cast<unsigned char *>(__wrap_realloc(p, 100));
+    assert(p && p[30] == 0x6a);
+    assert(!__wrap_realloc(p, SIZE_MAX) && p[30] == 0x6a);
+    p = static_cast<unsigned char *>(__wrap_realloc(p, large));
+    assert(p && p[0] == 0x6a && p[30] == 0x6a);
+    __wrap_free(p);
+    p = static_cast<unsigned char *>(__wrap_calloc(100, 10));
+    assert(p);
+    p = static_cast<unsigned char *>(__wrap_realloc(p, large));
+    assert(p);
+    for (size_t i = 0; i < 1000; ++i)
+        assert(p[i] == 0);
+    __wrap_free(p);
     // strdup/native library buffers must still be freed by libc.
     char *foreign = strdup("native allocation");
     foreign = static_cast<char *>(__wrap_realloc(foreign, 128));
     assert(foreign && !strcmp(foreign, "native allocation"));
+    __wrap_free(foreign);
+    foreign = strdup("native allocation");
+    // Untracked native pointers must never be copied using a guessed size.
+    assert(!__wrap_realloc(foreign, large));
+    assert(!strcmp(foreign, "native allocation"));
     __wrap_free(foreign);
     __wrap_free(nullptr);
     void *empty = __wrap_calloc(0, SIZE_MAX);
