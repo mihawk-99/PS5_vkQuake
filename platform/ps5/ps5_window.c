@@ -337,7 +337,32 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
     /* Queue presentation is externally synchronized. One witness per boot,
      * plus every failure, keeps the trace useful without per-frame writes. */
     static int reported;
+    /* The frame's work, apart from the display's quantisation: from one present's
+     * return to the next present's entry is everything the engine and the driver
+     * do for a frame, submission included, and the call itself is the flip and its
+     * vblank wait. Two clock reads a frame, which the TSC makes ~12 ns each. */
+    static Uint64 left, work_ns, work_min, work_max, wait_ns, timed;
+    static Uint64 period_from, vblanks[4];
+    const Uint64 entered = SDL_GetPerformanceCounter();
     const VkResult result = queue_present(queue, info);
+    const Uint64 returned = SDL_GetPerformanceCounter();
+    if (left != 0)
+    {
+        const Uint64 work = entered - left;
+        work_ns += work;
+        work_min = work_min == 0 || work < work_min ? work : work_min;
+        work_max = work > work_max ? work : work_max;
+        wait_ns += returned - entered;
+        ++timed;
+    }
+    left = returned;
+    /* The period between two presents' returns, in 60 Hz vblanks: 1, 2, 3, 4+. */
+    if (period_from != 0)
+    {
+        const Uint64 vblank = (returned - period_from + 8341500u) / 16683000u;
+        ++vblanks[vblank < 1 ? 0 : vblank > 4 ? 3 : vblank - 1];
+    }
+    period_from = returned;
     if (!reported || result != VK_SUCCESS)
     {
         char line[80];
@@ -358,14 +383,25 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
         }
         else if (now - last_tick >= 10000)
         {
-            char line[384];
+            char line[512];
             const int used =
                 snprintf(line, sizeof line, "PS5 present: frames=%llu interval=%llu ms fps=%.2f",
                          (unsigned long long)frames, (unsigned long long)(now - last_tick),
                          (double)(frames - last_frames) * 1000.0 / (double)(now - last_tick));
+            int more = used;
+            if (more > 0 && (size_t)more < sizeof line && timed != 0)
+                more += snprintf(line + more, sizeof line - (size_t)more,
+                                 " work_ms=%.3f work_min_ms=%.3f work_max_ms=%.3f present_ms=%.3f"
+                                 " vblanks=%llu/%llu/%llu/%llu",
+                                 (double)work_ns / (double)timed / 1e6, (double)work_min / 1e6,
+                                 (double)work_max / 1e6, (double)wait_ns / (double)timed / 1e6,
+                                 (unsigned long long)vblanks[0], (unsigned long long)vblanks[1],
+                                 (unsigned long long)vblanks[2], (unsigned long long)vblanks[3]);
+            work_ns = work_min = work_max = wait_ns = timed = 0;
+            vblanks[0] = vblanks[1] = vblanks[2] = vblanks[3] = 0;
             // The shim's per-frame kernel-entry counts, in the same single write.
-            if (used > 0 && (size_t)used < sizeof line)
-                ps5_sdl_counts_format(line + used, sizeof line - (size_t)used,
+            if (more > 0 && (size_t)more < sizeof line)
+                ps5_sdl_counts_format(line + more, sizeof line - (size_t)more,
                                       (unsigned long long)(frames - last_frames));
             ps5_trace(line);
             last_tick = now;
