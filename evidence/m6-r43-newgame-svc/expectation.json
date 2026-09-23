@@ -1,0 +1,16 @@
+{
+  "step": "m6-r43-newgame-svc",
+  "note": "The owner's New Game stutter, reproduced (two New Games, walking at once) and attributed: after spawning, an 89 ms frame, and at the skill-hall message a 153 ms frame, both almost entirely one svc_centerprint (svc26: 84.4 and 147.7 ms) -- its console log through the unbuffered stdout. The driver created, compiled and allocated nothing in them and no file was read. The map load's svc_serverinfo (261.6 ms) and one svc_print (24.7 ms) are the same path.",
+  "must_contain": [
+    "build identity: 3df39820",
+    "PS5_R43_DONE",
+    "client_ms=84.408",
+    "svc26#1:84.390ms",
+    "svc26#1:147.719ms",
+    "svc11#1:261.594ms svc8#1:24.686ms"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

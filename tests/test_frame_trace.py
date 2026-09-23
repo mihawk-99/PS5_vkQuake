@@ -18,6 +18,9 @@ static int lines, calls;
 static Uint64 ticks;
 Uint64 SDL_GetTicks64(void) { return ticks; }
 Uint64 SDL_GetPerformanceCounter(void) { return ticks * 1000000ull; }
+int ps5_sdl_counts_frame(char *l, size_t n, int h) { return h ? snprintf(l, n, " frame") : 0; }
+void ps5_memory_syscalls(unsigned long long *m, unsigned long long *u) { *m = 0; *u = 0; }
+void ps5_file_counts(unsigned long long *o, unsigned long long *r, unsigned long long *b, unsigned long long *t) { *o = *r = *b = *t = 0; }
 int ps5_sdl_counts_format(char *l, size_t n, unsigned long long f) { (void)f; return snprintf(l, n, " counted"); }
 static VkResult answer;
 static char last[512];

@@ -1,0 +1,14 @@
+{
+  "pid": "not read this run",
+  "build_identity": "a15212406f9782db6e298b51122a964a7d6cce08ef82bce922cb775770aba5e8",
+  "trace_sha256": "fa5601aea4f638a7b8563c1dd4bdf252655e1379780f5557cfb3011ee456a350",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-162145-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "restored to snapshot bytes",
+  "display": "VRR Apply to Unsupported Games ON"
+}

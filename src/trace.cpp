@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <pthread.h>
+#include <unistd.h>
 
 namespace ps5::debug
 {
@@ -57,23 +58,61 @@ void write(const char *line) noexcept
  * Sys_Error and nothing about why, because Sys_Error's own message went to a
  * stream with no reader. The backtrace was readable and the reason was not.
  *
- * Appending rather than truncating, so the sequence of a run survives, and
- * unbuffered, because everything that prints an error and then exits would
- * otherwise lose it: the console's libc buffers these streams and exit does not
- * flush. That is exactly the case this exists for.
+ * Appending rather than truncating, so the sequence of a run survives. Exit does
+ * not flush on this console, so the title's exit path flushes explicitly
+ * (src/title_exit.cpp); see the constructor for why the streams are buffered.
  *
  * An earlier project on this console solved the same problem the same way. It is
  * a development aid and it is removed when the reason for it is gone;
  * docs/ACTIVE.md says when that is.
  */
+/* The streams' buffers, and the thread that empties them four times a second. */
+char out_buffer[64 * 1024];
+char err_buffer[64 * 1024];
+
+void *flush_streams(void *) noexcept
+{
+    for (;;)
+    {
+        usleep(250000);
+        std::fflush(stdout);
+        std::fflush(stderr);
+    }
+    return nullptr;
+}
+
 struct ConsoleStreams
 {
     ConsoleStreams() noexcept
     {
-        if (std::freopen(trace_path, "a", stderr) != nullptr)
-            std::setvbuf(stderr, nullptr, _IONBF, 0);
-        if (std::freopen(trace_path, "a", stdout) != nullptr)
-            std::setvbuf(stdout, nullptr, _IONBF, 0);
+        /* Buffered, and written out by a thread, not by the caller. These
+         * streams were unbuffered, and the console's libc then hands each print
+         * to the file in pieces: a console run measured the start map's
+         * centre-print log -- a few hundred characters through Con_Printf -- at
+         * 84-148 ms of one frame, the owner's New Game stutter (port evidence
+         * m6-r43-newgame-svc), and one 1.9 KB driver line at 1.6-5.8 s. One
+         * write of the same bytes costs about a millisecond. What the
+         * unbuffered streams protected -- an error printed just before exit --
+         * is kept by ps5_title_exit's fflush(nullptr), which every exit path
+         * takes; a hard crash can lose what the last flush interval held. */
+        const bool out = std::freopen(trace_path, "a", stdout) != nullptr;
+        const bool err = std::freopen(trace_path, "a", stderr) != nullptr;
+        if (out)
+            std::setvbuf(stdout, out_buffer, _IOFBF, sizeof out_buffer);
+        if (err)
+            std::setvbuf(stderr, err_buffer, _IOFBF, sizeof err_buffer);
+        pthread_t flusher;
+        if ((out || err) && pthread_create(&flusher, nullptr, flush_streams, nullptr) == 0)
+            pthread_detach(flusher);
+        else
+        {
+            /* No thread to write them out: a line at a time, still one write
+             * each rather than pieces. */
+            if (out)
+                std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
+            if (err)
+                std::setvbuf(stderr, nullptr, _IOLBF, BUFSIZ);
+        }
         /* Opened here, before main, so the report covers the whole title: the
          * engine's start-up allocations are half of what a memory question is
          * about. finish() runs at exit when the title gets that far; when it does

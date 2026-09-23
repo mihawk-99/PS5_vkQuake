@@ -51,6 +51,10 @@ mapped, which is request R8.
 kernel exit() raising SIGSYS. The port's native helper requests shell termination and waits;
 Sys_Quit and Sys_Error retain their existing cleanup and reporting before that handoff.
 
+**5. A slow host frame reports its phases.** Seven Sys_DoubleTime marks in _Host_Frame
+(the TSC now, ~12 ns each) and one call to src/host_frames.cpp, which writes a line only when
+the frame took over 40 ms. Retire it once the owner's stutters are attributed and fixed.
+
 Every edit is an exact-match replacement with a required occurrence count, so a vkQuake
 revision that moves or rewrites the text fails this script loudly instead of compiling
 something nobody has read.
@@ -251,6 +255,96 @@ EDITS = (
         before="\texit (1);\n",
         after="\tps5_title_exit (1);\n",
         why="reported engine errors close through the same native path",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="static void _Host_Frame (double time)\n{\n",
+        after=(
+            "/* PS5: a slow host frame reports its phases (src/host_frames.cpp). */\n"
+            "extern void ps5_host_frame_split (const double *marks, int count);\n"
+            "static void _Host_Frame (double time) /* PS5: phases marked */\n{\n"
+        ),
+        why="declare the port's slow-frame reporter",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\t\treturn; // don't run too fast, or packets will flood out\n",
+        after=(
+            "\t\treturn; // don't run too fast, or packets will flood out (PS5 mark 0 follows)\n"
+            "\tdouble ps5_mark[7];\n"
+            "\tps5_mark[0] = Sys_DoubleTime ();\n"
+        ),
+        why="mark the start of a host frame that runs",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\tCL_AccumulateCmd ();\n\tM_UpdateMouse ();\n",
+        after="\tCL_AccumulateCmd ();\n\tM_UpdateMouse (); /* PS5 mark 1 */\n\tps5_mark[1] = Sys_DoubleTime ();\n",
+        why="input, console commands, networking and prespawn end here",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\tif (cl.qcvm.progs)\n",
+        after="\tps5_mark[2] = Sys_DoubleTime ();\n\tif (cl.qcvm.progs) /* PS5 mark 2 */\n",
+        why="the server loop ends here",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\t\tCL_ReadFromServer ();\n",
+        after="\t\tCL_ReadFromServer (); /* PS5 mark 3 */\n\tps5_mark[3] = Sys_DoubleTime ();\n",
+        why="client physics and reading from the server end here",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\tSCR_UpdateScreen (true);\n",
+        after="\tSCR_UpdateScreen (true); /* PS5 mark 4 */\n\tps5_mark[4] = Sys_DoubleTime ();\n",
+        why="the screen update ends here",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\tCL_RunParticles (); // johnfitz -- seperated from rendering\n",
+        after="\tCL_RunParticles (); // johnfitz -- seperated from rendering (PS5 mark 5)\n\tps5_mark[5] = Sys_DoubleTime ();\n",
+        why="particles end here",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before="\thost_framecount++;\n",
+        after="\tps5_mark[6] = Sys_DoubleTime ();\n\tps5_host_frame_split (ps5_mark, 7);\n\thost_framecount++; /* PS5 mark 6 */\n",
+        why="audio and the rest end here; a slow frame is reported",
+    ),
+    Edit(
+        path="Quake/cl_parse.c",
+        before="void CL_ParseServerMessage (void)\n{\n",
+        after=(
+            "/* PS5: each server command's parse time, for the slow-frame report. */\n"
+            "extern void ps5_svc_time (int cmd, double seconds);\n"
+            "void CL_ParseServerMessage (void) /* PS5: commands timed */\n{\n"
+        ),
+        why="declare the port's per-command timer",
+    ),
+    Edit(
+        path="Quake/cl_parse.c",
+        before="\tlastcmd = 0;\n\twhile (1)\n\t{\n\t\tif (msg_badread)\n",
+        after=(
+            "\tlastcmd = 0;\n"
+            "\tdouble ps5_from = Sys_DoubleTime ();\n"
+            "\tint ps5_cmd = -1;\n"
+            "\twhile (1) /* PS5: the previous command closes here */\n\t{\n"
+            "\t\t{\n"
+            "\t\t\tconst double ps5_now = Sys_DoubleTime ();\n"
+            "\t\t\tif (ps5_cmd >= 0)\n"
+            "\t\t\t\tps5_svc_time (ps5_cmd, ps5_now - ps5_from);\n"
+            "\t\t\tps5_from = ps5_now;\n"
+            "\t\t}\n"
+            "\t\tif (msg_badread)\n"
+        ),
+        why="close the previous command's time at the top of each iteration",
+    ),
+    Edit(
+        path="Quake/cl_parse.c",
+        before="\t\tcmd = MSG_ReadByte ();\n\n\t\tif (cmd == -1)\n",
+        after="\t\tcmd = MSG_ReadByte (); /* PS5 */\n\t\tps5_cmd = cmd & 255;\n\n\t\tif (cmd == -1)\n",
+        why="remember which command is being parsed (a fast update is 128 and up)",
     ),
 )
 

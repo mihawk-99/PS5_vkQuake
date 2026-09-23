@@ -1,0 +1,17 @@
+{
+  "step": "m6-r44-buffered",
+  "note": "Same New Game fixture with the console streams buffered: no slow host frame during either walk (worst frame in the steady windows 19.8-22.9 ms, was 150-156), no centerprint in any slow frame, map load's svc_serverinfo 261.6 -> 51.5 ms and svc_print 24.7 -> 0.002 ms. The centre-print log still reaches the trace, and the exit line is intact.",
+  "must_contain": [
+    "build identity: a1521240",
+    "PS5_R43_DONE",
+    "PS5 exit: status=0",
+    "This hall selects NORMAL skill",
+    "svc11#1:51.474ms",
+    "fps=54.65 work_ms=18.108 work_min_ms=17.043 work_max_ms=19.809"
+  ],
+  "must_not_contain": [
+    "svc26#",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

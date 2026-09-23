@@ -162,7 +162,7 @@ APP_INCLUDE_PATHS="src platform/ps5 vendor/vkQuake/Quake vendor/vkQuake/Windows/
 APP_STATIC_ARCHIVES="build/vkquake/libvkquake_engine.ps5.a" \
 APP_VULKAN_ARCHIVES="${vulkan_archives[*]}" \
 APP_EXTRA_OBJECTS="${vulkan_objects[*]}" \
-APP_LINK_FLAGS="$vulkan_flags --wrap=malloc --wrap=calloc --wrap=realloc --wrap=free $memory_wrap_flags" \
+APP_LINK_FLAGS="$vulkan_flags --wrap=malloc --wrap=calloc --wrap=realloc --wrap=free --wrap=fopen --wrap=fread --wrap=fseek --wrap=fclose $memory_wrap_flags" \
     make app
 
 title_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titleId"])' \
