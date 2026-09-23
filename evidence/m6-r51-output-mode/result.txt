@@ -1,0 +1,14 @@
+{
+  "pid": "not read this run",
+  "build_identity": "19aede0df53411ab71ec866dba52f91fcb23024d1e65e6cd084c78811b8404f4",
+  "trace_sha256": "277ac96540448f2032ed118fc0d038d19830a1084a8be02e38a27e0ad7ff9963",
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "normal_exit": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-183628-00.png"
+  ],
+  "fallback_run": "klog/r51-hfr-fallback-evidence.txt: attribute3 0, no output line, fps=59.94, frame_ms=16.683 (min 16.603, max 16.761)",
+  "configs_restored": "restored to snapshot bytes; sce_sys/param.json restored and the normal build redeployed (r51-hfr-redeploy: 119.88 Hz selected)",
+  "display": "VRR ON"
+}
