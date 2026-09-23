@@ -1,0 +1,15 @@
+{
+  "step": "m6-r47-shipped-cache",
+  "note": "A launch whose cache base held nothing but the 102 entries harvested from one cold launch of the same driver build compiled nothing: 0 compiles, 0 stores, 540 hits, pipelines 2.296-2.387 s in this profiled run (cold: 102 compiles, first present 4.410 s, klog/r47-cache-cold). The deploy then shipped the same 102 entries in the title (build/run-title-deploy.log: 107 files, every read-back ok) and the following launch also compiled nothing. The test base and flag were removed after the run.",
+  "must_contain": [
+    "build identity: 3977e574",
+    "shader cache hit",
+    "PS5_R45_DONE"
+  ],
+  "must_not_contain": [
+    "compile start",
+    "shader cache stored",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

@@ -1,0 +1,11 @@
+{
+  "pid": "not read this run",
+  "build_identity": "3977e574837bf00bdc4653a9ebe0b2fe4f8f31c071509060eff14bba9287adf9",
+  "trace_sha256": "7a76b6395c81aa32b8d8743bcddd4733a795b42ffd1d43521c5864e610ebff15",
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "normal_exit": true,
+  "shipped_entries": 102,
+  "test_base_removed": true,
+  "configs_restored": "restored to snapshot bytes; the test flag file and test cache base were created for this run and removed after it"
+}
