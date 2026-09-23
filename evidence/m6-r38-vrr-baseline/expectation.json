@@ -1,0 +1,15 @@
+{
+  "step": "m6-r38-vrr-baseline",
+  "note": "The same code as m6-r37-mapped-flush with the console's VRR 'Apply to Unsupported Games' now ON (owner). A bare vblank measures 20.872 ms (47.91 Hz) -- VRR's floor with no flips -- and the present no longer waits: E1M1 50.65 FPS at work 19.52 ms (present 0.22 ms, 505 of 507 frames within one 60 Hz interval bucket), start map 31.11 FPS at work 31.92 ms. The frame rate is now the work.",
+  "must_contain": [
+    "build identity: 5f9c96fb",
+    "PS5_R32_DONE",
+    "mean_ms=20.8722",
+    "fps=50.65 work_ms=19.522",
+    "fps=31.11 work_ms=31.917"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
