@@ -2523,3 +2523,19 @@ flag removed while idle and absence verified (FTP DELE returned its known
 nonstandard 226 success). Next optimization will remove duplicate cache work.
 Native nonzero output is established; audible quality, physical controls and
 current visual acceptance still need the unavailable user.
+
+## 2026-09-23 — R22 target-flush benchmark
+
+Driver a85010a removes duplicate identical target evictions inside each flush
+operation. Its console regressions pass 1,043 checks and 14 exact replays.
+Port five gates, shader scan and deployment ELF segment checks pass. PID 225
+runs 300 seconds: 6,557 presents, 532 cache hits, no game/audio errors,
+13,440,000 audio stereo frames and 51,912 nonzero blocks. Both final trace
+reads match, kernel PID agrees, harness closes and idle is verified.
+
+First 27 steady intervals: 6,357 frames versus R21's 6,334; weighted flush
+7.872 -> 5.788 ms/frame, 509.54 -> 373.73 MiB/frame, queue 15.202 -> 13.113 ms,
+flip wait 7.787 -> 9.821 ms. This is reduced CPU cost, not demonstrated FPS
+improvement. R21 had 99 cold shader compiles, R22 none; whole-run frame counts
+are not a startup-equivalent FPS comparison. Evidence/m5-r22-flush-run records
+exact identity, trace hash and deployed proof. All 31 evidence captures pass.

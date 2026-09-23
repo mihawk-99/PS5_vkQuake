@@ -1,0 +1,13 @@
+{
+  "step": "m5-r22-flush-run",
+  "note": "R22 duplicate flush removal; 300-second game/audio run, no FPS gain claimed",
+  "must_contain": [
+    "build identity: 94f4957d",
+    "PS5 present: frames=6557"
+  ],
+  "must_not_contain": [
+    "Host_Error",
+    "refused"
+  ],
+  "human_check": ""
+}

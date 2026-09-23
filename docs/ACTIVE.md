@@ -59,8 +59,12 @@ PID 222 produced 12,960,000 stereo frames, 49,890 nonzero blocks and 6,335
 presents; all 27 periodic audio reports are intact after serializing tracing.
 Five gates and 30 evidence captures PASS. Audible quality awaits the user.
 Evidence: evidence/m5-audio-initial and evidence/m5-audio-profile-run.
-Opt-in driver profiling measures 509.54 MiB of target cache eviction per frame,
-7.87 ms/frame; next is duplicate-flush removal with console pixel regressions.
+Driver R22 a85010a passes 1,043 console checks and 14 exact replays. Identical
+target ranges now flush once per operation. Game PID 225: 300 seconds, 6,557
+presents, 532 cache hits and no reported game/audio error. Flush cost falls
+7.87 -> 5.79 ms/frame; FPS remains about 20–30 because flip wait grows.
+Both trace reads match and PID agrees, harness closed, idle verified.
+Evidence: evidence/m5-r22-flush-run. Next: normal map/quit/configuration test.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
