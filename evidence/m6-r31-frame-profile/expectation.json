@@ -1,0 +1,13 @@
+{
+  "step": "m6-r31-frame-profile",
+  "note": "R31's decomposition on the relinked build. The frame period is quantised to whole 60 Hz vblanks: frame_min_ms 49.976 at the start map and 33.292 at E1M1 against 16.6831 measured ms a vblank. submit_ms is 0.169 ms a step, so gpu_ms is marker-poll granularity rather than GPU execution, and a present waits exactly one vblank and never zero. The application's own CPU is 21.7 ms a frame at BOTH maps while the driver's queue cost differs threefold between them, which makes it the largest remaining cost and scene-independent. Runs 10-13% slower than the baseline until R31's summary was changed from one fprintf per field to one write.",
+  "must_contain": [
+    "PS5_R29B_DONE",
+    "PS5 exit: status=0",
+    "vblank probe intervals=60"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

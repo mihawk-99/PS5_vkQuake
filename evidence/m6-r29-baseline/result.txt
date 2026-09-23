@@ -1,0 +1,54 @@
+{
+  "pid": "unavailable: the console reported an app id and process count, not a pid, before the run; the trace's own identity and the served-ELF comparison are the identity evidence",
+  "build_identity": "e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1",
+  "driver_revision": "c3e51f6 (R29)",
+  "trace_sha256": "f1575507a85e4618178cc5a804122bdaca9838964c2093b4c443e45688f5e94f",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-084224-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-084316-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg and id1/vkQuake.cfg restored to their snapshot bytes; id1/autoexec.cfg, ps5vk-profile.txt, ps5vk-vblank-probe.txt and args.txt removed because they were absent before",
+  "audio_frames": 6042880,
+  "audio_errors": 0,
+  "start": {
+    "fps": 19.32,
+    "frame_ms": 51.88,
+    "copy_ms": 11.619,
+    "queue_ms": 20.765,
+    "flush_ms": 5.961,
+    "gpu_ms": 2.759,
+    "flip_ms": 10.229,
+    "flush_MiB_per_frame": 384.09
+  },
+  "e1m1": {
+    "fps": 27.15,
+    "frame_ms": 37.93,
+    "copy_ms": 0.041,
+    "queue_ms": 6.887,
+    "flush_ms": 3.959,
+    "gpu_ms": 2.58,
+    "flip_ms": 7.538,
+    "flush_MiB_per_frame": 256.06
+  },
+  "host_speeds": {
+    "HOST_START": {
+      "dropped_first": 1,
+      "tot": 52.17,
+      "server": 1.49,
+      "gfx": 50.64,
+      "snd": 0.03
+    },
+    "HOST_E1M1": {
+      "dropped_first": 1,
+      "tot": 35.45,
+      "server": 1.56,
+      "gfx": 33.87,
+      "snd": 0.03
+    }
+  },
+  "visual_result": "Two map captures complete; R29's tile-address change is worth 14.81 -> 19.72 FPS on the start map and leaves E1M1 unchanged."
+}

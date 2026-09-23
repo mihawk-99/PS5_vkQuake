@@ -1,0 +1,18 @@
+{
+  "pid": "not read this run",
+  "build_identity": "dc19779c0e27039e94d756c304e5b49cc278b1ac0ef2b0361dc9656900ee1fb2",
+  "driver_revision": "R31 fbd52a0 + relinked port",
+  "trace_sha256": "7d2e193ed81f0e560255b34c64ccd5b2477e36d3a7df95e442774903963fca56",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-091200-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-091302-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "vkQuake.cfg (1020 bytes) and id1/vkQuake.cfg (2510 bytes) restored to their snapshot bytes; autoexec, profile flag, cadence probe and args.txt removed because they were absent before",
+  "audio_frames": 7035136,
+  "audio_errors": 0,
+  "visual_result": "Both map captures complete and the title exits normally; the decomposition run."
+}

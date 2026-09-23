@@ -1,0 +1,12 @@
+{
+  "step": "m6-r31-no-regression",
+  "note": "The same fixture with no profiling flag and no cadence probe: R31 compiled in and never armed. E1M1 runs 29.97 FPS at 33.37 ms, which is the two-vblank floor of 33.33, and the start map 21.12 FPS at 47.56 ms, against the deployed R29 baseline's 29.58 and 19.72 measured with profiling on. R31 does not regress the game.",
+  "must_contain": [
+    "PS5_R29B_DONE",
+    "PS5 exit: status=0"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
