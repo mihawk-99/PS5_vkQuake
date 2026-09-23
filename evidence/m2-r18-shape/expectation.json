@@ -1,0 +1,13 @@
+{
+  "step": "m2-r18-shape",
+  "note": "R17 array refusal absent. R18 identified as 224x195 RGBA8 eight-mip single-layer 2D image; no layout fix claimed yet.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "224x195x1 format 37 mips 8 layers 1 view 1",
+    "process pid=210"
+  ],
+  "must_not_contain": [
+    "holds 3 descriptors"
+  ],
+  "human_check": "No new visual acceptance requested for this shape-identification run."
+}
