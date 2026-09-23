@@ -1,0 +1,10 @@
+{
+  "pid": "not read this run",
+  "build_identity": "177dba9c89578640ef19e32066ea3295007b9f8bc9a94d9c17a0a955091f2ce7",
+  "trace_sha256": "116cb93b1420e1fb69542a56d85612acd0b7a3b57cfe062aa270636b9d172ddd",
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "normal_exit": true,
+  "cold_run": "same binary, 102 compile start lines, first_present_s=4.394",
+  "configs_restored": "restored to snapshot bytes"
+}

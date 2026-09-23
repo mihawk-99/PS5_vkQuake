@@ -1,0 +1,14 @@
+{
+  "step": "m6-r46-nir-cache",
+  "note": "Warm launch with the NIR cache: no compile at all (every warm launch before compiled the 8 internal NIR stages); pipelines 2.338-2.442 s in this profiled run. The cold run of the same binary (klog/r46-nir-cold) compiled 102 shaders, pipelines 2.271-4.323 s, first present 4.394 s.",
+  "must_contain": [
+    "build identity: 177dba9c",
+    "PS5 startup: first_present_s=2.471",
+    "PS5_R45_DONE"
+  ],
+  "must_not_contain": [
+    "compile start",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
