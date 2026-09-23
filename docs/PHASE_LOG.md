@@ -2236,3 +2236,7 @@ Host debug types measure each record at 272 bytes. Source shows native realloc
 stays native beyond the port's mapping threshold. These support a memory-pressure
 candidate, not a full heap census. The unchecked staging error is a separate
 application issue. No further port launch belongs to this R12 cycle.
+
+R12 capture cleanup completed: the 900-second harness returned status 0,
+reported count=0, and saved trace.txt. Its died verdict agrees with the recorded
+PID 197 abort. Console idle; no title was left running.
