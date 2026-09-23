@@ -1,0 +1,12 @@
+{
+  "pid": 230,
+  "build_identity": "b5385c51a9960ea65be7a9b0f71348a3553f4159ae936d80170320c2b7494477",
+  "final_trace_sha256": "1392a2852efc0bd9d0cc7d0cfca8229dcac57106f8e67a37c3c51f257710da49",
+  "shader_cache_hits": 532,
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "screenshot_test_passed": false,
+  "screenshots_written": 0,
+  "normal_exit": true,
+  "reason": "Fixture queued protocol negotiation behind waits and quit; this run does not prove world rendering."
+}

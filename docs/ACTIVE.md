@@ -72,7 +72,13 @@ Five gates and 32 evidence captures PASS. Evidence: evidence/m6-native-quit.
 Single-thread rendering tested (PID 228): 6,345 versus 6,357 frames over the
 first 27 steady intervals, no useful gain. r_tasks stays at its upstream default.
 Evidence: evidence/m6-tasks0-benchmark, 33 capture replays PASS, fixtures removed.
-Next: prove screenshot readback and inspect world output.
+Driver R23 4f8037f proves swapchain TRANSFER_SRC: four full-frame copies and
+16 strict replays, 238 console checks pass. Port relink identity b5385c51….
+First screenshot fixture (PID 230) wrote no images: queued protocol negotiation
+was trapped behind its waits/quit. Retained as an incomplete screenshot test.
+Map-only PID 232 then connects through sign-on 1–4 and renders the start map
+for 90 seconds, 1,037 presents, steady 14.99 FPS, no game/audio error.
+Next: corrected screenshot fixture, world inspection and live-map optimization.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work

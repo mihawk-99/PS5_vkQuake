@@ -1,0 +1,20 @@
+{
+  "pid": 232,
+  "build_identity": "b5385c51a9960ea65be7a9b0f71348a3553f4159ae936d80170320c2b7494477",
+  "final_trace_sha256": "4d4801d3f33135d82b544f592ee5ddaade0cb808233d976a8160c4c2bd708c64",
+  "shader_cache_hits": 532,
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "map": "start",
+  "signon_stages": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "successful_present_counter": 1037,
+  "duration_seconds": 90,
+  "steady_fps": "14.99",
+  "harness_closed": true,
+  "no_game_or_audio_error": true
+}

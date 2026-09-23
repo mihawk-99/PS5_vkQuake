@@ -1,0 +1,13 @@
+{
+  "step": "m6-local-map-connect",
+  "note": "Empty-queue local map start connects through all four stages; 90-second run, no visual acceptance yet",
+  "must_contain": [
+    "CL_SignonReply: 4",
+    "player entered the game",
+    "PS5 present: frames=1037"
+  ],
+  "must_not_contain": [
+    "Host_Error"
+  ],
+  "human_check": ""
+}
