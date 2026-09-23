@@ -1,0 +1,18 @@
+{
+  "step": "manual-r29-deployment",
+  "recorded": "2026-09-23T12:00:35Z",
+  "console_run": "PPSA99010 deployment only; console idle",
+  "revision": "port 94e2b64; driver c3e51f6 production code",
+  "command": "python3 tools/deploy-title.py; python3 build/r16-port-deployed-proof.py",
+  "raw_capture": "klog/manual-r29-deployment-evidence.txt",
+  "raw_lines": 6,
+  "raw_bytes": 366,
+  "lines": [
+    "Manual deployment only; no new gameplay run",
+    "build identity: e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1",
+    "Two deployed ELF reads and all 5 PT_LOAD segments match",
+    "Ready: console idle; game data present; automatic launch/test/quit flags absent",
+    "User configurations preserved; shader cache present",
+    "Automated testing PAUSED; manual launch left to user"
+  ]
+}

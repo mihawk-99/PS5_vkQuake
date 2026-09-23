@@ -1,0 +1,13 @@
+{
+  "args.txt": "absent",
+  "audio-test.txt": "absent",
+  "gpu-profile.txt": "absent",
+  "core-loader-test.txt": "absent",
+  "ps5vk-profile.txt": "absent",
+  "autoexec.cfg": "absent",
+  "id1/autoexec.cfg": "absent",
+  "pak0.pak": "present",
+  "shader_cache": "present",
+  "vkQuake.cfg": "preserved absent",
+  "id1/vkQuake.cfg": "preserved absent"
+}

@@ -2761,3 +2761,15 @@ fixture are prepared under ignored build/r29b-* and build/r30-*. No performance
 improvement or completed gameplay run is claimed. Continue automatically when
 the console returns. Original configurations/profile remain absent; preserve
 the existing backup and any user saves. All 47 committed captures still replay.
+
+
+## 2026-09-23 — R29 deployed for the user's manual test
+
+Services returned; console idle verified. Deploy the existing validated R29
+build e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1.
+Two served ELF reads are identical and all five load segments match the local
+ELF (24,226,852 served bytes). Shader scan and manifest pass. Game data and
+persistent shader cache are present; user configurations preserved; args,
+autoexec and diagnostic/profile flags absent. Leave launch to the user with
+automated runs paused. This is deployment evidence, not a new gameplay or FPS
+measurement. Evidence manual-r29-deployment; format and 48 capture replays pass.

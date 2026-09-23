@@ -1,0 +1,11 @@
+{
+  "step": "manual-r29-deployment",
+  "note": "Latest R29 build deployed for requested manual testing. No new gameplay run or performance claim. Two served ELF reads/all five load segments match; no automated fixture flags, game data and shader cache present; configs preserved. Automation paused.",
+  "must_contain": [
+    "e3525e30191b2b1ac4260f9fd476cbc6c6e34cf15a30ebf9f2af72b75ea88bc1",
+    "all 5 PT_LOAD segments match",
+    "automatic launch/test/quit flags absent"
+  ],
+  "must_not_contain": [],
+  "human_check": ""
+}
