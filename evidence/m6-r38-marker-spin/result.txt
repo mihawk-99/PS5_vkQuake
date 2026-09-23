@@ -1,0 +1,16 @@
+{
+  "pid": "not read this run",
+  "build_identity": "91dcbf029f6964f11941db2568ad47c5a65696aab09980e6ea309d150c04a915",
+  "trace_sha256": "fbd0311650a128df067d2549ecd22bb1cc04a84e5fc0e0158d71408fe499b593",
+  "trace_reads_identical": true,
+  "screenshot_reads_identical": true,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-135019-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-135041-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "restored to snapshot bytes",
+  "visual_result": "Both readbacks correct.",
+  "display": "VRR Apply to Unsupported Games ON"
+}
