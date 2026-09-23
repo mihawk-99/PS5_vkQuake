@@ -1,0 +1,14 @@
+{
+  "step": "m2-r13-map-recording",
+  "note": "R13 passes the prior staging-memory stop and reaches map render recording. New tiled-chain blit and dynamic-offset refusals, then an indirect-stride assertion; M6 remains open.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "Allocating visibility buffers (1 KB)",
+    "a bind of 1 sets with 2 dynamic offsets",
+    "ps5vk_cmd_draw_indirect"
+  ],
+  "must_not_contain": [
+    "[ScePthread/System] Internal Memory is running out."
+  ],
+  "human_check": "No new human acceptance requested; PID 197 already established M2 visibility."
+}
