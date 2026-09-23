@@ -2387,3 +2387,16 @@ evidence/m2-r16-map-recording, 24 captures replayed with zero failures.
 PID 208 has 99 SPIR-V compiles/stores, 433 cache hits and eight NIR compiles;
 the driver header change invalidates older keys as designed. No new warm-start
 timing claimed. Next driver work is the exact R17/R18 witnesses below.
+
+
+## 2026-09-23 — R17 accepted in driver; R18 identification next
+
+Driver 3be25f1 implements per-element descriptor records, writes/copies and
+shared table emission. PS5 PID 209 returns 104 PASS, zero FAIL: the new
+three-sampled-image array and scalar image regression each match all 256
+output texels, and both command streams replay exactly. Full driver check
+initially 169/170 PASS; a cache-sensitive compiler-warning test was fixed to
+disable caching and its three arms passed. Eleven driver gates, this port's
+five gates/scan and template relink PASS. Console idle. Reproduction/evidence:
+../PS5_Vulkan/jobs/r17-descriptor-array and golden/r17-descriptor-array.
+R18 remains: measure the exact refused padded image before changing its layout.
