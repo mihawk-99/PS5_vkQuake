@@ -1021,3 +1021,19 @@ filtered readback under the existing tolerance, and preserve the tight-row
 case. Keep unmeasured array/mip layouts guarded. Then relink and run the port.
 The local OpenGL driver's single-level 2D descriptor is the source witness;
 a port-side padded texture workaround is not requested.
+
+
+## 2026-09-22 — R12 accepted; R13 upload metadata memory
+
+R12 c8658bf is hardware-proven in the driver and closes the port's first-frame
+wall: PID 197, identity a779b2bd…, QueuePresent success plus human-visible
+Quake menu/console. See evidence/m2-first-frame. M2 is met; M6 is not.
+
+The boot then starts the Necropolis and exhausts host memory recording an image
+copy. The row upload path grows one 272-byte record per row; native reallocations
+remain on the port's small internal heap. **R13 asks for bounded metadata per
+upload region**, using the existing region-copy executor if its byte semantics
+match. Cheapest witness: a host large-row upload that checks record count and
+exact destination bytes, including pitch, offsets and reversed storage. Then
+probe on console before another port run. The exact heap contribution is not
+measured yet. No texture-data or visual-settings workaround is requested.

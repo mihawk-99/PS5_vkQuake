@@ -1,0 +1,29 @@
+{
+  "step": "m2-first-frame",
+  "recorded": "2026-09-23T01:47:12Z",
+  "console_run": "PPSA99010 PID 197; identity a779b2bd",
+  "revision": "4ad3b00",
+  "command": "bash tools/run-title.sh --no-build --watch 900; python3 tools/fetch-trace.py (twice)",
+  "raw_capture": "klog/r12-first-frame.txt",
+  "raw_lines": 17,
+  "raw_bytes": 1165,
+  "lines": [
+    "build identity: a779b2bde40b52b3ce6ce84dc6a17325b0c5df883a9d61e09ea559ad10c0b342",
+    "vkEndCommandBuffer -> 0",
+    "vkQueueSubmit -> 0",
+    "vkQueuePresentKHR -> 0",
+    "the Necropolis",
+    "Using protocol 15",
+    "[ScePthread/System] Internal Memory is running out.",
+    "[ps5vk] recording refusal in ps5vk_CmdCopyMemoryToImageKHR: no memory to record an image copy",
+    "vkEndCommandBuffer -> -1",
+    "assertion failed: cmd_buffer->state == MESA_VK_COMMAND_BUFFER_STATE_INITIAL || cmd_buffer->state == MESA_VK_COMMAND_BUFFER_STATE_EXECUTABLE || cmd_buffer->state == MESA_VK_COMMAND_BUFFER_STATE_PENDING (/home/mihawk/Desktop/PS5_Homebrews/PS5_Vulkan/.deps/work/vulkan-runtime/src/vulkan/runtime/vk_queue.c:362, vk_queue_submit_add_command_buffer)",
+    "[computed latest boot: 540 successful shader compiles]",
+    "[two FTP captures identical, SHA-256 f0975b8891d6a325f5d5ed953099c15187c6a9305b68cded8e97aeec651e1d09]",
+    "[human: I saw a frame on the screen before it crashed!; identified as The Quake menu or console]",
+    "<197> EXEC /app0/eboot.bin [user], vm#1, dmem#1 abi=native category=native_game <51914133 msec>",
+    "# reason:  abort is called(system)",
+    "mDBG: Sending signal(pid: 197, tid: 101623, signo: 0xa002008b)",
+    "Terminating pid=197"
+  ]
+}

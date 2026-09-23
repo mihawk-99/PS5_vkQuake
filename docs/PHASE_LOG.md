@@ -2198,3 +2198,41 @@ at `parked/r12-row-pitch/`. The R11 evidence and its pre-run gates remain valid.
 Final cleanup check: `bash tools/verify.sh` PASS again in all five port gates,
 including all 19 evidence captures. The clean R11 driver relink reproduces the
 same port identity `6b437103…`. Driver correction/park commit: `e5a6c06`.
+
+
+## 2026-09-22 — R12 closes M2: first visible frame, then map-staging OOM
+
+R12 resumed with explicit user authorization. Driver c8658bf passed its fresh
+build, full 167-arm suite, eleven gates, and PID 196 padded-texture readback.
+The port's tools/verify.sh passed all five gates and shader scan passed before
+launch. Relink proved by new identity and new driver sentence in the eboot,
+with the old padded-row refusal absent. Archive: 14,385,036 bytes, SHA-256
+`c37afdec4f7bc8fe107e18b5be21bd63fbf2231201d6e1aa16121a15966e89a2`.
+
+`bash tools/run-title.sh --no-build --watch 900` launched PPSA99010 PID 197,
+identity `a779b2bde40b52b3ce6ce84dc6a17325b0c5df883a9d61e09ea559ad10c0b342`.
+The listener preceded launch. Newest boot: 540 successful shader compiles,
+then vkQueuePresentKHR -> 0. The user reported seeing a frame before it crashed,
+and identified it as "The Quake menu or console". **M2 is met.** This does not
+establish stable menu operation, world correctness, input or audio; M3–M6 stay
+open. R11/R12's positive first-frame condition is now witnessed by the port.
+
+After presentation, the trace reports "the Necropolis", protocol 15, pthread
+internal-memory exhaustion, and a named host-memory refusal from
+ps5vk_CmdCopyMemoryToImageKHR. EndCommandBuffer returns -1. The staging upload
+in upstream gl_rmisc.c ignores this result and submits, triggering the runtime's
+command-buffer-state assertion; kernel capture records PID 197's abort and
+termination. This is distinct from the earlier exit SIGSYS.
+
+Two fetch-trace.py captures are byte-identical (SHA-256
+`f0975b8891d6a325f5d5ed953099c15187c6a9305b68cded8e97aeec651e1d09`), newest
+identity and PID cross-checked. Console procs reports count=0. Evidence:
+`evidence/m2-first-frame/`; `python3 tools/evidence.py compare evidence/`:
+20 captures, zero failed. Raw captures and kernel log remain ignored.
+
+Next R13 question: can the driver's existing region-copy representation replace
+one upload record per row and reduce staging metadata without changing bytes?
+Host debug types measure each record at 272 bytes. Source shows native realloc
+stays native beyond the port's mapping threshold. These support a memory-pressure
+candidate, not a full heap census. The unchecked staging error is a separate
+application issue. No further port launch belongs to this R12 cycle.
