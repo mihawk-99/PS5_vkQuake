@@ -1,0 +1,11 @@
+{
+  "pid": "not read this run",
+  "build_identity": "dd1f74b80659da6a979100bf22c7a0f398f5349643b067e9ee57732b7c57ff36",
+  "trace_sha256": "66ac93e3791e67c41e9cf38257d01cd9c3e5ee1ba42b3348a7d4f3d68f0ca55c",
+  "trace_reads_identical": true,
+  "idle_verified": true,
+  "normal_exit": true,
+  "configs_restored": "restored to snapshot bytes",
+  "host_launch_timeline": "launch request returned after 2.62 s; first trace bytes at 2.90 s; startup output complete ~5.3 s in a profiled run (vblank probe included); present windows every 10 s from ~4.7 s",
+  "display": "VRR Apply to Unsupported Games ON"
+}

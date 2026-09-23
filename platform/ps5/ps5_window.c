@@ -48,6 +48,8 @@ void ps5_memory_syscalls(unsigned long long *mapped, unsigned long long *unmappe
 void ps5_file_counts(unsigned long long *opens, unsigned long long *reads,
                      unsigned long long *bytes, unsigned long long *ticks);
 extern Uint64 sceKernelGetTscFrequency(void) __attribute__((weak));
+/* host_frames.cpp: the startup phases, reported once at the first present. */
+void ps5_startup_report(void);
 
 /* The console's mode, matching ../PS5_Vulkan's driver/ps5vk_wsi.c. Named here as
  * constants rather than taken from the driver because the driver's copies are
@@ -414,6 +416,8 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
         ++vblanks[vblank < 1 ? 0 : vblank > 4 ? 3 : vblank - 1];
     }
     period_from = returned;
+    if (!reported && result == VK_SUCCESS)
+        ps5_startup_report();
     if (!reported || result != VK_SUCCESS)
     {
         char line[80];

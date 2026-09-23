@@ -1,0 +1,14 @@
+{
+  "step": "m6-r45-startup",
+  "note": "Normal warm launch, in-process: first present 0.775 s after process start (Host_Init at 0.533, video 0.555, pipelines 0.581-0.718 s; 570 file opens, 3.0 MB, 71 ms of stdio). From the host, the launch request itself takes 2.62 s before the process writes (tools timeline, m6-r45-startup notes), so a warm launch presents ~3.4 s after the launch. A profiled run's 1.28 s in GL_CreateSwapChain is its own vblank probe (60 vblanks at 20.87 ms). The owner's ~15 s is the first launch after a driver change: 107 compiles, 13.1 s (m6-r43 first hitch line), which the shipped cache addresses.",
+  "must_contain": [
+    "build identity: dd1f74b8",
+    "PS5 startup: first_present_s=0.775",
+    "pipelines_s=0.718",
+    "PS5_R45_DONE"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
