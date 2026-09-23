@@ -31,31 +31,43 @@ title). CTS is out of scope. Never claim flawless gameplay from a short run.
   for no driver profile); preserve/stage/run/collect/restore as in the brief.
   Slice a trace from its last `build identity:` line.
 
-## Measured progress (steady windows, trimmed fixture)
+## Measured progress (steady windows)
 
 | step | E1M1 | start map |
 | --- | --- | --- |
 | R29 baseline, VRR off (m6-r29-baseline) | 29.58 FPS | 19.72 FPS |
-| profile cheap, VRR off (m6-r36-work-metric) | 34.19, work 23.67 | 26.68, work 37.27 |
-| mapped-only flush, VRR off (m6-r37-mapped-flush) | 34.19-39.28, work 20.8-21.6 | 31.25, work 31.8 |
-| same code, VRR on (m6-r38-vrr-baseline) | 50.65, work 19.52 | 31.11, work 31.92 |
-| marker spin (m6-r38-marker-spin) | **55.76**, work 17.74 | **33.08**, work 30.00 |
+| mapped-only flush, VRR off (m6-r37-mapped-flush) | 34.19-39.28 | 31.25 |
+| same code, VRR on (m6-r38-vrr-baseline) | 50.65, work 19.52 | 31.11 |
+| marker spin (m6-r38-marker-spin) | **55.76**, work 17.74 | 33.08 (standing) |
+| parallel blits, walking the start map (m6-r42-parallel-blit) | | **52.4-55.4** (was 34-47) |
 
-Driver share of an E1M1 frame is now ~0.9 ms (queue 0.71, flip 0.19); the
-application's own time is ~17-19 ms and scene-independent; the start map adds
-~11.5 ms of CPU water-warp mip blits (gl_warp.c: 512x512, 5 mips, linear).
-Ruled out this session: begin/reset cost (0.33 ms, was clock reads), draw
-encoding (0.08 ms), vkCmdExecuteCommands replay (0.14 ms), the SDL semaphore
-(parked/sdl-semaphore, no gain: the 81 blocking waits a frame are idle workers).
+Stutter and startup (R41-R48, owner report "New Game is stuttery", "~15 s"):
+- New Game's 89 and 153 ms frames were svc_centerprint's console log through the
+  unbuffered stdout; the streams are buffered now (m6-r43-newgame-svc,
+  m6-r44-buffered). Acceptance, unprofiled (m6-r48-newgame-final): no stall in
+  play but one 42 ms frame; walking 46-52 FPS; frames still cross the ~20.8 ms VRR
+  window (a frame over it presents at 29.2 ms) because work sits at 18.5-20.7 ms.
+- Startup (m6-r45-startup): a warm launch presents 0.77 s into the process; the
+  console's launcher takes ~2.6 s before that. The NIR cache (driver 46024cd)
+  removed the last per-launch compiles; the driver keeps one cache directory per
+  build and the title ships the harvested set (tools/shader-cache.py; after a
+  driver change: launch once, harvest, rebuild; m6-r47-shipped-cache).
+- Recorder, always armed in the port: `PS5 hitch:` (frame over 40 ms: work,
+  present, shim/allocator/file counts) and `PS5 slow host frame:` (engine phases
+  and the costliest server commands); the driver adds `[ps5vk] hitch` lines when
+  profiled. Fixtures: evidence/m6-r41-walk and m6-r43-newgame-svc keep theirs.
+- Measured unnecessary: large-block file reads (3-4.7 MB in 14-71 ms), pipelines
+  at load (vkQuake already creates them at startup), background compilation
+  (nothing compiles during play, or at all with the shipped cache).
+- The console's cache base holds stale entries from every driver build before
+  6ff265f (unreadable 0700 files); harmless, left for the owner to delete.
 
 ## Next
 
-1. Split the application's ~17 ms: engine-side timing of the render path at
-   r_tasks 0 and 1 (one thread makes attribution exact), and whatever driver
-   calls the chain still lumps together (descriptor updates, maps).
-2. Start map: the 11.5 ms of CPU mip blits -- a 2:1 box fast path or a GPU blit.
-3. 120 Hz mode at swapchain creation in the driver (attribute3 0x80040 is set),
-   then gameplay/stability acceptance (build/r30-*), then the parked NIR cache.
+1. Work below ~16.7 ms at both maps: the application's ~17 ms is the cost now.
+   Average the engine phase marks per window (they are TSC-cheap) to split it.
+2. 120 Hz mode at swapchain creation in the driver (attribute3 0x80040 is set).
+3. Gameplay/stability acceptance (all eight maps, save/load, soak).
 
-Owner questions open: which jailbreak payloads/firmware (the 20 us system call
-looks environmental), and whether a debugger/sampling payload is available.
+The console runs kstuff (klog), a syscall-trapping payload: the likely cause of the
+~20 us system call. Owner question open: a debugger/sampling payload.

@@ -1,0 +1,16 @@
+{
+  "step": "m6-r48-newgame-final",
+  "note": "Acceptance of this batch, unprofiled, the owner's New Game case twice: no compile, first present 0.767 s into the process; no centre-print stall; the only frame over 40 ms during play is one 42-43 ms SCR_UpdateScreen frame; map loads 180-220 ms; walking 46-52 FPS with 30-169 frames a window over the ~20.8 ms VRR window, because work (18.5-20.7 ms) sits just under it.",
+  "must_contain": [
+    "build identity: 3977e574",
+    "PS5 startup: first_present_s=0.767",
+    "PS5_R43_DONE",
+    "fps=52.49 work_ms=18.466"
+  ],
+  "must_not_contain": [
+    "svc26#",
+    "compile start",
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
