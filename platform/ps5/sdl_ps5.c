@@ -480,17 +480,42 @@ void SDL_Delay(Uint32 ms)
         ;
 }
 
+/* The console's user-mode TSC read, from libkernel. Weak, so that the host test
+ * that compiles this file alone falls back to clock_gettime. */
+extern Uint64 sceKernelReadTsc(void) __attribute__((weak));
+extern Uint64 sceKernelGetTscFrequency(void) __attribute__((weak));
+
+/* Nanoseconds from the TSC rather than clock_gettime. A console run measured
+ * clock_gettime at 20.3 us a call -- it is a system call, and every system call
+ * costs ~20 us here -- against 11.8 ns for sceKernelReadTsc, whose counter ticks
+ * at the rate libkernel reports (1.5963 GHz, checked against a 20 ms sleep), and
+ * the engine reads the clock ~48 times a frame. The value stays nanoseconds so
+ * nothing above changes, and it never goes backwards: a read on one core that
+ * lands before a read already returned on another is clamped to it. */
 Uint64 SDL_GetPerformanceCounter(void)
 {
-    struct timespec now;
+    static _Atomic Uint64 latest;
+    static Uint64 hz;
     count(COUNT_CLOCK);
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return (Uint64)now.tv_sec * 1000000000ull + (Uint64)now.tv_nsec;
+    if (sceKernelReadTsc == NULL || sceKernelGetTscFrequency == NULL)
+    {
+        struct timespec now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        return (Uint64)now.tv_sec * 1000000000ull + (Uint64)now.tv_nsec;
+    }
+    if (hz == 0)
+        hz = sceKernelGetTscFrequency();
+    Uint64 ns = (Uint64)((unsigned __int128)sceKernelReadTsc() * 1000000000u / hz);
+    Uint64 seen = atomic_load_explicit(&latest, memory_order_relaxed);
+    while (ns > seen && !atomic_compare_exchange_weak_explicit(
+                            &latest, &seen, ns, memory_order_relaxed, memory_order_relaxed))
+        ;
+    return ns > seen ? ns : seen;
 }
 
 Uint64 SDL_GetPerformanceFrequency(void)
 {
-    return 1000000000ull; /* CLOCK_MONOTONIC counts nanoseconds. */
+    return 1000000000ull; /* Nanoseconds, from the TSC or CLOCK_MONOTONIC. */
 }
 
 Uint32 SDL_GetTicks(void)

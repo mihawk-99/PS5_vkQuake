@@ -37,6 +37,25 @@
 
 #include "../platform/ps5/sdl_ps5.c"
 
+#ifdef SDL_PS5_TEST_TSC
+/* The console's TSC, faked: 2 GHz ticks of the host's monotonic clock, one
+ * millisecond behind on every other read, as a read on a core whose counter
+ * trails another's would be. The shim must convert it to nanoseconds and never
+ * return a value below one it has already returned. */
+static unsigned tsc_reads;
+Uint64 sceKernelReadTsc(void)
+{
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    const Uint64 ns = (Uint64)now.tv_sec * 1000000000ull + (Uint64)now.tv_nsec;
+    return ns * 2u - ((tsc_reads++ & 1u) ? 2000000u : 0u);
+}
+Uint64 sceKernelGetTscFrequency(void)
+{
+    return 2000000000ull;
+}
+#endif
+
 /* ---------------------------------------------------------------------------
  * The three that fail silently.
  * ------------------------------------------------------------------------- */
@@ -233,6 +252,17 @@ static void test_delay_and_clock(void)
     assert(SDL_GetCPUCount() >= 1);
     printf("  clock: 40ms sleep measured %llums, counter monotonic, %d cpus\n",
            (unsigned long long)slept_ms, SDL_GetCPUCount());
+#ifdef SDL_PS5_TEST_TSC
+    Uint64 previous = SDL_GetPerformanceCounter();
+    for (int i = 0; i < 100000; ++i)
+    {
+        const Uint64 now = SDL_GetPerformanceCounter();
+        assert(now >= previous);
+        previous = now;
+    }
+    assert(tsc_reads > 100000);
+    printf("  clock: tsc path, %u reads converted to ns and never backwards\n", tsc_reads);
+#endif
 }
 
 static void test_error_is_per_thread(void)
