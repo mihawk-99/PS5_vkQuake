@@ -1,0 +1,13 @@
+{
+  "step": "m6-output-mode-120hz",
+  "note": "With attribute3 = 0x80040 in sce_sys/param.json, sceVideoOutConfigureOutput(handle, 15, ...) returns 0 at three points in the port's life and the MEASURED vblank period halves to 8.3416 ms (119.881 Hz) from 16.6831 ms (59.941 Hz); the restore returns 0 and the period returns to 16.6834 ms (59.940 Hz). The 120 Hz output path is established by measurement, not by changing a reported refresh value. The game still presents about 29 distinct frames a second, so the output repeats each frame about four times: the output path is proven, 120 FPS rendering is not.",
+  "must_contain": [
+    "equivalent_hz=119.88",
+    "configure=0x00000000",
+    "equivalent_hz=59.940"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

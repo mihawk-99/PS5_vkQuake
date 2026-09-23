@@ -92,29 +92,50 @@ R31 does not regress the game: with no profiling flag and no probe, E1M1 runs
 the baseline's 29.58 and 19.72 with profiling on. Evidence:
 m6-r31-no-regression. That build (`dc19779c`) is what the console holds.
 
-## The display, measured on a 4K120 Hz panel
+## The 120 Hz output path is established, by measurement
 
-The console was moved to the owner's 4K120 Hz TV, so the display path was
-measured rather than assumed, with two short launches and only the probe flags
-staged. **It negotiates 4K60**: the measured refresh is 16.6831 ms, 59.941 Hz,
-spread 0.049 ms over 60 intervals. Nothing about the panel reaches VideoOut on
-its own.
+The console was moved to the owner's 4K120 Hz TV (120 Hz Output: Automatic), so
+the display path was measured rather than assumed.
 
-`sceVideoOutIsOutputSupported(handle, 15, ...)` returns 1, so the console says
-the mode is available, and `sceVideoOutConfigureOutput(handle, 15, ...)` is
-refused with 0x80290016 -- identically before the framebuffers are registered and
-after them, so the port's lifecycle does not decide it. What that code means is
-not known and is not guessed; the probe measures the period after configuring
-precisely so a return code cannot be mistaken for a mode change, and the period
-did not change. The driver still reports 60000 millihertz, because a claim of
-120 Hz needs the measured period to halve. The mode is restored in the same
-call, since the vendored runtime records that a high-frame-rate port outlives
-the process that opened it. Evidence: m6-output-mode.
+**It negotiated 4K60 and the mode was refused, because the title did not declare
+it.** `sceVideoOutIsOutputSupported(handle, 15, ...)` returned 1 but
+`sceVideoOutConfigureOutput(handle, 15, ...)` returned 0x80290016, identically
+before the framebuffers were registered, after them, and on a handle that had
+been opened and nothing more -- so neither the port's lifecycle nor the flip
+rate is the variable.
 
-Next for this thread: ask `IsOutputSupported` over a bounded range of modes and
-configure only those the console reports, which stays inside its own gate; and
-settle the console-side 120 Hz Output setting, which a title cannot read or set.
+**The gate is the title's own metadata.** `sce_sys/param.json` carried
+`attribute3: 0`; the publicly released ps5-opengl SDK's folder builder sets
+`attribute3 = 0x80040` when its profile is above 60 Hz, and records that a
+title's metadata can reject the 120 Hz request. Setting that bit makes the same
+call return 0.
 
+**And the measurement confirms it is real, rather than a flag being flipped:**
+the vblank period halves, from 16.6831 ms (59.941 Hz) to **8.3416 ms
+(119.881 Hz)**, and the restore returns 0 and puts the period back to 16.6834 ms
+(59.940 Hz). Confirmed at all three points in the port's life. Evidence:
+m6-output-mode-120hz.
+
+**What is proven and what is not.** The 120 Hz *output path* is proven on the
+hardware: the console accepts the mode and scans out at 119.88 Hz, with a working
+60 Hz fallback. The *frame rate* is not: that run presented about 29 distinct
+frames a second, so the output repeats each frame roughly four times. A 120 Hz
+panel showing a 29 FPS game is not 120 FPS, and the driver must not be described
+as rendering at 120 Hz until distinct presented frames reach it.
+
+The driver still reports 60000 millihertz. That is now a decision rather than an
+unknown -- the mode is not engaged outside the opt-in probe, and reporting
+120000 before the driver actually selects the mode would be a claim it has not
+earned.
+
+Next for this thread: configure the output mode for real at swapchain creation
+when the metadata declares it, restore it at close, keep the 60 Hz fallback when
+the mode is refused, and only then report the refresh truthfully -- which means
+enumerating the modes rather than asserting one. Then the throughput work below
+becomes the binding constraint, because 120 distinct frames a second needs the
+whole frame under 8.333 ms.
+
+## Next
 ## Next
 
 1. **Find the 21.7 ms.** R31 times application stretches between Vulkan calls

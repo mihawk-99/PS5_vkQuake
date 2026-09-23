@@ -1,0 +1,32 @@
+{
+  "build_identity": "7f916ef4dc3ced7b3ca0ca2c235cecc38644e98c73764d6a491580a6ecee9b77",
+  "driver_revision": "R31 + port metadata attribute3 = 0x80040",
+  "trace_sha256": "bd3ee4f4ed08f778c37c01a6c247e968a8b7f061f54455b3c2c176f7b6e9e224",
+  "trace_reads_identical": true,
+  "display": "the owner's 4K120 Hz TV, 120 Hz Output set to Automatic",
+  "title_metadata": {
+    "file": "sce_sys/param.json",
+    "attribute3": "0x80040 (524352), previously 0"
+  },
+  "before": {
+    "configure_return": "0x80290016",
+    "measured_period_ms": 16.6831,
+    "measured_hz": 59.941
+  },
+  "after": {
+    "configure_return": "0x00000000",
+    "measured_period_ms": 8.3416,
+    "measured_hz": 119.881,
+    "restore_return": "0x00000000",
+    "measured_period_after_restore_ms": 16.6834,
+    "measured_hz_after_restore": 59.94,
+    "confirmed_at": [
+      "right-after-open",
+      "before-register",
+      "after-register"
+    ]
+  },
+  "rendered_fps_this_run": 29.27,
+  "visual_result": "The 120 Hz output path is established by measurement, not by editing a reported refresh value. The title still presents about 29 distinct frames a second, so the 120 Hz output repeats each frame roughly four times: the output path is proven, 120 FPS rendering is not.",
+  "state_restored": "both probe flags removed; vkQuake.cfg and id1/vkQuake.cfg at their snapshot hashes"
+}
