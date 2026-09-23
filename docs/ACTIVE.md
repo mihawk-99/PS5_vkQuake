@@ -31,26 +31,21 @@ R18 `aafd697` fixes row mip placement and pitched 2D mip descriptors.
 R18 PS5 PID 214: 531 PASS, zero FAIL; 19 complete mip frames match every pixel,
 21 streams replay exactly. See driver jobs/r18-padded-mips/README.md.
 
-**Relink/launch completed; M6 remains open.** Port PID 215, identity
-`b3aecd67729ccd91e5ec0fdeb9330e96a9d4e4923ad859aed3a5782fbcd061f1`,
-presents and reaches demo1/the Necropolis map recording. R17/R18 refusals are
-absent. The next named refusal is "32-bit indices need a runner probe" in
-ps5vk_cmd_draw; EndCommandBuffer -13, exit 1, known SIGSYS exit path.
-Next: R19 in the shared driver, including byte offsets/bounds and index type,
-then PS5 pixel verification and another game launch. Input/audio remain stubs.
-The user prioritizes a running, stable, optimized vkQuake; console CTS is out
-of scope. No new visual acceptance is claimed for PID 215.
+**R19 accepted and game remains alive for 180 seconds.** Driver 8d11392 adds
+UINT32 index widths/offsets/bounds and writes size for every indexed draw.
+PS5 probe PID 216: 257 PASS, zero FAIL; three complete white pixel frames,
+UINT16 before/after and five exact replays. Host 170 arms, eleven gates, port
+five gates/scan and template relink PASS.
 
-## Verification
-
-R18 archive 14,434,994 bytes, SHA-256 cef1d817…; explicit driver rebuild,
-21 targeted host arms, eleven gates, port five gates/scan and template pass.
-Two deployed ELF reads match all five PT_LOAD segments. Two final trace reads
-match; kernel PID 215 agrees; count=0 verified. Evidence:
-`evidence/m2-r18-map-recording/`; 26 captures replay with zero failures.
-This launch reused 532 cache hits, zero SPIR-V compiles/stores and eight NIR
-compiles. No new startup timing measurement. Driver failed/partial captures
-remain preserved alongside complete PID 214 evidence.
+Port PID 217, identity 7d8aca4169312e1ab9a465c21c7af294b49cbdc493ef33c63788197c373af922,
+presents, plays Necropolis demo events and advances to The Door To Chthon.
+No refusal or Quake error. Still alive at 180 seconds, then closed by harness;
+count=0 verified. Evidence: evidence/m3-r19-demo-run. Both final trace reads
+match; kernel PID agrees. 433 cache hits, 99 stores after driver-key change.
+No new visual acceptance; user unavailable for eight hours and authorized
+autonomous continuation. Next: diagnose the known R10 full-width subpass
+read defect, then connect input/audio and run sustained game acceptance.
+M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
 

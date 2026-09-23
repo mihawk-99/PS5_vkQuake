@@ -1,0 +1,14 @@
+{
+  "step": "m3-r19-demo-run",
+  "note": "R19 removes the map-recording refusal; demo advances from Necropolis to The Door To Chthon and stays alive until the harness closes it after 180 seconds.",
+  "must_contain": [
+    "vkQueuePresentKHR -> 0",
+    "The Door To Chthon",
+    "still running after 180s"
+  ],
+  "must_not_contain": [
+    "recording refusal",
+    "QUAKE ERROR"
+  ],
+  "human_check": "No new visual, controller or audible confirmation; user unavailable. Known R10 picture defect and input/audio adapters remain open."
+}
