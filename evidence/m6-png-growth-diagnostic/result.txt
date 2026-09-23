@@ -1,0 +1,14 @@
+{
+  "pid": 235,
+  "build_identity": "ca8e3d2f5ba474b5b078d415f051470747b605a85df5470c9f0cabd0ba390e45",
+  "trace_sha256": "abd128bb0cd7227c3547fb541acdeafe35ef3cd1f839fe62e3e1c9325e0fa4b1",
+  "trace_reads_identical": true,
+  "heap_exhaustion_messages": 0,
+  "screenshots": [
+    "vkQuake-Introduction-start-20260117-032219-00.png",
+    "vkQuake-Introduction-start-20260117-032222-00.png",
+    "vkQuake-the_Slipgate_Complex-e1m1-20260117-032231-00.png"
+  ],
+  "idle_verified": true,
+  "normal_exit": true
+}

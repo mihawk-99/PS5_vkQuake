@@ -1,0 +1,10 @@
+{
+  "pid": 233,
+  "build_identity": "b5385c51a9960ea65be7a9b0f71348a3553f4159ae936d80170320c2b7494477",
+  "trace_sha256": "db5c9e7f61e33459487da8050e136f83b83d21964c52781203ea1782a83fc228",
+  "trace_reads_identical": true,
+  "heap_exhaustion_messages": 398,
+  "screenshots": [],
+  "idle_verified": true,
+  "normal_exit": false
+}

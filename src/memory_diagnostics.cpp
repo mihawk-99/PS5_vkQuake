@@ -1,7 +1,6 @@
 /* Fixed-size metadata and stack-only formatting: diagnostics must survive OOM.
  * No native allocator calls, stdio, dynamic C++ containers or worker threads. */
 #include "memory_diagnostics.hpp"
-#ifdef PS5_MEMORY_DIAGNOSTICS
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -19,6 +18,11 @@ Record records[capacity];
 unsigned char states[capacity];
 Stats stats;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+size_t hash(void *p)
+{
+    return ((uintptr_t(p) >> 4) * uintptr_t(11400714819323198485ULL)) & (capacity - 1);
+}
+#ifdef PS5_MEMORY_DIAGNOSTICS
 int output = -1;
 uint64_t start_ns = 0, next_ns = 0, sequence = 0, failure_next_ns = 0;
 uint64_t image_create = 0, image_destroy = 0, image_failed = 0;
@@ -75,10 +79,6 @@ struct Line
         }
     }
 };
-size_t hash(void *p)
-{
-    return ((uintptr_t(p) >> 4) * uintptr_t(11400714819323198485ULL)) & (capacity - 1);
-}
 void summary(const char *kind)
 {
     Line line;
@@ -163,6 +163,7 @@ void callers(const char *kind = "caller", int route = -1, unsigned limit = 8)
         sites[best] = {};
     }
 }
+#endif // PS5_MEMORY_DIAGNOSTICS
 } // namespace
 void add(Record record)
 {
@@ -224,6 +225,7 @@ Record take(void *pointer, bool resizing)
     errno = saved;
     return result;
 }
+#ifdef PS5_MEMORY_DIAGNOSTICS
 void failure(const char *operation, size_t bytes, size_t alignment, uintptr_t caller, int error)
 {
     const int saved = errno;
@@ -332,5 +334,5 @@ void finish()
     pthread_mutex_unlock(&mutex);
     errno = saved;
 }
+#endif // PS5_MEMORY_DIAGNOSTICS
 } // namespace ps5::memory
-#endif /* PS5_MEMORY_DIAGNOSTICS */

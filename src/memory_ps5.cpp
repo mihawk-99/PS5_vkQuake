@@ -33,7 +33,7 @@ namespace
  *
  * 32 KiB moves that traffic out while leaving small allocations where they are
  * cheap: a mapping is page-rounded, so routing an 8-byte request through it would
- * cost 16 KiB. What stays native is the engine's small churn (under 1 MB here) and
+ * cost 16 KiB. What stays native is the engine's small churn and
  * the compiler's own small allocations, against a heap that is no longer full. */
 constexpr size_t threshold = 32 * 1024;
 constexpr size_t page = 0x4000;
@@ -93,7 +93,7 @@ void release(void *pointer)
         __real_free(pointer);
 }
 
-void *resize(void *pointer, size_t size)
+void *resize(void *pointer, size_t size, const ps5::memory::Record &owned)
 {
     if (!pointer)
         return allocate(size);
@@ -106,14 +106,17 @@ void *resize(void *pointer, size_t size)
     Mapping *entry = *find(pointer);
     const size_t old_size = entry ? entry->requested : 0;
     pthread_mutex_unlock(&lock);
-    /* Native buffers retain their allocator: their usable size is not part of
-     * this ABI. Never guess it or read a private libc allocation header. */
-    if (!entry)
+    // Grow our native buffers out of the private heap using the requested size
+    // we recorded. Foreign/untracked pointers keep their native allocator.
+    const bool migrate = !entry && owned.pointer == pointer &&
+                         owned.route == ps5::memory::Route::Native && size >= threshold;
+    if (!entry && !migrate)
         return __real_realloc(pointer, size);
     void *replacement = allocate(size);
     if (!replacement)
         return nullptr;
-    std::memcpy(replacement, pointer, old_size < size ? old_size : size);
+    const size_t copy_size = entry ? old_size : owned.bytes;
+    std::memcpy(replacement, pointer, copy_size < size ? copy_size : size);
     release(pointer);
     return replacement;
 }
@@ -172,10 +175,10 @@ extern "C" void *__wrap_realloc(void *pointer, size_t size)
 {
     const auto caller = uintptr_t(__builtin_return_address(0));
     const auto old = ps5::memory::take(pointer, true);
-    void *p = resize(pointer, size);
+    void *p = resize(pointer, size, old);
     if (p)
     {
-        // Realloc of a native pointer stays native even when it crosses 1 MiB.
+        // The resulting route may change when a known buffer crosses the threshold.
         pthread_mutex_lock(&lock);
         const bool mapped = *find(p) != nullptr;
         pthread_mutex_unlock(&lock);

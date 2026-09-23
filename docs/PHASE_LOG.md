@@ -2590,3 +2590,39 @@ evidence/m6-local-map-connect. This confirms connection and presentation,
 not the appearance of the world. The corrected fixture sends the ordinary
 cmd pext response after two initial waits; production connection code stays
 unchanged. 35 evidence captures replay without mismatch.
+
+## 2026-09-23 — R24 native realloc growth and actual world captures
+
+The corrected screenshot fixture exposes a real allocator stall: PID 233 reports
+398 native heap-exhaustion messages; diagnostic PID 234 reports 289. Its first
+failure is realloc(3,543,304) while the same caller owns a 2,362,202-byte native
+buffer. Native live usage is 10,566,021 bytes; no ownership records are dropped.
+The old wrapper routes fresh large allocations through mmap but leaves growing
+native buffers in libc indefinitely. Both failed runs are retained under
+m6-png-heap-exhaustion and m6-png-heap-diagnosis; the harness closes them.
+
+Reuse the existing fixed ownership table in normal builds to remember requested
+sizes. Known native buffers crossing 32 KiB migrate to mmap, preserving contents;
+failed growth preserves the original allocation. Foreign/untracked buffers keep
+native realloc, with no guessed size or private allocator-header access. The
+table costs 4,325,376 bytes of BSS. Logging remains diagnostic-only. Host tests
+model the small native heap and cover migration, calloc data, failed growth and
+foreign pointers; the new regression fails against the original allocator.
+
+Five gates and shader scan pass for diagnostic and normal builds. PID 235
+(ca8e3d2f…) writes start-map, menu and E1M1 PNGs, drains 1,334,016 audio frames
+with no errors and exits via LoadExec. Final allocation failures/dropped records
+are zero; native peak 8,397,777 and mapped peak 163,607,833 bytes. PID 238 normal
+build (9e7cced2…) repeats all three captures and clean exit, draining 1,334,784
+frames without error. Both final traces and each PNG were read twice identically;
+PT_LOAD deployment proofs and actual kernel PIDs agree. Idle verified and all
+three temporary/generated configurations restored to their original absence.
+An intervening normal-build launch had no fixture because the local upload call
+passed a string instead of Path; it was closed and is not screenshot acceptance.
+
+Six inspected 3840x2160 images show textured/lit start and E1M1 worlds, the weapon,
+and a readable main menu. The gameplay HUD is absent and remains an open defect;
+these captures do not establish flawless gameplay. PNG encoding affects frame
+intervals, so these runs are not performance benchmarks. Screenshot hashes are
+committed in the two growth evidence directories; raw images remain ignored.
+39 evidence captures replay with zero failures.

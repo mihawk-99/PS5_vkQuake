@@ -1,0 +1,10 @@
+{
+  "step": "m6-png-heap-diagnosis",
+  "note": "Retained failed screenshot regression: native realloc exhausts the private heap; harness closes the stalled run.",
+  "must_contain": [
+    "9ff91cb5",
+    "Internal Memory is running out."
+  ],
+  "must_not_contain": [],
+  "human_check": ""
+}

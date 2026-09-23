@@ -13,5 +13,6 @@ class NativeMemory(unittest.TestCase):
             binary = Path(directory) / 'memory-test'
             subprocess.run(['c++', '-std=c++17', '-pthread', '-I.',
                             'tests/memory_ps5_test.cpp', 'src/memory_ps5.cpp',
+                            'src/memory_diagnostics.cpp',
                             '-o', str(binary)], cwd=ROOT, check=True)
             subprocess.run([str(binary)], check=True)
