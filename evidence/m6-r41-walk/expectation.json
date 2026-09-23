@@ -1,0 +1,15 @@
+{
+  "step": "m6-r41-walk",
+  "note": "Walking the start map (run, turn, strafe, fire, ~50 s): periods split between 16-20 ms and 28-32 ms. With VRR on, a frame whose work passes ~20.8 ms (the 20.87 ms VRR floor) presents at 29.25 ms. The CPU water-warp blits (copy_ms 2.3-8.2 by window) push the frame over it while the application stays at ~16.7 ms: 34-47 FPS. One 86 ms hitch mid-walk; 477 ms after the load.",
+  "must_contain": [
+    "build identity: cb4ba120",
+    "PS5_R41_DONE",
+    "fps=34.19 work_ms=21.921",
+    "present_ms=7.330",
+    "copy_ms=8.171"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

@@ -1,0 +1,13 @@
+{
+  "step": "m6-r41-print-before",
+  "note": "NEGATIVE for the console-output hypothesis: 15 'You got the shells' lines printed through the unbuffered stdout during E1M1's steady phase cost no hitch -- 555 frames all within one interval, worst 20.2 ms. Short prints are not the owner's stutters; buffering them was not landed.",
+  "must_contain": [
+    "build identity: cb4ba120",
+    "PS5_R32_DONE",
+    "fps=55.46 work_ms=17.843 work_min_ms=17.424 work_max_ms=20.205"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}
