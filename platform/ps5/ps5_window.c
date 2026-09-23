@@ -342,6 +342,28 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
         ps5_trace(line);
         reported = 1;
     }
+    // Periodic counts distinguish a living process from continued presentation.
+    static Uint64 frames, last_frames, last_tick;
+    if (result == VK_SUCCESS)
+    {
+        const Uint64 now = SDL_GetTicks64();
+        ++frames;
+        if (frames == 1)
+        {
+            last_tick = now;
+            last_frames = frames;
+        }
+        else if (now - last_tick >= 10000)
+        {
+            char line[128];
+            snprintf(line, sizeof line, "PS5 present: frames=%llu interval=%llu ms fps=%.2f",
+                     (unsigned long long)frames, (unsigned long long)(now - last_tick),
+                     (double)(frames - last_frames) * 1000.0 / (double)(now - last_tick));
+            ps5_trace(line);
+            last_tick = now;
+            last_frames = frames;
+        }
+    }
     return result;
 }
 

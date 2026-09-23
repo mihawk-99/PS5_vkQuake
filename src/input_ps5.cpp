@@ -248,9 +248,10 @@ extern "C"
     {
         if (!active_pad)
             active_pad = state_of(open_pad());
-        if (active_pad)
+        const bool opened = active_pad && active_pad->handle >= 0;
+        if (opened)
             ps5_input_trace("input: ps5 pad opened (16 buttons, 6 axes)");
-        return active_pad != nullptr;
+        return opened;
     }
 
     void ps5_pad_poll(void)

@@ -15,6 +15,8 @@ class FrameTrace(unittest.TestCase):
 #include "platform/ps5/vk_loader.c"
 #include "platform/ps5/vk_globals.c"
 static int lines, calls;
+static Uint64 ticks;
+Uint64 SDL_GetTicks64(void) { return ticks; }
 static VkResult answer;
 static char last[128];
 void ps5_trace(const char *line) { ++lines; snprintf(last, sizeof last, "%s", line); }
@@ -55,6 +57,13 @@ int main(void)
     }
     assert(calls == 12 && lines == 9);
     assert(!strcmp(last, "vkQueuePresentKHR -> -13"));
+    answer = VK_SUCCESS;
+    ticks = 9999;
+    assert(draw(NULL, NULL) == VK_SUCCESS && lines == 9);
+    ticks = 10000;
+    assert(draw(NULL, NULL) == VK_SUCCESS && lines == 10);
+    assert(strstr(last, "frames=4 interval=10000 ms fps=0.30"));
+    assert(draw(NULL, NULL) == VK_SUCCESS && lines == 10);
     return 0;
 }
 '''

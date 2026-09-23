@@ -1,0 +1,2 @@
+PID 220: alive until harness closure after 300s, count=0 confirmed. Native DualSense ready. At least 6613 successful presents. No refusal/Quake error. 532 cache hits, zero SPIR-V compiles.
+Two final trace reads SHA-256 70b7bffc644616aecd02b46bcb96ff7e2a21960fee82654124e17bd7869e6fd7. Kernel PID 220 matches.

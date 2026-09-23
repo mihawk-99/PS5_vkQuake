@@ -27,8 +27,8 @@
 #ifndef PS5_INPUT_H
 #define PS5_INPUT_H
 
-#include <cstddef>
-#include <cstdint>
+#include <stdbool.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -87,11 +87,11 @@ extern "C"
     /* The buttons held as of the last poll, as a mask of the ps5_pad_* bits. Zero
      * when there is no pad, when it disconnected, or when the shell has intercepted
      * it. */
-    std::uint32_t ps5_pad_buttons(void);
+    uint32_t ps5_pad_buttons(void);
 
     /* One axis as of the last poll: -32768..32767 for the four sticks, 0..32767 for
      * the two triggers, and 0 for an index that is not one of the six. */
-    std::int16_t ps5_pad_axis(std::uint32_t index);
+    int16_t ps5_pad_axis(uint32_t index);
 
 #ifdef __cplusplus
 }
