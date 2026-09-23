@@ -45,8 +45,9 @@ SIGSYS exit path. The game is not yet playable.
 Two final trace reads match and kernel PID 208 agrees. The two-minute harness
 ended with count=0; no title remains running. First-present on-screen check
 was requested and is pending. Evidence: `evidence/m2-r16-map-recording/`.
-Next driver witnesses: R17 sampled-image descriptor array with distinct entries,
-then R18 reproduce and measure the refused padded image shape; see
+R17 is now accepted in driver 3be25f1: PS5 PID 209, 104 PASS, zero FAIL;
+array/scalar compute output exact, two exact replays. R18 now needs the exact
+refused padded image shape before a layout change; see
 `docs/PS5_VULKAN_REQUESTS.md`. Input/audio adapters still need implementation.
 
 ## Verification
