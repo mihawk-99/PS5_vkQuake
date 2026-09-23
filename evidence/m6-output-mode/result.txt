@@ -1,0 +1,19 @@
+{
+  "pid": "not read this run",
+  "build_identity": "39ea27f2b8bd5219209bb3c649a7b4a13710ff592e593692d571ddeab02ee46d",
+  "driver_revision": "R31 a17abd5 + relinked port",
+  "trace_sha256": "63b3827e565d43a2f769a29a03d464d53cb2d153c67b0189d327294c2de4daea",
+  "trace_reads_identical": true,
+  "console_idle_before": true,
+  "normal_exit": true,
+  "display": "the owner's 4K120 Hz TV",
+  "measured_refresh_hz": 59.941,
+  "measured_period_ms": 16.6831,
+  "cadence_samples": 60,
+  "hfr_mode_support_return": "0x00000001",
+  "hfr_mode_configure_return": "0x80290016",
+  "hfr_attempted_before_and_after_buffer_registration": true,
+  "driver_reported_refresh_millihertz": 60000,
+  "visual_result": "A demo loop renders and presents at 26.7-29.9 FPS. The display path is unchanged because the measured period did not halve; no 120 Hz claim is made.",
+  "state_restored": "both probe flags removed again, vkQuake.cfg and id1/vkQuake.cfg at their snapshot hashes"
+}

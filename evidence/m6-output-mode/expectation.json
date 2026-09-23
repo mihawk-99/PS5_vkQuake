@@ -1,0 +1,12 @@
+{
+  "step": "m6-output-mode",
+  "note": "The console is on the owner's 4K120 Hz TV and still negotiates 4K60: the measured refresh is 16.6831 ms, 59.941 Hz. sceVideoOutIsOutputSupported(handle, 15, ...) returns 1 but sceVideoOutConfigureOutput(handle, 15, ...) is refused with 0x80290016, identically before and after the framebuffers are registered, so the port's lifecycle does not decide it. The mode is restored in the same call and the driver's reported 60000 millihertz is unchanged because the measured period did not halve.",
+  "must_contain": [
+    "equivalent_hz=59.941",
+    "configure=0x80290016"
+  ],
+  "must_not_contain": [
+    "Internal Memory is running out."
+  ],
+  "human_check": ""
+}

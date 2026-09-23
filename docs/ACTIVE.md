@@ -69,6 +69,12 @@ Two facts change how everything else should be read:
   threefold between them. host_speeds agrees from the other side -- of E1M1's
   35.4 ms frame, gfx is 33.9 and server 1.6. Evidence: m6-r31-frame-profile.
 
+The application's calls are timed as well as the stretches between them now, and
+`call_begin_ms` alone is 2.4 ms a frame: the `vkBeginCommandBuffer` calls are a
+real per-frame cost no earlier counter could see, because a long call and a long
+stretch looked the same. The rest of the 21.7 ms is therefore not all engine
+code, and the next instrument is to time the recording entry points themselves.
+
 Also measured: `gpu_ms` is not GPU execution (`submit_ms` is 0.169 ms a step and
 the rest is the marker poll's 1 ms sleeps); a present waits exactly one vblank
 and never zero; and the display's real cadence is 16.6831 ms over 60 intervals,
@@ -85,6 +91,29 @@ R31 does not regress the game: with no profiling flag and no probe, E1M1 runs
 29.97 FPS at 33.37 ms -- the two-vblank floor -- and the start map 21.12, against
 the baseline's 29.58 and 19.72 with profiling on. Evidence:
 m6-r31-no-regression. That build (`dc19779c`) is what the console holds.
+
+## The display, measured on a 4K120 Hz panel
+
+The console was moved to the owner's 4K120 Hz TV, so the display path was
+measured rather than assumed, with two short launches and only the probe flags
+staged. **It negotiates 4K60**: the measured refresh is 16.6831 ms, 59.941 Hz,
+spread 0.049 ms over 60 intervals. Nothing about the panel reaches VideoOut on
+its own.
+
+`sceVideoOutIsOutputSupported(handle, 15, ...)` returns 1, so the console says
+the mode is available, and `sceVideoOutConfigureOutput(handle, 15, ...)` is
+refused with 0x80290016 -- identically before the framebuffers are registered and
+after them, so the port's lifecycle does not decide it. What that code means is
+not known and is not guessed; the probe measures the period after configuring
+precisely so a return code cannot be mistaken for a mode change, and the period
+did not change. The driver still reports 60000 millihertz, because a claim of
+120 Hz needs the measured period to halve. The mode is restored in the same
+call, since the vendored runtime records that a high-frame-rate port outlives
+the process that opened it. Evidence: m6-output-mode.
+
+Next for this thread: ask `IsOutputSupported` over a bounded range of modes and
+configure only those the console reports, which stays inside its own gate; and
+settle the console-side 120 Hz Output setting, which a title cannot read or set.
 
 ## Next
 
