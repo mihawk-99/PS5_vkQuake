@@ -129,6 +129,31 @@ static int lock_counted(pthread_mutex_t *mutex)
     return pthread_mutex_lock(mutex);
 }
 
+/* One frame's own counts, as " name=value" fields, when hitch is set; either way
+ * the frame's end becomes the next frame's start. Called once a frame by the
+ * present (ps5_window.c), which is the only caller, so no lock is needed. */
+int ps5_sdl_counts_frame(char *line, size_t bytes, int hitch)
+{
+    static unsigned long long previous[COUNT_KINDS];
+    static const char *const names[COUNT_KINDS] = {"clock",     "sem_post",      "sem_block",
+                                                   "sem_try",   "sem_try_empty", "contended",
+                                                   "cond_wait", "cond_wake",     "delay"};
+    size_t used = 0;
+    for (int kind = 0; kind < COUNT_KINDS; ++kind)
+    {
+        const unsigned long long now = atomic_load_explicit(&counts[kind], memory_order_relaxed);
+        if (hitch && used < bytes)
+        {
+            const int wrote =
+                snprintf(line + used, bytes - used, " %s=%llu", names[kind], now - previous[kind]);
+            if (wrote > 0)
+                used += (size_t)wrote;
+        }
+        previous[kind] = now;
+    }
+    return (int)used;
+}
+
 /* The means per frame since the previous call, as " name=value" fields. */
 int ps5_sdl_counts_format(char *line, size_t bytes, unsigned long long frames)
 {

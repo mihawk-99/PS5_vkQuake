@@ -41,6 +41,13 @@
 
 /* sdl_ps5.c: the shim's kernel-entry counts, as per-frame fields. */
 int ps5_sdl_counts_format(char *line, size_t bytes, unsigned long long frames);
+int ps5_sdl_counts_frame(char *line, size_t bytes, int hitch);
+/* memory_ps5.cpp: the allocator's mmap and munmap calls so far. */
+void ps5_memory_syscalls(unsigned long long *mapped, unsigned long long *unmapped);
+/* file_counts.cpp: stdio file opens, reads, bytes and TSC ticks so far. */
+void ps5_file_counts(unsigned long long *opens, unsigned long long *reads,
+                     unsigned long long *bytes, unsigned long long *ticks);
+extern Uint64 sceKernelGetTscFrequency(void) __attribute__((weak));
 
 /* The console's mode, matching ../PS5_Vulkan's driver/ps5vk_wsi.c. Named here as
  * constants rather than taken from the driver because the driver's copies are
@@ -346,6 +353,7 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
     const Uint64 entered = SDL_GetPerformanceCounter();
     const VkResult result = queue_present(queue, info);
     const Uint64 returned = SDL_GetPerformanceCounter();
+    const Uint64 left_before = left;
     if (left != 0)
     {
         const Uint64 work = entered - left;
@@ -356,6 +364,49 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
         ++timed;
     }
     left = returned;
+    /* A hitch -- a period over 40 ms -- gets a line of its own with that frame's
+     * work, present wait and what the shim and the allocator asked of the kernel
+     * during it. At most twenty a ten-second window; one write each. The frame
+     * counts are taken every frame so that a hitch's are its own. */
+    static unsigned long long maps_before, unmaps_before;
+    static unsigned long long file_before[4];
+    static unsigned hitch_lines;
+    if (period_from != 0)
+    {
+        const Uint64 period = returned - period_from;
+        const int hitch = period > 40000000u && hitch_lines < 20;
+        char hitch_line[512];
+        int used = 0;
+        if (hitch)
+            used = snprintf(hitch_line, sizeof hitch_line,
+                            "PS5 hitch: period_ms=%.3f work_ms=%.3f present_ms=%.3f",
+                            (double)period / 1e6, (double)(entered - left_before) / 1e6,
+                            (double)(returned - entered) / 1e6);
+        if (used >= 0 && (size_t)used < sizeof hitch_line)
+            used +=
+                ps5_sdl_counts_frame(hitch_line + used, sizeof hitch_line - (size_t)used, hitch);
+        unsigned long long mapped = 0, unmapped = 0, file[4] = {0, 0, 0, 0};
+        ps5_memory_syscalls(&mapped, &unmapped);
+        ps5_file_counts(&file[0], &file[1], &file[2], &file[3]);
+        if (hitch)
+        {
+            if (used >= 0 && (size_t)used < sizeof hitch_line)
+                snprintf(
+                    hitch_line + used, sizeof hitch_line - (size_t)used,
+                    " mmap=%llu munmap=%llu fopen=%llu fread=%llu read_bytes=%llu file_ms=%.3f",
+                    mapped - maps_before, unmapped - unmaps_before, file[0] - file_before[0],
+                    file[1] - file_before[1], file[2] - file_before[2],
+                    sceKernelGetTscFrequency != NULL ? (double)(file[3] - file_before[3]) * 1e3 /
+                                                           (double)sceKernelGetTscFrequency()
+                                                     : 0.0);
+            ps5_trace(hitch_line);
+            ++hitch_lines;
+        }
+        maps_before = mapped;
+        unmaps_before = unmapped;
+        for (int i = 0; i < 4; ++i)
+            file_before[i] = file[i];
+    }
     /* The period between two presents' returns, in 60 Hz vblanks: 1, 2, 3, 4+. */
     if (period_from != 0)
     {
@@ -398,6 +449,7 @@ static VKAPI_ATTR VkResult VKAPI_CALL traced_present(VkQueue queue, const VkPres
                                  (unsigned long long)vblanks[0], (unsigned long long)vblanks[1],
                                  (unsigned long long)vblanks[2], (unsigned long long)vblanks[3]);
             work_ns = work_min = work_max = wait_ns = timed = 0;
+            hitch_lines = 0;
             vblanks[0] = vblanks[1] = vblanks[2] = vblanks[3] = 0;
             // The shim's per-frame kernel-entry counts, in the same single write.
             if (more > 0 && (size_t)more < sizeof line)

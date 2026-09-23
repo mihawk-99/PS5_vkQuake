@@ -1,6 +1,7 @@
 /* Large application buffers must not exhaust SceLibcInternal's private heap.
  * Wrap only title/core references; native library allocations stay libc-owned.
  * A locked list identifies mappings without reading before foreign pointers. */
+#include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
@@ -58,6 +59,8 @@ constexpr size_t cache_span_limit = 1024 * 1024;
 constexpr size_t cache_bytes_limit = 8 * 1024 * 1024;
 Mapping *cached[cache_slots];
 size_t cached_count = 0, cached_bytes = 0;
+/* System calls the allocator makes, for the hitch report (ps5_window.c). */
+std::atomic<unsigned long long> maps{0}, unmaps{0};
 
 Mapping **find(void *pointer)
 {
@@ -98,6 +101,7 @@ void *allocate(size_t size, bool zero = false)
     else
     {
         void *memory = mmap(nullptr, span, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        maps.fetch_add(1, std::memory_order_relaxed);
         if (memory == MAP_FAILED)
             return nullptr;
         entry = static_cast<Mapping *>(memory);
@@ -134,7 +138,10 @@ void release(void *pointer)
     if (kept)
         return;
     if (entry)
+    {
+        unmaps.fetch_add(1, std::memory_order_relaxed);
         munmap(entry, entry->span);
+    }
     else
         __real_free(pointer);
 }
@@ -168,6 +175,13 @@ void *resize(void *pointer, size_t size, const ps5::memory::Record &owned)
 }
 
 } // namespace
+
+/* The allocator's mmap and munmap calls so far. */
+extern "C" void ps5_memory_syscalls(unsigned long long *mapped, unsigned long long *unmapped)
+{
+    *mapped = maps.load(std::memory_order_relaxed);
+    *unmapped = unmaps.load(std::memory_order_relaxed);
+}
 
 /* The probe's second clock: see src/probe.c. PR_Init and Mod_Init run between the
  * last mutex and the crash and create none, but they allocate constantly, so this
