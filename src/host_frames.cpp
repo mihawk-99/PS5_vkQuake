@@ -6,6 +6,7 @@
  * created, compiled and allocated nothing and no file was read (port evidence
  * m6-r43-newgame). platform/ps5/vkquake-edits.py marks seven points of
  * _Host_Frame; a frame over 40 ms gets one line with where its time went. */
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 
@@ -64,4 +65,63 @@ extern "C" void ps5_host_frame_split(const double *mark, int count)
     ps5_trace(line);
     std::memset(svc_seconds, 0, sizeof svc_seconds);
     std::memset(svc_count, 0, sizeof svc_count);
+}
+
+/* Startup: the process time at each phase Host_Init and R_CreatePipelines mark
+ * (platform/ps5/vkquake-edits.py), reported once, at the first present, with
+ * the stdio file work and the allocator's system calls up to then. */
+extern "C" std::uint64_t sceKernelGetProcessTime(void) __attribute__((weak));
+extern "C" void ps5_file_counts(unsigned long long *opens, unsigned long long *reads,
+                                unsigned long long *bytes, unsigned long long *ticks);
+extern "C" void ps5_memory_syscalls(unsigned long long *mapped, unsigned long long *unmapped);
+extern "C" std::uint64_t sceKernelGetTscFrequency(void) __attribute__((weak));
+
+namespace
+{
+struct StartupMark
+{
+    const char *phase;
+    std::uint64_t microseconds;
+};
+StartupMark startup_marks[16];
+unsigned startup_count;
+bool startup_reported;
+
+std::uint64_t process_microseconds()
+{
+    return sceKernelGetProcessTime != nullptr ? sceKernelGetProcessTime() : 0;
+}
+} // namespace
+
+extern "C" void ps5_startup_mark(const char *phase)
+{
+    if (startup_reported || startup_count >= sizeof startup_marks / sizeof startup_marks[0])
+        return;
+    startup_marks[startup_count++] = {phase, process_microseconds()};
+}
+
+extern "C" void ps5_startup_report(void)
+{
+    if (startup_reported)
+        return;
+    startup_reported = true;
+    char line[768];
+    int used = std::snprintf(line, sizeof line, "PS5 startup: first_present_s=%.3f",
+                             static_cast<double>(process_microseconds()) / 1e6);
+    for (unsigned i = 0; i < startup_count && used > 0 && static_cast<size_t>(used) < sizeof line;
+         ++i)
+        used += std::snprintf(line + used, sizeof line - static_cast<size_t>(used), " %s_s=%.3f",
+                              startup_marks[i].phase,
+                              static_cast<double>(startup_marks[i].microseconds) / 1e6);
+    unsigned long long opens = 0, reads = 0, bytes = 0, ticks = 0, mapped = 0, unmapped = 0;
+    ps5_file_counts(&opens, &reads, &bytes, &ticks);
+    ps5_memory_syscalls(&mapped, &unmapped);
+    const double hz =
+        sceKernelGetTscFrequency != nullptr ? static_cast<double>(sceKernelGetTscFrequency()) : 0.0;
+    if (used > 0 && static_cast<size_t>(used) < sizeof line)
+        std::snprintf(line + used, sizeof line - static_cast<size_t>(used),
+                      " fopen=%llu fread=%llu read_bytes=%llu file_s=%.3f mmap=%llu munmap=%llu",
+                      opens, reads, bytes, hz > 0 ? static_cast<double>(ticks) / hz : 0.0, mapped,
+                      unmapped);
+    ps5_trace(line);
 }

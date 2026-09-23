@@ -51,6 +51,9 @@ mapped, which is request R8.
 kernel exit() raising SIGSYS. The port's native helper requests shell termination and waits;
 Sys_Quit and Sys_Error retain their existing cleanup and reporting before that handoff.
 
+**6. Startup reports its phases.** Host_Init and R_CreatePipelines are marked; the first
+present writes one line (src/host_frames.cpp). Retire it with 5.
+
 **5. A slow host frame reports its phases.** Seven Sys_DoubleTime marks in _Host_Frame
 (the TSC now, ~12 ns each) and one call to src/host_frames.cpp, which writes a line only when
 the frame took over 40 ms. Retire it once the owner's stutters are attributed and fixed.
@@ -345,6 +348,78 @@ EDITS = (
         before="\t\tcmd = MSG_ReadByte ();\n\n\t\tif (cmd == -1)\n",
         after="\t\tcmd = MSG_ReadByte (); /* PS5 */\n\t\tps5_cmd = cmd & 255;\n\n\t\tif (cmd == -1)\n",
         why="remember which command is being parsed (a fast update is 128 and up)",
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='void Host_Init (void)\n{\n',
+        after='/* PS5: startup phases (src/host_frames.cpp). */\nextern void ps5_startup_mark (const char *phase);\nvoid Host_Init (void) /* PS5: phases marked */\n{\n\tps5_startup_mark ("host_init");\n',
+        why='mark where Host_Init starts',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\tCOM_InitFilesystem ();\n',
+        after='\tCOM_InitFilesystem (); /* PS5 */ ps5_startup_mark ("filesystem");\n',
+        why='mark the end of the filesystem phase',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\tSV_Init ();\n',
+        after='\tSV_Init (); /* PS5 */ ps5_startup_mark ("engine");\n',
+        why='mark the end of the engine phase',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\t\tVID_Init ();\n',
+        after='\t\tVID_Init (); /* PS5 */ ps5_startup_mark ("video");\n',
+        why='mark the end of the video phase',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\t\tR_Init ();\n',
+        after='\t\tR_Init (); /* PS5 */ ps5_startup_mark ("renderer");\n',
+        why='mark the end of the renderer phase',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\t\tS_Init ();\n',
+        after='\t\tS_Init (); /* PS5 */ ps5_startup_mark ("sound");\n',
+        why='mark the end of the sound phase',
+    ),
+    Edit(
+        path="Quake/host.c",
+        before='\thost_initialized = true;\n',
+        after='\thost_initialized = true; /* PS5 */ ps5_startup_mark ("initialized");\n',
+        why='mark the end of Host_Init',
+    ),
+    Edit(
+        path="Quake/gl_vidsdl.c",
+        before='\tR_CreatePipelines ();\n',
+        after='\textern void ps5_startup_mark (const char *phase);\n\tps5_startup_mark ("before_pipelines");\n\tR_CreatePipelines (); /* PS5 */\n\tps5_startup_mark ("pipelines");\n',
+        why='bracket pipeline creation',
+    ),
+    Edit(
+        path="Quake/gl_vidsdl.c",
+        before='\tif (!GL_CreateSwapChain ())\n',
+        after='\tps5_startup_mark ("render_resources"); /* PS5 */\n\tif (!GL_CreateSwapChain ()) /* PS5 */\n',
+        why='mark where render resources start',
+    ),
+    Edit(
+        path="Quake/gl_vidsdl.c",
+        before='\tGL_CreateColorBuffer ();\n',
+        after='\tps5_startup_mark ("swapchain");\n\tGL_CreateColorBuffer (); /* PS5 */\n',
+        why="mark the swapchain's end",
+    ),
+    Edit(
+        path="Quake/gl_vidsdl.c",
+        before='\tGL_CreateFrameBuffers ();\n',
+        after='\tGL_CreateFrameBuffers (); /* PS5 */\n\tps5_startup_mark ("targets");\n',
+        why='mark the colour/depth targets, passes and framebuffers',
+    ),
+    Edit(
+        path="Quake/gl_vidsdl.c",
+        before='static void GL_CreateRenderResources (void)\n{\n',
+        after='extern void ps5_startup_mark (const char *phase); /* PS5 */\nstatic void GL_CreateRenderResources (void) /* PS5: phases marked */\n{\n',
+        why='declare the mark for GL_CreateRenderResources',
     ),
 )
 
