@@ -1,0 +1,24 @@
+{
+  "pid": 248,
+  "trace_sha256": "adf46f19fe0b0af23d3c0c137231f9174829f686b5de1bab6cf2bc0232061174",
+  "final_reads_identical": true,
+  "exit_status": 1,
+  "phases": [
+    {
+      "phase": 1,
+      "r_tasks": 1,
+      "r_scale": 1,
+      "steady_intervals": 7,
+      "mean_fps": 14.86
+    },
+    {
+      "phase": 2,
+      "r_tasks": 0,
+      "r_scale": 1,
+      "steady_intervals": 7,
+      "mean_fps": 14.858571428571429
+    }
+  ],
+  "scaling_phases_completed": 0,
+  "configs_and_profile_restored_absent": true
+}

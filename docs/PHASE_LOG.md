@@ -2654,3 +2654,21 @@ verified and three configuration paths restored to their original absence.
 The menu remains readable against an unexpectedly black background; that
 composition issue remains open. These screenshots are not an FPS benchmark.
 Evidence m6-hud-depth-fixed; all 41 captures replay with zero failures.
+
+## 2026-09-23 — R26 scaling exposes sampler LOD-bias refusal
+
+PID 248, unchanged R25 binary, completes two 1,200-frame start-map phases.
+Discarding each phase's first mixed interval leaves seven steady intervals each:
+r_tasks 1 averages 14.860 FPS and r_tasks 0 averages 14.859 FPS. Threading remains
+at its upstream default. Before the third phase, r_scale 2 rebuilds samplers with
+LOD bias 1; vkCreateSampler returns -13 and the engine exits with status 1 through
+its error handler. No scaling performance result is claimed. Driver currently
+advertises maxSamplerLodBias 2 but rejects every nonzero bias.
+
+Both final trace reads and the one written PNG match; actual kernel PID is 248.
+The first screenshot request did not produce a file, so only the second phase
+has a visual artifact. Error exit writes no regular configuration files; the
+collector's assumption that they existed failed after preserving trace/PNG.
+Explicit cleanup then restored all three paths and profiling flag absent.
+Evidence m6-scale-sampler-refusal; all 42 captures replay. Next: measured sampler
+bias support, then repeat scaling and inspect the screen-effects path.

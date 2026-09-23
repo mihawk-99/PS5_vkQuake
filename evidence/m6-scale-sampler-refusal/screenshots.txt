@@ -1,0 +1,7 @@
+[
+  {
+    "name": "vkQuake-Introduction-start-20260117-040355-00.png",
+    "bytes": 10344037,
+    "sha256": "bb66e442be50f318f8f892aa8bf94027d28e1f61073d7802fed0e060b7bbccc6"
+  }
+]

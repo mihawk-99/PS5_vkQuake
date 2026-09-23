@@ -1,0 +1,10 @@
+{
+  "step": "m6-scale-sampler-refusal",
+  "note": "Incomplete scaling benchmark: first two phases complete, r_scale 2 causes unsupported sampler LOD bias 1 and controlled error exit. Configs/profiling flag restored absent.",
+  "must_contain": [
+    "QUAKE ERROR: vkCreateSampler failed with code -13",
+    "PS5 exit: status=1"
+  ],
+  "must_not_contain": [],
+  "human_check": ""
+}

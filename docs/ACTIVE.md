@@ -92,7 +92,10 @@ exit, 2,550,528 audio frames/zero errors; deployment/final reads/PID agree.
 Five gates/scan and 41 captures pass. Menu background remains black and open.
 Evidence: evidence/m6-hud-depth-fixed; identity 8eff69e9…; configs restored absent.
 Evidence: evidence/m6-png-{heap-exhaustion,heap-diagnosis,growth-diagnostic,growth-normal}.
-Next: live-map scale/threading comparison, menu composition, gameplay/save/load soak.
+R26 PID 248: both threading modes average 14.86 FPS on the live start map.
+Scaling to r_scale 2 exposes sampler bias 1 refusal and exits with status 1.
+Evidence: m6-scale-sampler-refusal; 42 captures pass; configs/profile restored.
+Next: sampler LOD bias probe/fix, scaling, menu composition, gameplay/save/load soak.
 M3–M6 remain unaccepted pending the respective evidence. CTS stays out of scope.
 
 ## Other open work
