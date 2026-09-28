@@ -272,7 +272,7 @@ fi
 # the driver's compiler, the SDK's C++ runtime - carry no symbol table at all, so
 # the addresses cannot be symbolized from the image alone. The map turns one of
 # them back into "aco_select_nir_alu.ps5.cpp.o + 0x1234", which is a diagnosis.
-"$sdk_root/bin/prospero-lld" -T "$native/ps5-pie.ld" --eh-frame-hdr --error-limit=0 \
+"$sdk_root/bin/prospero-lld" -T "${APP_LINKER_SCRIPT:-$native/ps5-pie.ld}" -L "$native" --eh-frame-hdr --error-limit=0 \
     --Map="$build/title.map" \
     ${APP_LINK_FLAGS:-} \
     --version-script "$native/app-symbols.map" \

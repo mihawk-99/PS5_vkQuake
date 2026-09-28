@@ -80,6 +80,16 @@ engine_archive="$root/build/vkquake/libvkquake_engine.ps5.a"
 # linked whole into the title. This project consumes its released artifacts and
 # never builds them (docs/PLAN.md, "What is deliberately not planned").
 vulkan_dir="${PS5_VULKAN_DIR:-$root/../PS5_Vulkan}"
+# PS5_VULKAN_DRIVER=radv links ../PS5_Vulkan's RADV port instead (its route B,
+# docs/VULKAN_1_4_PLAN.md there): the archive RADV_ARCHIVE names, linked by that
+# project's tools/radv-link.sh, which also binds the platform layer's heap, memory
+# streams and libc functions in place of this port's own (src/memory_ps5.cpp,
+# the fclose count in src/file_counts.cpp, src/locale_shims.c step aside).
+vulkan_driver=${PS5_VULKAN_DRIVER:-ps5vk}
+case $vulkan_driver in
+    ps5vk | radv) ;;
+    *) echo "PS5_VULKAN_DRIVER must be ps5vk or radv" >&2; exit 2 ;;
+esac
 vulkan_archives=(
     "$vulkan_dir/build/driver/ps5/libps5vk.ps5.a"
     "$vulkan_dir/.deps/native/vulkan-runtime/lib/libvk_runtime.ps5.a"
@@ -99,6 +109,18 @@ if (( ${#vulkan_missing[@]} )); then
 fi
 
 vulkan_flags="--no-dynamic-linker -z nodynamic-undefined-weak"
+linker_script=""
+if [[ $vulkan_driver == radv ]]; then
+    radv_archive=${RADV_ARCHIVE:-$vulkan_dir/.deps/native/radv/lib/libvulkan_radeon.ps5.a}
+    # shellcheck source=/dev/null
+    source "$vulkan_dir/tools/radv-link.sh"
+    radv_link_recipe "$vulkan_dir" "$sdk" "$radv_archive" || exit 2
+    vulkan_archives=("$radv_archive")
+    # The recipe's inputs after the archive itself: the C++ runtime, the
+    # compiler's builtins and the platform layer, which lld resolves in any order.
+    vulkan_flags+=" ${radv_link_flags[*]} ${radv_link_inputs[*]:5}"
+    linker_script="$vulkan_dir/tooling/psbc/ps5-pie-unwind.ld"
+fi
 
 # Three Mesa utility sources the archives above reference but do not carry:
 # ../PS5_Vulkan's PS5 object list filters u_thread.c, anon_file.c and os_file.c
@@ -109,12 +131,16 @@ vulkan_flags="--no-dynamic-linker -z nodynamic-undefined-weak"
 # object paths on stdout, so a compile failure has to be caught rather than
 # swallowed by a process substitution that would let the link fail later on
 # symbols this step exists to supply.
-if ! vulkan_object_list=$(PS5_VULKAN_DIR="$vulkan_dir" PS5_PAYLOAD_SDK="$sdk" \
+if [[ $vulkan_driver == radv ]]; then
+    # RADV's archive carries Mesa's utilities whole.
+    vulkan_objects=()
+elif ! vulkan_object_list=$(PS5_VULKAN_DIR="$vulkan_dir" PS5_PAYLOAD_SDK="$sdk" \
         PS5_CLANG="${PS5_CLANG:-/usr/bin/clang}" bash "$root/tools/build-mesa-util.sh"); then
     echo "error: the driver's Mesa utility objects did not build" >&2
     exit 2
+else
+    mapfile -t vulkan_objects <<< "$vulkan_object_list"
 fi
-mapfile -t vulkan_objects <<< "$vulkan_object_list"
 
 # Bind the trace and the deployable folder to these exact source and archive
 # inputs. The console transforms the SELF container, so its whole-file digest
@@ -149,8 +175,9 @@ echo "==> [title] step 2/3: the title"
 # the wrapping below so that a console run can say where memory went.
 port_definitions=""
 memory_wrap_flags=""
+[[ $vulkan_driver == radv ]] && port_definitions="PS5_VKQUAKE_RADV"
 if [[ $memory_diagnostics == 1 ]]; then
-    port_definitions="PS5_MEMORY_DIAGNOSTICS"
+    port_definitions="${port_definitions:+$port_definitions }PS5_MEMORY_DIAGNOSTICS"
     memory_wrap_flags="--wrap=posix_memalign"
 fi
 
@@ -163,6 +190,7 @@ APP_STATIC_ARCHIVES="build/vkquake/libvkquake_engine.ps5.a" \
 APP_VULKAN_ARCHIVES="${vulkan_archives[*]}" \
 APP_EXTRA_OBJECTS="${vulkan_objects[*]}" \
 APP_LINK_FLAGS="$vulkan_flags --wrap=malloc --wrap=calloc --wrap=realloc --wrap=free --wrap=fopen --wrap=fread --wrap=fseek --wrap=fclose $memory_wrap_flags" \
+APP_LINKER_SCRIPT="$linker_script" \
     make app
 
 title_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["titleId"])' \

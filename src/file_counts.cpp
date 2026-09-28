@@ -66,6 +66,10 @@ extern "C" int __wrap_fseek(std::FILE *file, long offset, int whence)
     return result;
 }
 
+/* With RADV, fclose belongs to the platform layer's memory streams
+ * (ps5platform/libc.h), whose wrapper publishes a stream's buffer; closes go
+ * uncounted then. */
+#if !defined(PS5_VKQUAKE_RADV)
 extern "C" int __wrap_fclose(std::FILE *file)
 {
     const std::uint64_t from = now();
@@ -73,6 +77,7 @@ extern "C" int __wrap_fclose(std::FILE *file)
     spent(from);
     return result;
 }
+#endif
 
 /* Totals so far: opens, reads, bytes read, and TSC ticks spent in the four. */
 extern "C" void ps5_file_counts(unsigned long long *open_count, unsigned long long *read_count,

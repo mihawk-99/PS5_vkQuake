@@ -3,6 +3,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include "ps5_directory.h"
+
+/* With RADV the platform layer's directory functions (ps5platform/libc.h) serve,
+ * bound by PS5_Vulkan's tools/radv-link.sh: this adapter steps aside. */
+#if !defined(PS5_VKQUAKE_RADV)
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
@@ -128,3 +132,4 @@ extern "C" int ps5_closedir(DIR *opaque)
     delete directory;
     return result;
 }
+#endif /* !PS5_VKQUAKE_RADV */

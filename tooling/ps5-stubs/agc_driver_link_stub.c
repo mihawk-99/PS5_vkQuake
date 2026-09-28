@@ -24,3 +24,30 @@ uint32_t sceAgcDriverWaitUntilSafeForRendering(uint32_t **command, uint32_t pack
     (void)command; (void)packet_size; (void)reserved; (void)handle; (void)buffer_index;
     return 0;
 }
+
+/* RADV (PS5_VULKAN_DRIVER=radv) sets the tessellation factor ring and the HS
+ * off-chip parameters through AGC; signatures from ../PS5_Vulkan's
+ * agc_driver_canary_link_stub.c and ps5platform/agc.h. Host-link only. */
+int32_t sceAgcDriverSetTFRing(uintptr_t address, uint32_t size)
+{
+    (void)address; (void)size;
+    return -1;
+}
+
+int32_t sceAgcDriverGetTFRing(uintptr_t *address, uint32_t *size)
+{
+    (void)address; (void)size;
+    return -1;
+}
+
+int32_t sceAgcDriverSetHsOffchipParam(uint32_t granularity, uint32_t buffering)
+{
+    (void)granularity; (void)buffering;
+    return -1;
+}
+
+int32_t sceAgcDriverGetHsOffchipParam(uint16_t *granularity, uint16_t *buffering)
+{
+    (void)granularity; (void)buffering;
+    return -1;
+}

@@ -24,6 +24,10 @@
  * was ever created. Removing that stub is what made these symbols appear.
  */
 
+/* With RADV the platform layer supplies these (ps5platform/libc.h), bound by
+ * PS5_Vulkan's tools/radv-link.sh: this file steps aside. */
+#if !defined(PS5_VKQUAKE_RADV)
+
 #include <langinfo.h>
 #include <limits.h>
 #include <locale.h>
@@ -413,3 +417,4 @@ int catclose(nl_catd catalog)
     (void)catalog;
     return 0;
 }
+#endif /* !PS5_VKQUAKE_RADV */

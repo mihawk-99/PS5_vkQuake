@@ -10,6 +10,17 @@
 #include <sys/mman.h>
 #include "memory_diagnostics.hpp"
 
+/* With RADV, every allocation already goes to the platform layer's heap in
+ * direct memory (ps5platform/heap.h, bound by PS5_Vulkan's tools/radv-link.sh),
+ * which is what this allocator was made for: it steps aside. */
+#if defined(PS5_VKQUAKE_RADV)
+extern "C" void ps5_memory_syscalls(unsigned long long *mapped, unsigned long long *unmapped)
+{
+    *mapped = 0;
+    *unmapped = 0;
+}
+#else
+
 extern "C"
 {
     void *__real_malloc(size_t);
@@ -267,3 +278,4 @@ extern "C" int __wrap_posix_memalign(void **out, size_t alignment, size_t size)
     return result;
 }
 #endif
+#endif /* !PS5_VKQUAKE_RADV */
