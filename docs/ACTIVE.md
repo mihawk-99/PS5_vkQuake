@@ -1,9 +1,14 @@
 ## Current objective
 
 vkQuake at 4K is working, smooth and running at up to 120 FPS on my 4K120 VRR TV.
-What remains: the driver reporting its refresh truthfully (it still says 60 Hz),
-a fixed 120 Hz mode for displays without VRR, the other maps measured at 120 Hz,
-and the gameplay/stability acceptance run. An intermittent texture glitch I have
+Since 2026-09-28 the title builds and ships on ../PS5_Vulkan's RADV port
+(`tools/build-title.sh` defaults to it; `PS5_VULKAN_DRIVER=ps5vk` builds the
+first driver): the demo loop at 119.88 fps in the display's 120 Hz mode, which
+RADV's VideoOut swapchain switches to itself (evidence/radv-r2-main). What
+remains on RADV: start-up (first present 3.23 s, 2.07 s of it the device and
+swapchain, and no shader cache yet), then the gameplay, all-map, save/load and
+soak acceptance that ps5vk went through. On ps5vk: the other maps measured at
+120 Hz and the gameplay/stability acceptance run. An intermittent texture glitch I have
 seen in play is set aside until I can capture it. The loop stays the same: measure
 work per frame, make one focused change, verify it on the console, commit it with
 evidence. Never close a running session for a benchmark (`procs` first; the

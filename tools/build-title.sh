@@ -80,22 +80,29 @@ engine_archive="$root/build/vkquake/libvkquake_engine.ps5.a"
 # linked whole into the title. This project consumes its released artifacts and
 # never builds them (docs/PLAN.md, "What is deliberately not planned").
 vulkan_dir="${PS5_VULKAN_DIR:-$root/../PS5_Vulkan}"
-# PS5_VULKAN_DRIVER=radv links ../PS5_Vulkan's RADV port instead (its route B,
-# docs/VULKAN_1_4_PLAN.md there): the archive RADV_ARCHIVE names, linked by that
-# project's tools/radv-link.sh, which also binds the platform layer's heap, memory
-# streams and libc functions in place of this port's own (src/memory_ps5.cpp,
-# the fclose count in src/file_counts.cpp, src/locale_shims.c step aside).
-vulkan_driver=${PS5_VULKAN_DRIVER:-ps5vk}
+# The driver is ../PS5_Vulkan's RADV port (its route B, docs/VULKAN_1_4_PLAN.md
+# there): the release archive its tools/build-radv.sh release builds, or the one
+# RADV_ARCHIVE names, linked by that project's tools/radv-link.sh, which also
+# binds the platform layer's heap, memory streams and libc functions in place of
+# this port's own (src/memory_ps5.cpp, the fclose count in src/file_counts.cpp,
+# src/locale_shims.c and src/ps5_directory.cpp step aside).
+# PS5_VULKAN_DRIVER=ps5vk links that project's first driver instead.
+vulkan_driver=${PS5_VULKAN_DRIVER:-radv}
 case $vulkan_driver in
-    ps5vk | radv) ;;
-    *) echo "PS5_VULKAN_DRIVER must be ps5vk or radv" >&2; exit 2 ;;
+    ps5vk)
+        vulkan_archives=(
+            "$vulkan_dir/build/driver/ps5/libps5vk.ps5.a"
+            "$vulkan_dir/.deps/native/vulkan-runtime/lib/libvk_runtime.ps5.a"
+            "$vulkan_dir/build/driver/ps5/libpsbc_driver.ps5.a"
+            "$vulkan_dir/.deps/native/psbc/lib/libpsbc_support.ps5.a"
+        )
+        ;;
+    radv)
+        radv_archive=${RADV_ARCHIVE:-$vulkan_dir/.deps/native/radv-release/lib/libvulkan_radeon.ps5.a}
+        vulkan_archives=("$radv_archive")
+        ;;
+    *) echo "PS5_VULKAN_DRIVER must be radv or ps5vk" >&2; exit 2 ;;
 esac
-vulkan_archives=(
-    "$vulkan_dir/build/driver/ps5/libps5vk.ps5.a"
-    "$vulkan_dir/.deps/native/vulkan-runtime/lib/libvk_runtime.ps5.a"
-    "$vulkan_dir/build/driver/ps5/libpsbc_driver.ps5.a"
-    "$vulkan_dir/.deps/native/psbc/lib/libpsbc_support.ps5.a"
-)
 vulkan_missing=()
 for archive in "${vulkan_archives[@]}"; do
     [[ -f $archive ]] || vulkan_missing+=("$archive")
@@ -103,7 +110,8 @@ done
 if (( ${#vulkan_missing[@]} )); then
     printf 'error: the Vulkan driver archives are missing; the title would link with\n' >&2
     printf '       vkGetInstanceProcAddr unresolved. Build them in ../PS5_Vulkan\n' >&2
-    printf '       (tools/build-driver.sh) or set PS5_VULKAN_DIR.\n' >&2
+    printf '       (tools/build-radv.sh release, or tools/build-driver.sh for ps5vk)\n' >&2
+    printf '       or set PS5_VULKAN_DIR.\n' >&2
     printf '       missing: %s\n' "${vulkan_missing[@]}" >&2
     exit 2
 fi
@@ -111,7 +119,6 @@ fi
 vulkan_flags="--no-dynamic-linker -z nodynamic-undefined-weak"
 linker_script=""
 if [[ $vulkan_driver == radv ]]; then
-    radv_archive=${RADV_ARCHIVE:-$vulkan_dir/.deps/native/radv/lib/libvulkan_radeon.ps5.a}
     # shellcheck source=/dev/null
     source "$vulkan_dir/tools/radv-link.sh"
     radv_link_recipe "$vulkan_dir" "$sdk" "$radv_archive" || exit 2

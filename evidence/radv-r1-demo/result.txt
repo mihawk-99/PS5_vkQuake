@@ -2,9 +2,11 @@
 
 The title built with `PS5_VULKAN_DRIVER=radv` and RADV_ARCHIVE set to the PS5
 Mesa fork's release archive at 7e30f3e (ps5-port with the VideoOut swapchain),
-deployed over PPSA99010 on 2026-09-27 and run for 120 s from launch; the ps5vk
-eboot.bin was restored byte for byte afterwards. `trace.txt` is the title's
-trace from its build identity on.
+deployed over PPSA99010 on 2026-09-27 and run for 120 s from launch.
+capture.json holds the title's trace from its build identity on. The ps5vk
+eboot.bin put back afterwards was a copy read off the console over FTP, which
+returns signed executables decrypted: the title then failed to launch until a
+build was deployed again (radv-r2-main).
 
 - The device: "PlayStation 5 GPU (RADV NAVI21)", radv Mesa 26.2.0
   (git-7e30f3e7e9), VK_KHR_display on VideoOut, FIFO, ray queries on.

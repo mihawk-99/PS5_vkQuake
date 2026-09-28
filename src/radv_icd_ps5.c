@@ -7,10 +7,11 @@
 #if defined(PS5_VKQUAKE_RADV)
 #include <vulkan/vulkan.h>
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance instance, const char *name);
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstanceProcAddr(VkInstance instance,
+                                                                   const char *name);
 
-VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL
-vkGetInstanceProcAddr(VkInstance instance, const char *name)
+VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vkGetInstanceProcAddr(VkInstance instance,
+                                                               const char *name)
 {
     return vk_icdGetInstanceProcAddr(instance, name);
 }

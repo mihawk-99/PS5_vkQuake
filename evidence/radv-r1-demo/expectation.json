@@ -1,0 +1,15 @@
+{
+  "step": "radv-r1-demo",
+  "note": "vkQuake's demo loop on RADV: 119.88 fps in every steady window, one vblank a frame in the 120 Hz output mode; first present 3.28 s after start, the pipelines 0.69 s; the level loads hitch as with ps5vk.",
+  "must_contain": [
+    "build identity: ee3cdf45",
+    "Device: PlayStation 5 GPU (RADV NAVI21)",
+    "PS5 startup: first_present_s=3.280",
+    "fps=119.88 work_ms=8.316 work_min_ms=7.914"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR",
+    "assertion failed"
+  ],
+  "human_check": ""
+}

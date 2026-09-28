@@ -1,0 +1,16 @@
+{
+  "step": "radv-r2-main",
+  "note": "The installed title on RADV built from main with no overrides: the demo loop at 119.88-119.89 fps, one vblank a frame (1199 in 10 s); first present 3.23 s after start, video 2.07 s of it, pipelines 0.62 s, with no shader cache.",
+  "must_contain": [
+    "build identity: b6a8200b",
+    "Device: PlayStation 5 GPU (RADV NAVI21)",
+    "PS5 startup: first_present_s=3.228",
+    "fps=119.88 work_ms=8.337 work_min_ms=8.249",
+    "vblanks=1199/0/0/0"
+  ],
+  "must_not_contain": [
+    "QUAKE ERROR",
+    "assertion failed"
+  ],
+  "human_check": ""
+}

@@ -1,0 +1,23 @@
+# radv-r2-main: the installed title on RADV, built from main
+
+`main` builds the title on RADV by default since this run: `bash
+tools/build-title.sh` with no overrides linked ../PS5_Vulkan's release archive
+(`tools/build-radv.sh release`: the PS5 Mesa fork at 7e30f3e, assertions off),
+and `tools/deploy-title.py` installed it as PPSA99010 on 2026-09-28, where it
+stays. The run lasted 40 s from launch; capture.json holds the title's trace
+from its build identity on.
+
+- The device: "PlayStation 5 GPU (RADV NAVI21)", radv Mesa 26.2.0, the
+  VideoOut swapchain in FIFO.
+- First present 3.23 s after start: video 2.07 s (RADV's device and the
+  swapchain, the 120 Hz mode switch included), pipelines 0.62 s, compiled at
+  every launch since this build has no shader cache. ps5vk's first frame came
+  0.55 to 0.77 s after start with its shipped cache (m6-r45-startup).
+- The demo loop: 119.88 and 119.89 fps in the steady windows, one vblank a
+  frame (1,199 in 10 s), every frame 8.25 to 8.44 ms. The first window holds
+  the start-up and the level load (an 831 ms frame).
+
+The same day, before this build, the installed title had stopped launching:
+an eboot.bin copied off the console over FTP, which returns signed executables
+decrypted, had been written back as a plain ELF and failed the system's
+authentication (error 46, launch error 0x80020008). Deploying a build fixed it.

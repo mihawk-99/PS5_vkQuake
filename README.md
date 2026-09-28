@@ -1,14 +1,19 @@
 # vkQuake for PlayStation 5
 
 A native PS5 homebrew port of [vkQuake](https://github.com/Novum/vkQuake),
-using the companion [PS5 Vulkan driver](https://github.com/mihawk-99/PS5_Vulkan).
-It runs Quake's Vulkan renderer through AGC and VideoOut, with native DualSense
-input, AudioOut sound and a persistent compiled-shader cache.
+using the companion [PS5 Vulkan driver](https://github.com/mihawk-99/PS5_Vulkan):
+since 2026-09-28 its port of Mesa's RADV, which submits through AGC and
+presents through VideoOut, linked into the title. It comes with native DualSense
+input and AudioOut sound. The project's first driver, ps5vk, remains a build
+option (`PS5_VULKAN_DRIVER=ps5vk`) with its persistent compiled-shader cache.
 
-**The game works and runs at up to 120 FPS at 4K.** Walking the start map, the
+**The game works and runs at up to 120 FPS at 4K.** On RADV the demo loop runs
+at 119.88 FPS, one vblank a frame, in the display's 120 Hz mode
+([evidence](evidence/radv-r2-main/)). On ps5vk, walking the start map, the
 measured frame period is a steady 8.34 ms (119.88 FPS) on a 4K120 VRR display with
 kstuff paused at launch (see [Performance](#performance)). Systematic all-map,
-save/load and long-duration acceptance is still in progress.
+save/load and long-duration acceptance is still in progress, and on RADV it
+starts from the demo loop.
 
 [Installation](#installation-and-updates) · [Controls](#controls) ·
 [Building](#building-from-source) · [Performance](#performance) ·
@@ -18,13 +23,14 @@ save/load and long-duration acceptance is still in progress.
 
 | Area | Implemented and verified | Remaining acceptance |
 | --- | --- | --- |
+| Driver | RADV (Mesa 26.2.0 on a PS5 winsys, the PS5 Mesa fork at 7e30f3e): the installed build since 2026-09-28, the demo loop at 119.88 FPS; ps5vk selectable at build time | On RADV: gameplay, all maps, save/load and soak, which ps5vk passed as listed below |
 | Rendering | Textured worlds, water/lava/teleporter warps, particles, models, menu fades and transparent HUD; 4K screenshots read back correctly; the three shareware demos (E1M3, E1M4, E1M6) render | All eight shareware maps in play; an intermittent texture glitch I have seen but not yet reproduced |
-| Display | 3840×2160; presents at the display's own pace, which on a VRR TV means anywhere from 48 to 120 Hz | The driver still reports 60 Hz to the engine; a fixed 120 Hz mode without VRR |
+| Display | 3840×2160. RADV presents through VK_KHR_display on VideoOut and switches the output to 119.88 Hz where the display takes it (one vblank a frame, measured), 60 Hz otherwise; ps5vk presents at the display's own pace, which on a VRR TV means anywhere from 48 to 120 Hz | — |
 | Performance | 119.88 FPS walking the start map (kstuff paused); 52–55 FPS with kstuff active | E1M1 and the other maps measured at 120 Hz |
 | Input | Native DualSense adapter; host checks for buttons, releases, triggers, menu repeat and analog movement | Detailed controller feel |
 | Audio | 48 kHz stereo S16; repeated five-minute runs with nonzero samples and zero native-output errors | Listening checks across gameplay |
-| Startup | First frame 0.55–0.77 s after the process starts; every shader comes from the cache, including the driver's internal ones | — |
-| Shader cache | One directory per driver build; the title ships the compiled set, so a fresh install compiles nothing | — |
+| Startup | RADV: first present 3.23 s after the process starts, of which 2.07 s is the device and the swapchain (the 120 Hz switch included) and 0.62 s the pipelines. ps5vk: first frame 0.55–0.77 s, every shader from its cache | RADV: a shader cache, and the device and swapchain start-up measured and shortened |
+| Shader cache | ps5vk: one directory per driver build; the title ships the compiled set, so a fresh install compiles nothing | RADV compiles its pipelines at every launch |
 | Diagnostics | Any frame over 40 ms writes one trace line saying where its time went | — |
 | Screenshots and exit | 4K PNG capture and normal return to the shell | Longer gameplay/save/load soak |
 
@@ -87,7 +93,7 @@ Supply your game data separately by FTP. The console folder should contain:
 /data/homebrew/PPSA99010/
 ├── eboot.bin
 ├── sce_sys/                 # title metadata and icon
-├── ps5vk-shader-cache/       # shipped compiled shaders, one directory per driver build
+├── ps5vk-shader-cache/       # ps5vk builds only: shipped compiled shaders, one directory per driver build
 ├── ...                      # other files from the complete built title
 └── id1/
     └── pak0.pak             # supplied by you
@@ -135,6 +141,9 @@ Preserve `vkQuake.cfg`, `id1/vkQuake.cfg`, saves under `id1/`, and
 `ps5vk-shader-cache/` when updating. Screenshots are written into the game
 directory.
 
+The rest of this section is about ps5vk builds. The RADV build keeps no shader
+cache yet and compiles its pipelines at every launch (0.62 s).
+
 Compiled shader packages live at `/app0/ps5vk-shader-cache/<driver build>/`, one
 directory per driver build (keys include the build, so entries from another build
 would never be used). Entries survive restarts and crashes; changed or invalid
@@ -169,8 +178,20 @@ PS5_Homebrews/
 └── PS5_vkQuake/
 ```
 
-First follow the driver's [build instructions](https://github.com/mihawk-99/PS5_Vulkan#3-build)
-to prepare its SDK/compiler dependencies. Its explicit archive build sequence is:
+The driver is RADV from the PS5 Mesa fork, which sits beside the driver tree
+as `../PS5_Mesa`. The driver repository pins the fork's revision and builds the
+release archive the title links (meson and ninja are needed; see the driver's
+[build instructions](https://github.com/mihawk-99/PS5_Vulkan#3-build)):
+
+```bash
+cd ../PS5_Vulkan
+bash tools/setup-native-dependencies.sh
+bash tools/build-radv.sh release   # .deps/native/radv-release/lib/libvulkan_radeon.ps5.a
+```
+
+`RADV_ARCHIVE` names another archive instead, for example the fork's own build
+while a driver change is being worked on. For a ps5vk build, build that driver's
+archives instead and pass `PS5_VULKAN_DRIVER=ps5vk` to the title build:
 
 ```bash
 cd ../PS5_Vulkan
@@ -195,10 +216,12 @@ The title script generates the shaders and embedded configuration pak, compiles
 the engine and platform layer, links the Vulkan archives and signs/assembles
 `dist/PPSA99010/`. It does not include `pak0.pak`.
 
-The linked driver artifacts are `libps5vk.ps5.a`, `libvk_runtime.ps5.a`,
-`libpsbc_driver.ps5.a` and `libpsbc_support.ps5.a`. A missing or stale driver
-archive must be addressed in the driver repository before relinking the game.
-The driver is statically linked: this is not a runtime Vulkan `.so` installation.
+The linked driver artifact is `libvulkan_radeon.ps5.a`, linked by the driver
+repository's `tools/radv-link.sh` (with ps5vk: `libps5vk.ps5.a`,
+`libvk_runtime.ps5.a`, `libpsbc_driver.ps5.a` and `libpsbc_support.ps5.a`). A
+missing or stale driver archive must be addressed in the driver repository before
+relinking the game. The driver is statically linked: this is not a runtime Vulkan
+`.so` installation.
 
 Do not hand-edit the ignored `vendor/vkQuake` tree. Reproducible upstream changes
 belong in [platform/ps5/vkquake-edits.py](platform/ps5/vkquake-edits.py), while
@@ -206,7 +229,13 @@ native platform code belongs in `platform/ps5/` and `src/`.
 
 ## Performance
 
-Measured on the console at 3840×2160, walking the start map (steady windows):
+On RADV, measured on the console at 3840×2160, the demo loop (steady windows):
+
+| Setup | FPS | Frame period | Evidence |
+| --- | ---: | ---: | --- |
+| RADV, 120 Hz output mode | **119.88** | 8.25–8.44 ms, one vblank a frame | [radv-r2-main](evidence/radv-r2-main/), [radv-r1-demo](evidence/radv-r1-demo/) |
+
+On ps5vk, walking the start map (steady windows):
 
 | Setup | FPS | Work per frame | Evidence |
 | --- | ---: | ---: | --- |
@@ -230,9 +259,8 @@ Two console-side factors decide most of this:
   frame with more work than that swings between ~50 and ~34 FPS. Without VRR the
   output is a fixed 60 Hz grid.
 
-Remaining performance work: the driver still reports 60 Hz to the engine and has
-no fixed 120 Hz mode for displays without VRR, and the other maps have not been
-measured at 120 Hz. The measurements, rounds and what was ruled out are in
+Remaining performance work: RADV's start-up (above), the start map and the other
+maps measured on RADV, and on ps5vk the other maps at 120 Hz. The measurements, rounds and what was ruled out are in
 [docs/ACTIVE.md](docs/ACTIVE.md) and the driver's `jobs/`.
 
 ## Testing and reporting problems
